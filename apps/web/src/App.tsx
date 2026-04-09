@@ -10,6 +10,8 @@ import {
 } from "@smart-crowd-navigator/shared";
 
 import { requestAssistantResponse } from "./api";
+import { ConversationPanel } from "./components/ConversationPanel";
+import { RecommendationPanel } from "./components/RecommendationPanel";
 import type { AssistantApiResponse, ChatMessage } from "./types";
 
 const intentLabels: Record<CoreIntent, string> = {
@@ -158,86 +160,12 @@ export function App() {
           </div>
         </section>
 
-        <section className="conversation" aria-label="Assistant conversation">
-          <div className="status-row">
-            <span className="section-title">Live assistant</span>
-            <span className="status-pill">
-              {isLoading ? "Thinking…" : "Ready"}
-            </span>
-          </div>
-
-          <div className="message-list" aria-live="polite">
-            {messages.length === 0 ? (
-              <p className="empty-state">
-                Tap a quick action to get a live recommendation.
-              </p>
-            ) : (
-              messages.map((message, index) => (
-                <article
-                  key={`${message.role}-${index}`}
-                  className={`message-bubble ${message.role}`}
-                >
-                  <p className="message-role">{message.role}</p>
-                  <p>{message.text}</p>
-                </article>
-              ))
-            )}
-          </div>
-
-          {errorMessage ? <p className="error-banner">{errorMessage}</p> : null}
-        </section>
-
-        {response ? (
-          <section
-            className="recommendation-card"
-            aria-label="Recommendation details"
-          >
-            <div className="status-row">
-              <span className="section-title">Current recommendation</span>
-              <span className="status-pill">
-                {response.recommendation.timingDecision === "wait"
-                  ? "Wait"
-                  : "Go now"}
-              </span>
-            </div>
-
-            <h2>{response.recommendation.primaryOption.label}</h2>
-            <p>{response.recommendation.waitOrGoReason}</p>
-
-            <dl className="stat-grid">
-              <div>
-                <dt>ETA</dt>
-                <dd>{response.recommendation.etaMinutes} min</dd>
-              </div>
-              <div>
-                <dt>Queue</dt>
-                <dd>{response.recommendation.waitMinutes} min</dd>
-              </div>
-              <div>
-                <dt>Time saved</dt>
-                <dd>{response.recommendation.timeSavedMinutes} min</dd>
-              </div>
-              <div>
-                <dt>Confidence</dt>
-                <dd>{response.recommendation.confidence}</dd>
-              </div>
-            </dl>
-
-            <p className="route-summary">
-              {response.recommendation.routeSummary}
-            </p>
-            {response.recommendation.crowdWarning ? (
-              <p className="warning-banner">
-                {response.recommendation.crowdWarning}
-              </p>
-            ) : null}
-            {response.recommendation.fallbackOption ? (
-              <p className="fallback-note">
-                Fallback: {response.recommendation.fallbackOption.label}
-              </p>
-            ) : null}
-          </section>
-        ) : null}
+        <ConversationPanel
+          errorMessage={errorMessage}
+          isLoading={isLoading}
+          messages={messages}
+        />
+        <RecommendationPanel response={response} />
       </section>
     </main>
   );
