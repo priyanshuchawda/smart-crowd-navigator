@@ -8,6 +8,7 @@
     "typecheck": "pnpm -r --filter './apps/**' --filter './packages/**' --filter './services/**' typecheck",
     "test": "pnpm -r --filter './apps/**' --filter './packages/**' --filter './services/**' test",
     "lint": "pnpm -r --filter './apps/**' --filter './packages/**' --filter './services/**' lint",
+    "verify": "./scripts/verify-local.sh",
     "dev:web": "pnpm --filter @smart-crowd-navigator/web dev",
     "dev:api": "pnpm --filter @smart-crowd-navigator/assistant-api dev"
   },

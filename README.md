@@ -291,6 +291,12 @@ Before merging any issue branch, the expected gate is:
 - build
 - manual/live verification when needed
 
+Recommended one-command local gate:
+
+```bash
+pnpm verify
+```
+
 Automatic GitHub Actions runs are disabled to avoid unnecessary hosted CI usage during development.
 
 ## References
