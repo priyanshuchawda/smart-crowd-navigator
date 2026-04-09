@@ -4,15 +4,12 @@ import {
   createServer,
 } from "node:http";
 
-import {
-  APP_NAME,
-  assistantRecommendationSchema,
-  recommendationRequestSchema,
-} from "@smart-crowd-navigator/shared";
-import { createVenueEngine } from "@smart-crowd-navigator/venue-engine";
+import { APP_NAME } from "@smart-crowd-navigator/shared";
+
+import { createGeminiAssistantService } from "./gemini.js";
+import { buildRecommendationPayload, engine } from "./recommendation.js";
 
 const port = Number(process.env.PORT ?? 8080);
-const engine = createVenueEngine();
 
 function respondJson(
   response: ServerResponse,
@@ -36,68 +33,6 @@ async function readJsonBody(request: IncomingMessage) {
 
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
-
-function describeRoute(nodeIds: string[]) {
-  return nodeIds
-    .map(
-      (nodeId) =>
-        engine.fixture.nodes.find((node) => node.id === nodeId)?.label ??
-        nodeId,
-    )
-    .join(" → ");
-}
-
-function buildRecommendationPayload(requestBody: unknown) {
-  const input = recommendationRequestSchema.parse(requestBody);
-  const engineInput = {
-    sectionId: input.section,
-    intent: input.intent,
-    eventPhase: input.eventPhase,
-    mobilityMode: input.mobilityMode,
-  };
-  const currentBest = engine.rankDestinations(engineInput)[0];
-  const fallback = engine.getFallbackDestination(engineInput);
-  const timingAdvice = engine.getTimingAdvice(engineInput);
-  const selectedDestination =
-    timingAdvice.decision === "wait"
-      ? timingAdvice.projectedBest
-      : timingAdvice.currentBest;
-
-  if (!currentBest) {
-    throw new Error("No recommendation candidates available");
-  }
-
-  const payload = assistantRecommendationSchema.parse({
-    intent: input.intent,
-    timingDecision: timingAdvice.decision,
-    waitOrGoReason: timingAdvice.reason,
-    primaryOption: {
-      id: selectedDestination.destinationId,
-      label: selectedDestination.label,
-      kind: selectedDestination.kind,
-    },
-    primaryReason: `Best total score: ${selectedDestination.score.totalScore} minutes.`,
-    etaMinutes: Math.round(selectedDestination.score.walkingMinutes),
-    waitMinutes: selectedDestination.score.queueMinutes,
-    timeSavedMinutes: timingAdvice.timeSavedMinutes,
-    routeSummary: describeRoute(selectedDestination.route),
-    crowdWarning:
-      selectedDestination.score.crowdPenalty > 0
-        ? "Crowd pressure is elevated on part of this route."
-        : null,
-    fallbackOption: fallback
-      ? {
-          id: fallback.destinationId,
-          label: fallback.label,
-          kind: fallback.kind,
-        }
-      : null,
-    confidence: selectedDestination.score.totalScore <= 10 ? "high" : "medium",
-  });
-
-  return payload;
-}
-
 async function requestHandler(
   request: IncomingMessage,
   response: ServerResponse,
@@ -133,6 +68,26 @@ async function requestHandler(
     }
   }
 
+  if (method === "POST" && url.pathname === "/assistant-response") {
+    try {
+      const requestBody = await readJsonBody(request);
+      const service = createGeminiAssistantService();
+      const payload = await service.generateAssistantResponse(requestBody);
+
+      respondJson(response, 200, payload);
+      return;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Gemini assistant unavailable";
+
+      respondJson(response, 503, {
+        error: "assistant_unavailable",
+        message,
+      });
+      return;
+    }
+  }
+
   respondJson(response, 404, {
     error: "not_found",
   });
@@ -152,4 +107,4 @@ if (process.env.NODE_ENV !== "test") {
   });
 }
 
-export { buildRecommendationPayload, createAppServer, requestHandler, server };
+export { createAppServer, requestHandler, server };
