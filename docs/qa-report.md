@@ -1,13 +1,16 @@
 # QA Evidence Report
 
-_Last updated: 2026-04-09_
+_Last updated: 2026-04-09 (post Firebase web integration)_
 
 ## Current Status
 
-Smart Crowd Navigator is complete for all non-Firebase work.
+Smart Crowd Navigator is complete for the currently planned implementation.
 
-Remaining blocker:
-- GitHub issue #12 — Firebase integration is intentionally blocked pending project details from the user.
+Remaining deferred scope:
+- Firebase Auth
+- App Check
+- Firebase Hosting deployment
+- Google Maps perimeter integration
 
 ## Implemented Areas
 
@@ -20,6 +23,8 @@ Remaining blocker:
 - attendee chat shell
 - operator console
 - live recommendation refresh
+- Firebase web config module
+- Firestore-backed operator state sync with local API fallback
 - local verification workflow
 - deterministic Playwright E2E coverage
 - local env bootstrap and demo runner
@@ -29,33 +34,25 @@ Remaining blocker:
 ### Repository state
 - branch: `main`
 - working tree: clean
-- only open issue: `#12 Track deferred Firebase integration requirements`
+- no open implementation blockers remain in the repo issue list after the current QA refresh lands
 
 ### Command evidence
 - `pnpm verify` → pass
 - `pnpm test:e2e` → pass
 - `pnpm setup:local` → pass
 - `pnpm dev` → confirmed API and web startup
+- Firebase-enabled local `.env` verified with the provided `winning-every` project values
 
 ### Live checks previously confirmed
 - `GET /health` returns API status and engine version
 - `POST /assistant-response` returns Gemini-backed assistant output when `.env` contains a valid Gemini key
 - operator update changes recommendation output in the same attendee flow
+- Firestore-backed operator state path is wired in the web app with local API fallback when Firebase sync is unavailable
 
 ## Known Deferred Scope
 
-Still deferred until Firebase details arrive:
+Still deferred:
 - Firebase Auth
-- Firestore persistence
 - App Check
 - Firebase Hosting deployment wiring
 - Google Maps perimeter integration
-
-## Required Input To Continue
-
-1. Firebase project ID
-2. auth mode: anonymous / email / Google / no-auth-yet
-3. Firestore Native mode yes/no
-4. emulator or direct cloud wiring
-5. Hosting target details if any
-6. Firebase config values if available
