@@ -1,12 +1,13 @@
-import "dotenv/config";
-
 import {
   type IncomingMessage,
   type ServerResponse,
   createServer,
 } from "node:http";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { APP_NAME } from "@smart-crowd-navigator/shared";
+import { config as loadEnv } from "dotenv";
 import { z } from "zod";
 
 import { createGeminiAssistantService } from "./gemini.js";
@@ -18,6 +19,9 @@ import {
   resetOperatorState,
   updateOperatorState,
 } from "./recommendation.js";
+
+const currentDir = dirname(fileURLToPath(import.meta.url));
+loadEnv({ path: resolve(currentDir, "../../../.env") });
 
 const port = Number(process.env.PORT ?? 8080);
 const operatorStateSchema = z.strictObject({
@@ -163,9 +167,9 @@ async function requestHandler(
   }
 
   if (method === "POST" && url.pathname === "/assistant-response") {
-    try {
-      const requestBody = await readJsonBody(request);
+    const requestBody = await readJsonBody(request);
 
+    try {
       if (process.env.DISABLE_GEMINI_ASSISTANT === "true") {
         respondJson(
           response,
@@ -181,13 +185,9 @@ async function requestHandler(
       respondJson(response, 200, payload);
       return;
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Gemini assistant unavailable";
+      const payload = buildDeterministicAssistantResponse(requestBody);
 
-      respondJson(response, 503, {
-        error: "assistant_unavailable",
-        message,
-      });
+      respondJson(response, 200, payload);
       return;
     }
   }
