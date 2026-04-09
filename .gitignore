@@ -1,0 +1,36 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# builds
+build/
+dist/
+coverage/
+playwright-report/
+
+# env / secrets
+.env
+.env.*
+!.env.example
+key.md
+*.pem
+*.key
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# local firebase / gcloud artifacts
+.firebase/
+.gcloud/
+
+# misc
+.tmp/
+tmp/

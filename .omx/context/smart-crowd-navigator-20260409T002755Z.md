@@ -1,0 +1,26 @@
+# Context Snapshot
+
+- Task statement: Build Smart Crowd Navigator for the Physical Event Experience challenge, using a disciplined issue -> branch -> implement -> test -> PR -> merge workflow.
+- Desired outcome: A competition-ready web app with strong documentation, phased execution, private GitHub repository management, and sequential feature delivery with verified merges.
+- Known facts/evidence:
+  - `problem.md` defines a stadium attendee experience challenge focused on crowd movement, waiting times, and real-time coordination.
+  - `plan.md` defines the preferred solution: a single Gemini-powered chatbot with deterministic routing/timing logic.
+  - User confirmed the stack: React + TypeScript + Vite + Tailwind + Firebase Hosting + Node/TypeScript on Cloud Run + Firestore/Auth/App Check later + `@google/genai` + `gemini-3.1-flash-lite-preview`.
+  - User requested Firebase setup be deferred until later details are provided.
+  - `key.md` exists for Gemini API key access if needed later.
+  - `gh auth status` succeeded for account `priyanshuchawda`.
+  - Current directory is not yet a git repository.
+- Constraints:
+  - Must follow Ralph planning gate before implementation.
+  - Must work issue-by-issue with testing before PR/merge.
+  - Firebase integration should not be done yet.
+  - Use private GitHub repo.
+- Unknowns/open questions:
+  - Final repository name on GitHub.
+  - Exact first implementation issue after planning and repo setup.
+  - Final Firebase project details (deferred).
+- Likely codebase touchpoints:
+  - root docs and setup files
+  - future monorepo folders: `apps/web`, `services/assistant-api`, `packages/venue-engine`, `packages/shared`
+  - `.github/` workflows and templates
+  - `.omx/plans/` planning artifacts
