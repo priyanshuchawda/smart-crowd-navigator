@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 import {
   type IncomingMessage,
   type ServerResponse,
@@ -16,7 +18,12 @@ function respondJson(
   statusCode: number,
   payload: unknown,
 ) {
-  response.writeHead(statusCode, { "content-type": "application/json" });
+  response.writeHead(statusCode, {
+    "content-type": "application/json",
+    "access-control-allow-origin": "*",
+    "access-control-allow-methods": "GET,POST,OPTIONS",
+    "access-control-allow-headers": "content-type",
+  });
   response.end(JSON.stringify(payload));
 }
 
@@ -33,12 +40,18 @@ async function readJsonBody(request: IncomingMessage) {
 
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
+
 async function requestHandler(
   request: IncomingMessage,
   response: ServerResponse,
 ) {
   const method = request.method ?? "GET";
   const url = new URL(request.url ?? "/", "http://localhost");
+
+  if (method === "OPTIONS") {
+    respondJson(response, 204, {});
+    return;
+  }
 
   if (method === "GET" && url.pathname === "/health") {
     respondJson(response, 200, {

@@ -6,7 +6,8 @@
   "dependencies": {
     "@google/genai": "1.49.0",
     "@smart-crowd-navigator/shared": "workspace:*",
-    "@smart-crowd-navigator/venue-engine": "workspace:*"
+    "@smart-crowd-navigator/venue-engine": "workspace:*",
+    "dotenv": "16.6.1"
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",
