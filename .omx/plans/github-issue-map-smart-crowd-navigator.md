@@ -40,4 +40,13 @@ No implementation issue is merged until:
 - linked tests pass
 - manual verification is recorded
 - PR links the issue
-- merge happens only after green checks
+- merge happens only after local verification is green
+
+## Verification Policy Override
+- Automatic GitHub Actions runs are disabled for this project by user request.
+- Validation is local-first:
+  - lint
+  - typecheck
+  - tests
+  - build
+  - targeted live/manual checks when relevant

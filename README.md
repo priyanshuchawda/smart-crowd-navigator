@@ -280,6 +280,19 @@ This repository currently contains the planning phase for the solution:
 
 Implementation should follow the plan in `plan.md`.
 
+## Development Workflow
+
+This project currently uses **local verification first** instead of automatic GitHub Actions checks.
+
+Before merging any issue branch, the expected gate is:
+- lint
+- typecheck
+- tests
+- build
+- manual/live verification when needed
+
+Automatic GitHub Actions runs are disabled to avoid unnecessary hosted CI usage during development.
+
 ## References
 
 - Gemini 3.1 Flash-Lite model: https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-lite-preview
