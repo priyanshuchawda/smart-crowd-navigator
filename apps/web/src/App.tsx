@@ -56,17 +56,25 @@ export function App() {
       });
   }, []);
 
-  async function handleIntent(intent: CoreIntent) {
+  async function requestRecommendation(
+    intent: CoreIntent,
+    options?: {
+      announceUser?: boolean;
+      assistantPrefix?: string;
+    },
+  ) {
     setIsLoading(true);
     setErrorMessage(null);
     setActiveIntent(intent);
 
-    const userMessage = {
-      role: "user" as const,
-      text: `Find the best ${intentLabels[intent].toLowerCase()} option for ${summary}.`,
-    };
+    if (options?.announceUser !== false) {
+      const userMessage = {
+        role: "user" as const,
+        text: `Find the best ${intentLabels[intent].toLowerCase()} option for ${summary}.`,
+      };
 
-    setMessages((current) => [...current, userMessage]);
+      setMessages((current) => [...current, userMessage]);
+    }
 
     try {
       const nextResponse = await requestAssistantResponse({
@@ -80,7 +88,12 @@ export function App() {
       setResponse(nextResponse);
       setMessages((current) => [
         ...current,
-        { role: "assistant", text: nextResponse.message },
+        {
+          role: "assistant",
+          text: options?.assistantPrefix
+            ? `${options.assistantPrefix} ${nextResponse.message}`
+            : nextResponse.message,
+        },
       ]);
     } catch (error) {
       const message =
@@ -93,20 +106,38 @@ export function App() {
     }
   }
 
+  async function handleIntent(intent: CoreIntent) {
+    await requestRecommendation(intent);
+  }
+
   async function handleOperatorUpdate(nextState: DestinationState) {
     const payload = await updateOperatorState(nextState);
     setOperatorStates(payload.states);
+
+    if (activeIntent) {
+      await requestRecommendation(activeIntent, {
+        announceUser: false,
+        assistantPrefix: "Live update:",
+      });
+    }
   }
 
   async function handleOperatorReset() {
     const payload = await resetOperatorState();
     setOperatorStates(payload.states);
+
+    if (activeIntent) {
+      await requestRecommendation(activeIntent, {
+        announceUser: false,
+        assistantPrefix: "Live update:",
+      });
+    }
   }
 
   return (
     <main className="app-shell">
       <section className="hero-card">
-        <p className="eyebrow">Issue #9 operator console</p>
+        <p className="eyebrow">Issue #10 live recommendation refresh</p>
         <h1>{APP_NAME}</h1>
         <p className="lede">{APP_TAGLINE}</p>
 
