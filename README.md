@@ -2,6 +2,25 @@
 
 A Gemini-powered stadium assistant that tells attendees where to go, whether to go now or wait, and which route will be fastest with the least congestion.
 
+## Quick Start
+
+```bash
+pnpm install
+cp .env.example .env
+pnpm --filter @smart-crowd-navigator/assistant-api dev
+pnpm --filter @smart-crowd-navigator/web dev
+```
+
+Then open:
+- web: `http://127.0.0.1:5173`
+- API: `http://127.0.0.1:8080`
+
+For a single-command local quality gate:
+
+```bash
+pnpm verify
+```
+
 ## Chosen Vertical
 
 **Physical Event Experience**
@@ -183,6 +202,23 @@ This project uses Google services in a meaningful way:
 - live crowd state
 - session records
 
+## Current Implementation Status
+
+Implemented now:
+- deterministic venue engine
+- timing advice and fallback logic
+- typed recommendation API
+- Gemini assistant boundary using `@google/genai`
+- attendee chat shell
+- operator console for local live-state updates
+- local verification workflow
+
+Deferred for later:
+- Firebase Auth
+- Firestore
+- App Check
+- Firebase Hosting production setup
+
 ## Why We Did Not Use Google Maps for Indoor Routing
 
 Google Maps is valuable for outer-perimeter guidance, but stadium concourses, stairs, ramps, and section-specific flows require a custom indoor graph.
@@ -264,6 +300,15 @@ The strongest live demo is:
 
 This makes the intelligence obvious within minutes.
 
+## Local Demo Steps
+
+1. Start the API and web app.
+2. In the attendee shell, keep the default section as `section-a12`.
+3. Tap **Food** to get the first recommendation.
+4. Use the operator console to increase `stall-b` queue minutes and crowd penalty.
+5. Watch the recommendation update toward `stall-d`.
+6. Reset the operator state to restore the baseline recommendation.
+
 ## Assumptions Made
 
 - The official persona list is not included in this repository, so the current persona is inferred from the problem statement.
@@ -272,13 +317,14 @@ This makes the intelligence obvious within minutes.
 - Indoor routing is venue-graph-based rather than full map-navigation parity.
 - The single best experience is more valuable for judging than a broad multi-persona scope.
 
-## Repository Status
+## Repository Structure
 
-This repository currently contains the planning phase for the solution:
-- `problem.md` — challenge brief
-- `plan.md` — execution plan
-
-Implementation should follow the plan in `plan.md`.
+- `apps/web` — attendee UI and operator console
+- `services/assistant-api` — API routes, Gemini boundary, recommendation builder
+- `packages/shared` — shared constants and schemas
+- `packages/venue-engine` — deterministic ranking, fallback, and timing logic
+- `problem.md` — original challenge brief
+- `plan.md` — execution plan and product strategy
 
 ## Development Workflow
 
