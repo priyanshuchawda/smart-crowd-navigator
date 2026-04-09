@@ -1,0 +1,23 @@
+{
+  "name": "smart-crowd-navigator",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@9.6.0",
+  "scripts": {
+    "build": "pnpm -r --filter './apps/**' --filter './packages/**' --filter './services/**' build",
+    "typecheck": "pnpm -r --filter './apps/**' --filter './packages/**' --filter './services/**' typecheck",
+    "test": "pnpm -r --filter './apps/**' --filter './packages/**' --filter './services/**' test",
+    "lint": "pnpm -r --filter './apps/**' --filter './packages/**' --filter './services/**' lint",
+    "dev:web": "pnpm --filter @smart-crowd-navigator/web dev",
+    "dev:api": "pnpm --filter @smart-crowd-navigator/assistant-api dev"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4",
+    "@types/node": "24.5.2",
+    "@vitejs/plugin-react": "5.0.4",
+    "tsx": "4.20.5",
+    "typescript": "5.9.2",
+    "vite": "7.1.5",
+    "vitest": "3.2.4"
+  }
+}

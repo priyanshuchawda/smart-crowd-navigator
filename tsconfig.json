@@ -1,0 +1,9 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./apps/web" },
+    { "path": "./services/assistant-api" },
+    { "path": "./packages/shared" },
+    { "path": "./packages/venue-engine" }
+  ]
+}
