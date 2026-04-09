@@ -138,17 +138,24 @@ function calculateShortestRoute(
 function createBreakdown(
   walkingMinutes: number,
   queueMinutes: number,
+  partyServiceMinutes: number,
   crowdPenalty: number,
   eventPenalty: number,
 ): ScoreBreakdown {
   return {
     walkingMinutes,
     queueMinutes,
+    partyServiceMinutes,
     crowdPenalty,
     eventPenalty,
     totalScore:
       Math.round(
-        (walkingMinutes + queueMinutes + crowdPenalty + eventPenalty) * 10,
+        (walkingMinutes +
+          queueMinutes +
+          partyServiceMinutes +
+          crowdPenalty +
+          eventPenalty) *
+          10,
       ) / 10,
   };
 }
@@ -169,6 +176,7 @@ function buildRankings(
   queueMinutesResolver: (nodeId: string, baseQueueMinutes: number) => number,
 ) {
   const mobilityMode = input.mobilityMode ?? "standard";
+  const partySize = input.partySize ?? 1;
   const candidates = fixture.nodes.filter((node) => node.kind === input.intent);
 
   return candidates
@@ -188,9 +196,13 @@ function buildRankings(
         throw new Error(`Missing destination state for ${candidate.id}`);
       }
 
+      const partyServiceMinutes =
+        Math.max(0, partySize - 1) *
+        destinationState.serviceMinutesPerAdditionalPerson;
       const score = createBreakdown(
         route.walkingMinutes,
         queueMinutesResolver(candidate.id, destinationState.queueMinutes),
+        partyServiceMinutes,
         destinationState.crowdPenalty,
         getEventPenalty(input.intent, input.eventPhase),
       );

@@ -17,11 +17,13 @@ describe("createVenueEngine", () => {
       sectionId: "section-a12",
       intent: "food",
       eventPhase: "break",
+      partySize: 1,
     });
     const secondPass = engine.rankDestinations({
       sectionId: "section-a12",
       intent: "food",
       eventPhase: "break",
+      partySize: 1,
     });
 
     expect(firstPass[0]?.destinationId).toBe("stall-b");
@@ -43,6 +45,7 @@ describe("createVenueEngine", () => {
       destinationId: "washroom-west",
       score: {
         queueMinutes: 2,
+        partyServiceMinutes: 0,
       },
     });
     expect(rankings[0]?.route[0]).toBe("section-c04");
@@ -55,6 +58,7 @@ describe("createVenueEngine", () => {
       intent: "exit",
       eventPhase: "post-event",
       mobilityMode: "accessible",
+      partySize: 2,
     });
 
     expect(accessibleExitRanking[0]?.route).not.toContain("exit-north-hall");
@@ -68,6 +72,7 @@ describe("createVenueEngine", () => {
       sectionId: "section-a12",
       intent: "food",
       eventPhase: "break",
+      partySize: 1,
     });
 
     expect(fallback?.destinationId).toBe("stall-d");
@@ -80,6 +85,7 @@ describe("createVenueEngine", () => {
       intent: "food",
       eventPhase: "break",
       waitWindowMinutes: 5,
+      partySize: 3,
     });
 
     expect(advice.decision).toBe("wait");
@@ -94,10 +100,33 @@ describe("createVenueEngine", () => {
       intent: "washroom",
       eventPhase: "in-play",
       waitWindowMinutes: 5,
+      partySize: 1,
     });
 
     expect(advice.decision).toBe("go_now");
     expect(advice.currentBest.destinationId).toBe("washroom-west");
     expect(advice.recommendedWaitMinutes).toBe(0);
+  });
+
+  it("can change the food ranking for larger parties", () => {
+    const engine = createVenueEngine();
+    const solo = engine.rankDestinations({
+      sectionId: "section-a12",
+      intent: "food",
+      eventPhase: "break",
+      partySize: 1,
+    });
+    const group = engine.rankDestinations({
+      sectionId: "section-a12",
+      intent: "food",
+      eventPhase: "break",
+      partySize: 5,
+    });
+
+    expect(solo[0]?.destinationId).toBe("stall-b");
+    expect(group[0]?.destinationId).toBe("stall-d");
+    expect(group[0]?.score.partyServiceMinutes).toBeLessThan(
+      group[1]?.score.partyServiceMinutes ?? Number.POSITIVE_INFINITY,
+    );
   });
 });

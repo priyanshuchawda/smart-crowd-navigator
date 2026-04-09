@@ -45,6 +45,7 @@ export interface DestinationState {
   queueMinutes: number;
   crowdPenalty: number;
   queueTrendAfterFiveMinutes: number;
+  serviceMinutesPerAdditionalPerson: number;
 }
 
 export interface VenueFixture {
@@ -59,11 +60,13 @@ export interface RankDestinationsInput {
   intent: VenueIntent;
   eventPhase: EventPhase;
   mobilityMode?: MobilityMode;
+  partySize?: number;
 }
 
 export interface ScoreBreakdown {
   walkingMinutes: number;
   queueMinutes: number;
+  partyServiceMinutes: number;
   crowdPenalty: number;
   eventPenalty: number;
   totalScore: number;
