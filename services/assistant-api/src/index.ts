@@ -105,6 +105,37 @@ async function requestHandler(
     }
   }
 
+  if (method === "POST" && url.pathname === "/operator/state/bulk") {
+    try {
+      const requestBody = await readJsonBody(request);
+      const payload = z
+        .strictObject({
+          states: z.array(operatorStateSchema),
+        })
+        .parse(requestBody);
+
+      for (const state of payload.states) {
+        updateOperatorState(state);
+      }
+
+      respondJson(response, 200, {
+        states: getOperatorState(),
+      });
+      return;
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Invalid operator bulk payload";
+
+      respondJson(response, 400, {
+        error: "bad_request",
+        message,
+      });
+      return;
+    }
+  }
+
   if (method === "POST" && url.pathname === "/operator/reset") {
     respondJson(response, 200, {
       states: resetOperatorState(),
