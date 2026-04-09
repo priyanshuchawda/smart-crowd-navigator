@@ -82,6 +82,15 @@ function buildRecommendationPayload(
   });
 }
 
+function buildDeterministicAssistantResponse(requestBody: unknown) {
+  const recommendation = buildRecommendationPayload(requestBody);
+
+  return {
+    message: `Use ${recommendation.primaryOption.label}. ${recommendation.waitOrGoReason}`,
+    recommendation,
+  };
+}
+
 function getOperatorState() {
   return liveDestinationStates.map((state) => ({ ...state }));
 }
@@ -103,6 +112,7 @@ function resetOperatorState() {
 }
 
 export {
+  buildDeterministicAssistantResponse,
   buildRecommendationPayload,
   engine,
   getOperatorState,

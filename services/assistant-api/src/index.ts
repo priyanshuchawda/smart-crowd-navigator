@@ -11,6 +11,7 @@ import { z } from "zod";
 
 import { createGeminiAssistantService } from "./gemini.js";
 import {
+  buildDeterministicAssistantResponse,
   buildRecommendationPayload,
   engine,
   getOperatorState,
@@ -132,6 +133,16 @@ async function requestHandler(
   if (method === "POST" && url.pathname === "/assistant-response") {
     try {
       const requestBody = await readJsonBody(request);
+
+      if (process.env.DISABLE_GEMINI_ASSISTANT === "true") {
+        respondJson(
+          response,
+          200,
+          buildDeterministicAssistantResponse(requestBody),
+        );
+        return;
+      }
+
       const service = createGeminiAssistantService();
       const payload = await service.generateAssistantResponse(requestBody);
 

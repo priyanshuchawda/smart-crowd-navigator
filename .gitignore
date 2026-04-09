@@ -52,3 +52,4 @@ config/
 # misc
 .tmp/
 tmp/
+test-results/
