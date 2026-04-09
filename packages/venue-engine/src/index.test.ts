@@ -61,4 +61,43 @@ describe("createVenueEngine", () => {
     expect(accessibleExitRanking[0]?.destinationId).toBe("exit-south");
     expect(accessibleExitRanking[0]?.score.walkingMinutes).toBeGreaterThan(0);
   });
+
+  it("returns the second-best destination as a fallback", () => {
+    const engine = createVenueEngine();
+    const fallback = engine.getFallbackDestination({
+      sectionId: "section-a12",
+      intent: "food",
+      eventPhase: "break",
+    });
+
+    expect(fallback?.destinationId).toBe("stall-d");
+  });
+
+  it("recommends waiting when a short-term queue drop creates a better outcome", () => {
+    const engine = createVenueEngine();
+    const advice = engine.getTimingAdvice({
+      sectionId: "section-a12",
+      intent: "food",
+      eventPhase: "break",
+      waitWindowMinutes: 5,
+    });
+
+    expect(advice.decision).toBe("wait");
+    expect(advice.projectedBest.destinationId).toBe("stall-b");
+    expect(advice.timeSavedMinutes).toBeGreaterThanOrEqual(2);
+  });
+
+  it("recommends going now when waiting would not improve the total trip", () => {
+    const engine = createVenueEngine();
+    const advice = engine.getTimingAdvice({
+      sectionId: "section-c04",
+      intent: "washroom",
+      eventPhase: "in-play",
+      waitWindowMinutes: 5,
+    });
+
+    expect(advice.decision).toBe("go_now");
+    expect(advice.currentBest.destinationId).toBe("washroom-west");
+    expect(advice.recommendedWaitMinutes).toBe(0);
+  });
 });
