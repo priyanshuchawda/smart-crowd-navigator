@@ -71,6 +71,9 @@ importers:
       dotenv:
         specifier: 16.6.1
         version: 16.6.1
+      zod:
+        specifier: 4.0.1
+        version: 4.0.1
 
 packages:
 

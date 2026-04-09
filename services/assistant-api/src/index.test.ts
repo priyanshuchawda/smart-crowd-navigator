@@ -104,4 +104,35 @@ describe("assistant API", () => {
     expect(response.status).toBe(400);
     expect(payload.error).toBe("bad_request");
   });
+
+  it("returns and updates operator state", async () => {
+    const { baseUrl } = await startServer();
+
+    const initialResponse = await fetch(`${baseUrl}/operator/state`);
+    const initialPayload = await initialResponse.json();
+
+    expect(initialResponse.status).toBe(200);
+    expect(initialPayload.states.length).toBeGreaterThan(0);
+
+    const updateResponse = await fetch(`${baseUrl}/operator/state`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        nodeId: "stall-b",
+        queueMinutes: 1,
+        crowdPenalty: 0,
+        queueTrendAfterFiveMinutes: 0,
+      }),
+    });
+    const updatePayload = await updateResponse.json();
+
+    expect(updateResponse.status).toBe(200);
+    expect(
+      updatePayload.states.find(
+        (state: { nodeId: string }) => state.nodeId === "stall-b",
+      )?.queueMinutes,
+    ).toBe(1);
+  });
 });
