@@ -39,6 +39,7 @@ function buildRecommendationPayload(
     intent: input.intent,
     eventPhase: input.eventPhase,
     mobilityMode: input.mobilityMode,
+    partySize: input.partySize,
   };
   const fixture = getLiveFixture();
   const currentBest = engine.rankDestinations(engineInput, fixture)[0];

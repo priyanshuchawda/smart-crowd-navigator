@@ -124,6 +124,7 @@ describe("assistant API", () => {
         queueMinutes: 1,
         crowdPenalty: 0,
         queueTrendAfterFiveMinutes: 0,
+        serviceMinutesPerAdditionalPerson: 2,
       }),
     });
     const updatePayload = await updateResponse.json();

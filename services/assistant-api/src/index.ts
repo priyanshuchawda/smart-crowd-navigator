@@ -25,6 +25,7 @@ const operatorStateSchema = z.strictObject({
   queueMinutes: z.number().int().nonnegative(),
   crowdPenalty: z.number().int().nonnegative(),
   queueTrendAfterFiveMinutes: z.number().int(),
+  serviceMinutesPerAdditionalPerson: z.number().nonnegative(),
 });
 
 function respondJson(
