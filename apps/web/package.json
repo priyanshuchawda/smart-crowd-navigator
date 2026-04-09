@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@smart-crowd-navigator/shared": "workspace:*",
+    "firebase": "12.11.0",
     "react": "19.1.1",
     "react-dom": "19.1.1"
   },

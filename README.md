@@ -180,6 +180,11 @@ Implemented platform/services today:
 - **Local Node API**
   - Cloud Run-ready backend boundary for Gemini calls and tool execution
 
+- **Firebase Web SDK**
+  - web config module
+  - Firestore-backed operator state path with local API fallback
+  - analytics bootstrap when supported
+
 - **Google Maps (planned integration path)**
   - perimeter guidance such as parking-to-gate context
   - nearby landmark awareness
@@ -216,11 +221,11 @@ Implemented now:
 - Gemini assistant boundary using `@google/genai`
 - attendee chat shell
 - operator console for local live-state updates
+- Firebase web config and Firestore-backed operator state sync
 - local verification workflow
 
 Deferred for later:
 - Firebase Auth
-- Firestore
 - App Check
 - Firebase Hosting production setup
 - Google Maps perimeter integration

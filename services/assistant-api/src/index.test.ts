@@ -136,4 +136,29 @@ describe("assistant API", () => {
       )?.queueMinutes,
     ).toBe(1);
   });
+
+  it("accepts a bulk operator state sync payload", async () => {
+    const { baseUrl } = await startServer();
+    const response = await fetch(`${baseUrl}/operator/state/bulk`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        states: [
+          {
+            nodeId: "stall-b",
+            queueMinutes: 6,
+            crowdPenalty: 1,
+            queueTrendAfterFiveMinutes: -2,
+            serviceMinutesPerAdditionalPerson: 2,
+          },
+        ],
+      }),
+    });
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.states[0].nodeId).toBe("stall-b");
+  });
 });

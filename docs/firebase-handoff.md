@@ -1,6 +1,16 @@
 # Firebase Handoff Checklist
 
-Firebase integration is the only remaining blocked lane.
+Firebase is now partially integrated.
+
+Already implemented:
+- Firebase env placeholders
+- web config module
+- Firestore-backed operator state sync path with local API fallback
+
+Still deferred:
+- Firebase Auth
+- App Check
+- Firebase Hosting deployment
 
 ## Values Needed
 
@@ -32,13 +42,12 @@ VITE_FIREBASE_MEASUREMENT_ID=
 5. Hosting target details
 6. App Check now or later
 
-## Planned Integration Order
+## Remaining Integration Order
 
-1. Add Firebase config module in the web app
-2. Replace local in-memory operator state with Firestore-backed state
-3. Add chosen auth mode
-4. Add App Check if requested
-5. Add Hosting configuration
+1. Add chosen auth mode
+2. Add App Check if requested
+3. Add Hosting configuration
+4. Remove local-only fallback assumptions where appropriate
 
 ## Verification Once Unblocked
 

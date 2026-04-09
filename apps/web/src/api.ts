@@ -72,6 +72,22 @@ export async function updateOperatorState(state: DestinationState) {
   return (await response.json()) as OperatorStateResponse;
 }
 
+export async function syncOperatorStates(states: DestinationState[]) {
+  const response = await fetch(`${apiBaseUrl}/operator/state/bulk`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ states }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Operator sync failed with status ${response.status}`);
+  }
+
+  return (await response.json()) as OperatorStateResponse;
+}
+
 export async function resetOperatorState() {
   const response = await fetch(`${apiBaseUrl}/operator/reset`, {
     method: "POST",

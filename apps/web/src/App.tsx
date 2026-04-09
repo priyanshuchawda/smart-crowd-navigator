@@ -14,11 +14,18 @@ import {
   getOperatorState,
   requestAssistantResponse,
   resetOperatorState,
+  syncOperatorStates,
   updateOperatorState,
 } from "./api";
 import { ConversationPanel } from "./components/ConversationPanel";
 import { OperatorPanel } from "./components/OperatorPanel";
 import { RecommendationPanel } from "./components/RecommendationPanel";
+import {
+  getFirebaseOperatorStates,
+  hasFirebaseConfig,
+  setFirebaseOperatorStates,
+  subscribeToFirebaseOperatorStates,
+} from "./firebase";
 import type { AssistantApiResponse, ChatMessage } from "./types";
 
 const intentLabels: Record<CoreIntent, string> = {
@@ -45,6 +52,7 @@ export function App() {
     string | null
   >(null);
   const [isOperatorUpdating, setIsOperatorUpdating] = useState(false);
+  const activeIntentRef = useRef<CoreIntent | null>(null);
   const requestVersionRef = useRef(0);
 
   const summary = useMemo(
@@ -54,16 +62,81 @@ export function App() {
   );
 
   useEffect(() => {
-    void getOperatorState()
-      .then((payload) => {
+    activeIntentRef.current = activeIntent;
+  }, [activeIntent]);
+
+  useEffect(() => {
+    let ignore = false;
+    let unsubscribe = () => {};
+
+    const loadLocalState = async (message?: string) => {
+      const payload = await getOperatorState();
+
+      if (!ignore) {
         setOperatorStates(payload.states);
-        setOperatorErrorMessage(null);
-      })
-      .catch(() => {
-        setOperatorErrorMessage(
-          "Operator state failed to load. Check the local API and try again.",
+        setOperatorErrorMessage(message ?? null);
+      }
+
+      return payload.states;
+    };
+
+    async function bootstrapOperatorState() {
+      try {
+        if (!hasFirebaseConfig) {
+          await loadLocalState();
+          return;
+        }
+
+        const firebaseStates = await getFirebaseOperatorStates();
+
+        if (firebaseStates && firebaseStates.length > 0) {
+          await syncOperatorStates(firebaseStates);
+
+          if (!ignore) {
+            setOperatorStates(firebaseStates);
+            setOperatorErrorMessage(null);
+          }
+        } else {
+          const localStates = await loadLocalState();
+          await setFirebaseOperatorStates(localStates);
+        }
+
+        unsubscribe = subscribeToFirebaseOperatorStates(
+          (states) => {
+            if (ignore) {
+              return;
+            }
+
+            setOperatorStates(states);
+            setOperatorErrorMessage(null);
+            void syncOperatorStates(states);
+
+            if (activeIntentRef.current) {
+              void requestRecommendation(activeIntentRef.current, {
+                announceUser: false,
+                assistantPrefix: "Live update:",
+              });
+            }
+          },
+          async () => {
+            await loadLocalState(
+              "Firebase operator sync failed, using local API state.",
+            );
+          },
         );
-      });
+      } catch {
+        await loadLocalState(
+          "Firebase operator sync failed, using local API state.",
+        );
+      }
+    }
+
+    void bootstrapOperatorState();
+
+    return () => {
+      ignore = true;
+      unsubscribe();
+    };
   }, []);
 
   async function requestRecommendation(
@@ -136,14 +209,21 @@ export function App() {
     setOperatorErrorMessage(null);
 
     try {
-      const payload = await updateOperatorState(nextState);
-      setOperatorStates(payload.states);
+      if (hasFirebaseConfig) {
+        const nextStates = operatorStates.map((state) =>
+          state.nodeId === nextState.nodeId ? nextState : state,
+        );
+        await setFirebaseOperatorStates(nextStates);
+      } else {
+        const payload = await updateOperatorState(nextState);
+        setOperatorStates(payload.states);
 
-      if (activeIntent) {
-        await requestRecommendation(activeIntent, {
-          announceUser: false,
-          assistantPrefix: "Live update:",
-        });
+        if (activeIntent) {
+          await requestRecommendation(activeIntent, {
+            announceUser: false,
+            assistantPrefix: "Live update:",
+          });
+        }
       }
     } catch (error) {
       setOperatorErrorMessage(
@@ -161,14 +241,19 @@ export function App() {
     setOperatorErrorMessage(null);
 
     try {
-      const payload = await resetOperatorState();
-      setOperatorStates(payload.states);
+      if (hasFirebaseConfig) {
+        const payload = await resetOperatorState();
+        await setFirebaseOperatorStates(payload.states);
+      } else {
+        const payload = await resetOperatorState();
+        setOperatorStates(payload.states);
 
-      if (activeIntent) {
-        await requestRecommendation(activeIntent, {
-          announceUser: false,
-          assistantPrefix: "Live update:",
-        });
+        if (activeIntent) {
+          await requestRecommendation(activeIntent, {
+            announceUser: false,
+            assistantPrefix: "Live update:",
+          });
+        }
       }
     } catch (error) {
       setOperatorErrorMessage(
