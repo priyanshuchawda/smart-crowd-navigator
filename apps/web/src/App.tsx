@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   APP_NAME,
@@ -41,6 +41,7 @@ export function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [operatorStates, setOperatorStates] = useState<DestinationState[]>([]);
+  const requestVersionRef = useRef(0);
 
   const summary = useMemo(
     () =>
@@ -63,6 +64,7 @@ export function App() {
       assistantPrefix?: string;
     },
   ) {
+    const requestVersion = ++requestVersionRef.current;
     setIsLoading(true);
     setErrorMessage(null);
     setActiveIntent(intent);
@@ -85,6 +87,10 @@ export function App() {
         mobilityMode,
       });
 
+      if (requestVersion !== requestVersionRef.current) {
+        return;
+      }
+
       setResponse(nextResponse);
       setMessages((current) => [
         ...current,
@@ -100,9 +106,15 @@ export function App() {
         error instanceof Error
           ? error.message
           : "Unable to get a recommendation.";
+      if (requestVersion !== requestVersionRef.current) {
+        return;
+      }
+
       setErrorMessage(message);
     } finally {
-      setIsLoading(false);
+      if (requestVersion === requestVersionRef.current) {
+        setIsLoading(false);
+      }
     }
   }
 
