@@ -57,7 +57,14 @@ importers:
 
   packages/venue-engine: {}
 
-  services/assistant-api: {}
+  services/assistant-api:
+    dependencies:
+      '@smart-crowd-navigator/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@smart-crowd-navigator/venue-engine':
+        specifier: workspace:*
+        version: link:../../packages/venue-engine
 
 packages:
 

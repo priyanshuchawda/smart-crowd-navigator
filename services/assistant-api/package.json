@@ -3,11 +3,15 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "dependencies": {
+    "@smart-crowd-navigator/shared": "workspace:*",
+    "@smart-crowd-navigator/venue-engine": "workspace:*"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc -p tsconfig.json",
+    "build": "rm -rf dist && tsc -p tsconfig.json && cp dist/services/assistant-api/src/index.js dist/index.js && cp dist/services/assistant-api/src/index.d.ts dist/index.d.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "lint": "biome check src"
   }
 }
