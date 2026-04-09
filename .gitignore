@@ -26,6 +26,24 @@ pnpm-debug.log*
 .DS_Store
 .vscode/
 .idea/
+.cursor/
+.zed/
+
+# local tooling
+.agents/
+.codex/
+.gemini/
+.mcp.json
+opencode.json
+config/
+
+# OMX runtime state
+.omx/logs/
+.omx/state/
+.omx/metrics.json
+.omx/hud-config.json
+.omx/setup-scope.json
+.omx/tmux-hook.json
 
 # local firebase / gcloud artifacts
 .firebase/
