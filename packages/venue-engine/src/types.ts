@@ -44,6 +44,7 @@ export interface DestinationState {
   nodeId: string;
   queueMinutes: number;
   crowdPenalty: number;
+  queueTrendAfterFiveMinutes: number;
 }
 
 export interface VenueFixture {
@@ -74,4 +75,17 @@ export interface RankedDestination {
   kind: VenueIntent;
   route: string[];
   score: ScoreBreakdown;
+}
+
+export interface TimingAdviceInput extends RankDestinationsInput {
+  waitWindowMinutes?: number;
+}
+
+export interface TimingAdvice {
+  decision: "go_now" | "wait";
+  recommendedWaitMinutes: number;
+  currentBest: RankedDestination;
+  projectedBest: RankedDestination;
+  timeSavedMinutes: number;
+  reason: string;
 }

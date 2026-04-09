@@ -5,6 +5,8 @@ import type {
   RankDestinationsInput,
   RankedDestination,
   ScoreBreakdown,
+  TimingAdvice,
+  TimingAdviceInput,
   VenueEdge,
   VenueFixture,
   VenueIntent,
@@ -151,10 +153,21 @@ function createBreakdown(
   };
 }
 
-export function rankDestinations(
+function projectQueueMinutes(
+  currentQueueMinutes: number,
+  queueTrendAfterFiveMinutes: number,
+  waitWindowMinutes: number,
+) {
+  const scaledTrend = (queueTrendAfterFiveMinutes * waitWindowMinutes) / 5;
+
+  return Math.max(0, Math.round(currentQueueMinutes + scaledTrend));
+}
+
+function buildRankings(
   input: RankDestinationsInput,
-  fixture: VenueFixture = demoVenueFixture,
-): RankedDestination[] {
+  fixture: VenueFixture,
+  queueMinutesResolver: (nodeId: string, baseQueueMinutes: number) => number,
+) {
   const mobilityMode = input.mobilityMode ?? "standard";
   const candidates = fixture.nodes.filter((node) => node.kind === input.intent);
 
@@ -177,7 +190,7 @@ export function rankDestinations(
 
       const score = createBreakdown(
         route.walkingMinutes,
-        destinationState.queueMinutes,
+        queueMinutesResolver(candidate.id, destinationState.queueMinutes),
         destinationState.crowdPenalty,
         getEventPenalty(input.intent, input.eventPhase),
       );
@@ -191,4 +204,76 @@ export function rankDestinations(
       } satisfies RankedDestination;
     })
     .sort((left, right) => left.score.totalScore - right.score.totalScore);
+}
+
+export function rankDestinations(
+  input: RankDestinationsInput,
+  fixture: VenueFixture = demoVenueFixture,
+): RankedDestination[] {
+  return buildRankings(
+    input,
+    fixture,
+    (_nodeId, baseQueueMinutes) => baseQueueMinutes,
+  );
+}
+
+export function getFallbackDestination(
+  input: RankDestinationsInput,
+  fixture: VenueFixture = demoVenueFixture,
+) {
+  const rankings = rankDestinations(input, fixture);
+
+  return rankings[1] ?? null;
+}
+
+export function getTimingAdvice(
+  input: TimingAdviceInput,
+  fixture: VenueFixture = demoVenueFixture,
+): TimingAdvice {
+  const waitWindowMinutes = input.waitWindowMinutes ?? 5;
+  const currentRankings = rankDestinations(input, fixture);
+  const projectedRankings = buildRankings(
+    input,
+    fixture,
+    (nodeId, baseQueueMinutes) => {
+      const destinationState = fixture.destinationStates.find(
+        (state) => state.nodeId === nodeId,
+      );
+
+      if (!destinationState) {
+        return baseQueueMinutes;
+      }
+
+      return projectQueueMinutes(
+        baseQueueMinutes,
+        destinationState.queueTrendAfterFiveMinutes,
+        waitWindowMinutes,
+      );
+    },
+  );
+
+  const currentBest = currentRankings[0];
+  const projectedBest = projectedRankings[0];
+
+  if (!currentBest || !projectedBest) {
+    throw new Error(`No ranked destinations found for intent ${input.intent}`);
+  }
+
+  const waitedTotal = projectedBest.score.totalScore + waitWindowMinutes;
+  const timeSavedMinutes = Math.max(
+    0,
+    Math.round((currentBest.score.totalScore - waitedTotal) * 10) / 10,
+  );
+  const shouldWait = timeSavedMinutes >= 2;
+
+  return {
+    decision: shouldWait ? "wait" : "go_now",
+    recommendedWaitMinutes: shouldWait ? waitWindowMinutes : 0,
+    currentBest,
+    projectedBest,
+    timeSavedMinutes,
+    reason: shouldWait
+      ? `Waiting ${waitWindowMinutes} minutes reduces the predicted total trip cost by ${timeSavedMinutes} minutes.`
+      : "Leaving now is still the fastest option once wait time is included.",
+  };
 }

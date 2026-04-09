@@ -1,5 +1,9 @@
 import { demoVenueFixture } from "./fixture.js";
-import { rankDestinations } from "./ranking.js";
+import {
+  getFallbackDestination,
+  getTimingAdvice,
+  rankDestinations,
+} from "./ranking.js";
 import {
   SUPPORTED_EVENT_PHASES,
   SUPPORTED_INTENTS,
@@ -14,8 +18,15 @@ export function createVenueEngine() {
     supportedMobilityModes: SUPPORTED_MOBILITY_MODES,
     fixture: demoVenueFixture,
     rankDestinations,
+    getFallbackDestination,
+    getTimingAdvice,
   };
 }
 
-export { demoVenueFixture, rankDestinations };
+export {
+  demoVenueFixture,
+  getFallbackDestination,
+  getTimingAdvice,
+  rankDestinations,
+};
 export * from "./types.js";
