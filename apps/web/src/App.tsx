@@ -1,19 +1,27 @@
-const appName = "Smart Crowd Navigator";
-const appTagline =
-  "A Gemini-powered assistant for real-time movement decisions inside sporting venues.";
+import {
+  APP_NAME,
+  APP_TAGLINE,
+  CORE_INTENTS,
+} from "@smart-crowd-navigator/shared";
+
+const intentLabels: Record<(typeof CORE_INTENTS)[number], string> = {
+  food: "Food",
+  washroom: "Washroom",
+  "entry-gate": "Entry Gate",
+  exit: "Exit",
+};
 
 export function App() {
   return (
     <main className="app-shell">
       <section className="hero-card">
         <p className="eyebrow">Issue #1 scaffold</p>
-        <h1>{appName}</h1>
-        <p>{appTagline}</p>
+        <h1>{APP_NAME}</h1>
+        <p>{APP_TAGLINE}</p>
         <ul>
-          <li>Food</li>
-          <li>Washroom</li>
-          <li>Entry Gate</li>
-          <li>Exit</li>
+          {CORE_INTENTS.map((intent) => (
+            <li key={intent}>{intentLabels[intent]}</li>
+          ))}
         </ul>
       </section>
     </main>
