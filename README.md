@@ -6,9 +6,11 @@ A Gemini-powered stadium assistant that tells attendees where to go, whether to 
 
 ```bash
 pnpm install
-cp .env.example .env
+pnpm setup:local
 pnpm dev
 ```
+
+If `key.md` contains a Gemini API key, `pnpm setup:local` will create `.env` and populate `GEMINI_API_KEY` automatically for local testing.
 
 Then open:
 - web: `http://127.0.0.1:5173`
