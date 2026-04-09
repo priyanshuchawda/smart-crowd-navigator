@@ -11,6 +11,7 @@
     "lint": "biome check src index.html vite.config.ts"
   },
   "dependencies": {
+    "@smart-crowd-navigator/shared": "workspace:*",
     "react": "19.1.1",
     "react-dom": "19.1.1"
   },
