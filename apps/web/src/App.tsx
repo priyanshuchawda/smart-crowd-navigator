@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   APP_NAME,
@@ -8,9 +8,16 @@ import {
   EVENT_PHASES,
   MOBILITY_MODES,
 } from "@smart-crowd-navigator/shared";
+import type { DestinationState } from "@smart-crowd-navigator/venue-engine";
 
-import { requestAssistantResponse } from "./api";
+import {
+  getOperatorState,
+  requestAssistantResponse,
+  resetOperatorState,
+  updateOperatorState,
+} from "./api";
 import { ConversationPanel } from "./components/ConversationPanel";
+import { OperatorPanel } from "./components/OperatorPanel";
 import { RecommendationPanel } from "./components/RecommendationPanel";
 import type { AssistantApiResponse, ChatMessage } from "./types";
 
@@ -33,12 +40,21 @@ export function App() {
   const [activeIntent, setActiveIntent] = useState<CoreIntent | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [operatorStates, setOperatorStates] = useState<DestinationState[]>([]);
 
   const summary = useMemo(
     () =>
       `${section} · party of ${partySize} · ${eventPhase.replace("-", " ")} · ${mobilityMode}`,
     [eventPhase, mobilityMode, partySize, section],
   );
+
+  useEffect(() => {
+    void getOperatorState()
+      .then((payload) => setOperatorStates(payload.states))
+      .catch(() => {
+        // Ignore boot-time operator fetch failures in the UI shell.
+      });
+  }, []);
 
   async function handleIntent(intent: CoreIntent) {
     setIsLoading(true);
@@ -77,10 +93,20 @@ export function App() {
     }
   }
 
+  async function handleOperatorUpdate(nextState: DestinationState) {
+    const payload = await updateOperatorState(nextState);
+    setOperatorStates(payload.states);
+  }
+
+  async function handleOperatorReset() {
+    const payload = await resetOperatorState();
+    setOperatorStates(payload.states);
+  }
+
   return (
     <main className="app-shell">
       <section className="hero-card">
-        <p className="eyebrow">Issue #7 chat shell</p>
+        <p className="eyebrow">Issue #9 operator console</p>
         <h1>{APP_NAME}</h1>
         <p className="lede">{APP_TAGLINE}</p>
 
@@ -166,6 +192,11 @@ export function App() {
           messages={messages}
         />
         <RecommendationPanel response={response} />
+        <OperatorPanel
+          onReset={() => void handleOperatorReset()}
+          onUpdate={(state) => void handleOperatorUpdate(state)}
+          states={operatorStates}
+        />
       </section>
     </main>
   );

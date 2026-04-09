@@ -7,11 +7,24 @@ import {
 } from "node:http";
 
 import { APP_NAME } from "@smart-crowd-navigator/shared";
+import { z } from "zod";
 
 import { createGeminiAssistantService } from "./gemini.js";
-import { buildRecommendationPayload, engine } from "./recommendation.js";
+import {
+  buildRecommendationPayload,
+  engine,
+  getOperatorState,
+  resetOperatorState,
+  updateOperatorState,
+} from "./recommendation.js";
 
 const port = Number(process.env.PORT ?? 8080);
+const operatorStateSchema = z.strictObject({
+  nodeId: z.string().min(1),
+  queueMinutes: z.number().int().nonnegative(),
+  crowdPenalty: z.number().int().nonnegative(),
+  queueTrendAfterFiveMinutes: z.number().int(),
+});
 
 function respondJson(
   response: ServerResponse,
@@ -58,6 +71,41 @@ async function requestHandler(
       service: `${APP_NAME} API`,
       status: "ok",
       engineVersion: engine.version,
+    });
+    return;
+  }
+
+  if (method === "GET" && url.pathname === "/operator/state") {
+    respondJson(response, 200, {
+      states: getOperatorState(),
+    });
+    return;
+  }
+
+  if (method === "POST" && url.pathname === "/operator/state") {
+    try {
+      const requestBody = await readJsonBody(request);
+      const payload = operatorStateSchema.parse(requestBody);
+
+      respondJson(response, 200, {
+        states: updateOperatorState(payload),
+      });
+      return;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Invalid operator payload";
+
+      respondJson(response, 400, {
+        error: "bad_request",
+        message,
+      });
+      return;
+    }
+  }
+
+  if (method === "POST" && url.pathname === "/operator/reset") {
+    respondJson(response, 200, {
+      states: resetOperatorState(),
     });
     return;
   }

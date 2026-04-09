@@ -192,6 +192,25 @@ h1 {
   padding: 12px;
 }
 
+.operator-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.operator-card {
+  border-radius: 12px;
+  background: white;
+  border: 1px solid #e3e9f4;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.operator-card h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
 .stat-grid dt {
   font-size: 0.8rem;
   color: #52607a;

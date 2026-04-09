@@ -1,10 +1,24 @@
 import {
+  type AssistantRecommendation,
   assistantRecommendationSchema,
   recommendationRequestSchema,
 } from "@smart-crowd-navigator/shared";
-import { createVenueEngine } from "@smart-crowd-navigator/venue-engine";
+import {
+  type DestinationState,
+  type VenueFixture,
+  createVenueEngine,
+} from "@smart-crowd-navigator/venue-engine";
 
 const engine = createVenueEngine();
+let liveDestinationStates: DestinationState[] =
+  engine.fixture.destinationStates.map((state) => ({ ...state }));
+
+function getLiveFixture(): VenueFixture {
+  return {
+    ...engine.fixture,
+    destinationStates: liveDestinationStates.map((state) => ({ ...state })),
+  };
+}
 
 function describeRoute(nodeIds: string[]) {
   return nodeIds
@@ -16,7 +30,9 @@ function describeRoute(nodeIds: string[]) {
     .join(" → ");
 }
 
-function buildRecommendationPayload(requestBody: unknown) {
+function buildRecommendationPayload(
+  requestBody: unknown,
+): AssistantRecommendation {
   const input = recommendationRequestSchema.parse(requestBody);
   const engineInput = {
     sectionId: input.section,
@@ -24,9 +40,10 @@ function buildRecommendationPayload(requestBody: unknown) {
     eventPhase: input.eventPhase,
     mobilityMode: input.mobilityMode,
   };
-  const currentBest = engine.rankDestinations(engineInput)[0];
-  const fallback = engine.getFallbackDestination(engineInput);
-  const timingAdvice = engine.getTimingAdvice(engineInput);
+  const fixture = getLiveFixture();
+  const currentBest = engine.rankDestinations(engineInput, fixture)[0];
+  const fallback = engine.getFallbackDestination(engineInput, fixture);
+  const timingAdvice = engine.getTimingAdvice(engineInput, fixture);
   const selectedDestination =
     timingAdvice.decision === "wait"
       ? timingAdvice.projectedBest
@@ -65,4 +82,30 @@ function buildRecommendationPayload(requestBody: unknown) {
   });
 }
 
-export { buildRecommendationPayload, engine };
+function getOperatorState() {
+  return liveDestinationStates.map((state) => ({ ...state }));
+}
+
+function updateOperatorState(nextState: DestinationState) {
+  liveDestinationStates = liveDestinationStates.map((state) =>
+    state.nodeId === nextState.nodeId ? { ...nextState } : state,
+  );
+
+  return getOperatorState();
+}
+
+function resetOperatorState() {
+  liveDestinationStates = engine.fixture.destinationStates.map((state) => ({
+    ...state,
+  }));
+
+  return getOperatorState();
+}
+
+export {
+  buildRecommendationPayload,
+  engine,
+  getOperatorState,
+  resetOperatorState,
+  updateOperatorState,
+};
