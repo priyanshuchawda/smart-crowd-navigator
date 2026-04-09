@@ -41,6 +41,10 @@ export function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [operatorStates, setOperatorStates] = useState<DestinationState[]>([]);
+  const [operatorErrorMessage, setOperatorErrorMessage] = useState<
+    string | null
+  >(null);
+  const [isOperatorUpdating, setIsOperatorUpdating] = useState(false);
   const requestVersionRef = useRef(0);
 
   const summary = useMemo(
@@ -51,9 +55,14 @@ export function App() {
 
   useEffect(() => {
     void getOperatorState()
-      .then((payload) => setOperatorStates(payload.states))
+      .then((payload) => {
+        setOperatorStates(payload.states);
+        setOperatorErrorMessage(null);
+      })
       .catch(() => {
-        // Ignore boot-time operator fetch failures in the UI shell.
+        setOperatorErrorMessage(
+          "Operator state failed to load. Check the local API and try again.",
+        );
       });
   }, []);
 
@@ -123,26 +132,52 @@ export function App() {
   }
 
   async function handleOperatorUpdate(nextState: DestinationState) {
-    const payload = await updateOperatorState(nextState);
-    setOperatorStates(payload.states);
+    setIsOperatorUpdating(true);
+    setOperatorErrorMessage(null);
 
-    if (activeIntent) {
-      await requestRecommendation(activeIntent, {
-        announceUser: false,
-        assistantPrefix: "Live update:",
-      });
+    try {
+      const payload = await updateOperatorState(nextState);
+      setOperatorStates(payload.states);
+
+      if (activeIntent) {
+        await requestRecommendation(activeIntent, {
+          announceUser: false,
+          assistantPrefix: "Live update:",
+        });
+      }
+    } catch (error) {
+      setOperatorErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Operator update failed. Try again.",
+      );
+    } finally {
+      setIsOperatorUpdating(false);
     }
   }
 
   async function handleOperatorReset() {
-    const payload = await resetOperatorState();
-    setOperatorStates(payload.states);
+    setIsOperatorUpdating(true);
+    setOperatorErrorMessage(null);
 
-    if (activeIntent) {
-      await requestRecommendation(activeIntent, {
-        announceUser: false,
-        assistantPrefix: "Live update:",
-      });
+    try {
+      const payload = await resetOperatorState();
+      setOperatorStates(payload.states);
+
+      if (activeIntent) {
+        await requestRecommendation(activeIntent, {
+          announceUser: false,
+          assistantPrefix: "Live update:",
+        });
+      }
+    } catch (error) {
+      setOperatorErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Operator reset failed. Try again.",
+      );
+    } finally {
+      setIsOperatorUpdating(false);
     }
   }
 
@@ -236,6 +271,8 @@ export function App() {
         />
         <RecommendationPanel response={response} />
         <OperatorPanel
+          errorMessage={operatorErrorMessage}
+          isUpdating={isOperatorUpdating}
           onReset={() => void handleOperatorReset()}
           onUpdate={(state) => void handleOperatorUpdate(state)}
           states={operatorStates}

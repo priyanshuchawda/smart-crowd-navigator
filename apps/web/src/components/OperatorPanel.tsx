@@ -1,27 +1,51 @@
+import { useEffect, useState } from "react";
+
 import type { DestinationState } from "@smart-crowd-navigator/venue-engine";
 
 interface OperatorPanelProps {
+  errorMessage: string | null;
+  isUpdating: boolean;
   onReset: () => void;
   onUpdate: (nextState: DestinationState) => void;
   states: DestinationState[];
 }
 
 export function OperatorPanel({
+  errorMessage,
+  isUpdating,
   onReset,
   onUpdate,
   states,
 }: OperatorPanelProps) {
+  const [draftStates, setDraftStates] = useState<DestinationState[]>(states);
+
+  useEffect(() => {
+    setDraftStates(states);
+  }, [states]);
+
   return (
     <section className="recommendation-card" aria-label="Operator console">
       <div className="status-row">
         <span className="section-title">Operator console</span>
-        <button className="chip" type="button" onClick={onReset}>
-          Reset live state
-        </button>
+        <div className="chip-row">
+          <span className="status-pill">
+            {isUpdating ? "Updating…" : "Ready"}
+          </span>
+          <button
+            className="chip"
+            disabled={isUpdating}
+            type="button"
+            onClick={onReset}
+          >
+            Reset live state
+          </button>
+        </div>
       </div>
 
+      {errorMessage ? <p className="error-banner">{errorMessage}</p> : null}
+
       <div className="operator-grid">
-        {states.map((state) => (
+        {draftStates.map((state) => (
           <article key={state.nodeId} className="operator-card">
             <h3>{state.nodeId}</h3>
             <label className="field">
@@ -30,13 +54,19 @@ export function OperatorPanel({
                 type="number"
                 value={state.queueMinutes}
                 onChange={(event) =>
-                  onUpdate({
-                    ...state,
-                    queueMinutes: Number.parseInt(
-                      event.target.value || "0",
-                      10,
+                  setDraftStates((current) =>
+                    current.map((candidate) =>
+                      candidate.nodeId === state.nodeId
+                        ? {
+                            ...candidate,
+                            queueMinutes: Number.parseInt(
+                              event.target.value || "0",
+                              10,
+                            ),
+                          }
+                        : candidate,
                     ),
-                  })
+                  )
                 }
               />
             </label>
@@ -46,13 +76,19 @@ export function OperatorPanel({
                 type="number"
                 value={state.crowdPenalty}
                 onChange={(event) =>
-                  onUpdate({
-                    ...state,
-                    crowdPenalty: Number.parseInt(
-                      event.target.value || "0",
-                      10,
+                  setDraftStates((current) =>
+                    current.map((candidate) =>
+                      candidate.nodeId === state.nodeId
+                        ? {
+                            ...candidate,
+                            crowdPenalty: Number.parseInt(
+                              event.target.value || "0",
+                              10,
+                            ),
+                          }
+                        : candidate,
                     ),
-                  })
+                  )
                 }
               />
             </label>
@@ -62,16 +98,30 @@ export function OperatorPanel({
                 type="number"
                 value={state.queueTrendAfterFiveMinutes}
                 onChange={(event) =>
-                  onUpdate({
-                    ...state,
-                    queueTrendAfterFiveMinutes: Number.parseInt(
-                      event.target.value || "0",
-                      10,
+                  setDraftStates((current) =>
+                    current.map((candidate) =>
+                      candidate.nodeId === state.nodeId
+                        ? {
+                            ...candidate,
+                            queueTrendAfterFiveMinutes: Number.parseInt(
+                              event.target.value || "0",
+                              10,
+                            ),
+                          }
+                        : candidate,
                     ),
-                  })
+                  )
                 }
               />
             </label>
+            <button
+              className="chip"
+              disabled={isUpdating}
+              type="button"
+              onClick={() => onUpdate(state)}
+            >
+              Apply change
+            </button>
           </article>
         ))}
       </div>
