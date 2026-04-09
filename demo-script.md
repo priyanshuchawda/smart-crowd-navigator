@@ -26,7 +26,7 @@ Smart Crowd Navigator is a Gemini-powered stadium assistant that tells attendees
 
 ‘Wait 6 minutes, then go to Stall B.  
 ETA: 4 minutes.  
-Queue: 3 minutes.  
+Queue: 0 minutes once you leave.  
 This avoids the current food rush near your section and saves about 8 minutes overall.’”
 
 ### 4. Explain the intelligence
@@ -41,7 +41,7 @@ This avoids the current food rush near your section and saves about 8 minutes ov
 
 “The assistant updates and now recommends:
 
-‘Go now to Stall C. Crowd pressure has dropped, and this is now the fastest option.’”
+‘Go now to Stall D. Stall B is overloaded, and Stall D is now the fastest option.’”
 
 ### 7. Second scenario
 
@@ -49,4 +49,4 @@ This avoids the current food rush near your section and saves about 8 minutes ov
 
 ## Close
 
-“So this solution improves the physical event experience by reducing congestion, reducing waiting time, and helping people make smarter movement decisions in real time — using Gemini, Firebase, Cloud Run, and Google Maps in a practical way.”
+“So this solution improves the physical event experience by reducing congestion, reducing waiting time, and helping people make smarter movement decisions in real time — using Gemini, a deterministic venue engine, Cloud Run-ready API boundaries, and a practical web workflow that can later plug into Firebase.” 
