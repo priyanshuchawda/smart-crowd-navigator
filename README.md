@@ -150,7 +150,7 @@ when waiting creates a better total outcome.
 
 ## Google Services Used
 
-This project uses Google services in a meaningful way:
+Currently implemented:
 
 - **Gemini API**
   - chatbot orchestration
@@ -158,11 +158,13 @@ This project uses Google services in a meaningful way:
   - structured response generation
   - explanation of live recommendations
 
+Planned after Firebase details are provided:
+
 - **Firebase Auth**
   - lightweight user/session identity
 
 - **Firestore**
-  - live venue state
+  - persistent live venue state
   - queue updates
   - operator-triggered changes
   - session data
@@ -173,10 +175,12 @@ This project uses Google services in a meaningful way:
 - **Firebase Hosting**
   - web app deployment
 
-- **Cloud Run**
-  - secure backend for Gemini calls and tool execution
+Implemented platform/services today:
 
-- **Google Maps**
+- **Local Node API**
+  - Cloud Run-ready backend boundary for Gemini calls and tool execution
+
+- **Google Maps (planned integration path)**
   - perimeter guidance such as parking-to-gate context
   - nearby landmark awareness
 
@@ -192,7 +196,7 @@ This project uses Google services in a meaningful way:
 ### Backend
 - Node.js
 - TypeScript
-- Cloud Run API service
+- local Node.js API service designed for Cloud Run deployment later
 - Gemini tool orchestration using `@google/genai`
 
 ### Data Model
@@ -219,6 +223,7 @@ Deferred for later:
 - Firestore
 - App Check
 - Firebase Hosting production setup
+- Google Maps perimeter integration
 
 ## Why We Did Not Use Google Maps for Indoor Routing
 
@@ -343,6 +348,10 @@ Recommended one-command local gate:
 ```bash
 pnpm verify
 ```
+
+Firebase handoff checklist:
+
+- [docs/firebase-handoff.md](./docs/firebase-handoff.md)
 
 Automatic GitHub Actions runs are disabled to avoid unnecessary hosted CI usage during development.
 

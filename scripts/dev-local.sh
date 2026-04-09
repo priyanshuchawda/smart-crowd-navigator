@@ -2,7 +2,7 @@
 set -euo pipefail
 
 api_cmd=(pnpm --filter @smart-crowd-navigator/assistant-api dev)
-web_cmd=(pnpm --filter @smart-crowd-navigator/web dev -- --host 127.0.0.1 --port 5173 --strictPort)
+web_cmd=(pnpm --filter @smart-crowd-navigator/web dev --host 127.0.0.1 --port 5173 --strictPort)
 
 cleanup() {
   jobs -pr | xargs -r kill 2>/dev/null || true
