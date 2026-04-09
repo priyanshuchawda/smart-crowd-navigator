@@ -7,8 +7,7 @@ A Gemini-powered stadium assistant that tells attendees where to go, whether to 
 ```bash
 pnpm install
 cp .env.example .env
-pnpm --filter @smart-crowd-navigator/assistant-api dev
-pnpm --filter @smart-crowd-navigator/web dev
+pnpm dev
 ```
 
 Then open:
