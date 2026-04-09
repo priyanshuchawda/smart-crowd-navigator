@@ -16,6 +16,7 @@ describe("App", () => {
     expect(markup).toContain("Exit");
     expect(markup).toContain("Live assistant");
     expect(markup).toContain("Operator console");
+    expect(markup).toContain("Reset live state");
   });
 
   it("renders the conversation empty state", () => {
