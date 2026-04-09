@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "lint": "biome check src index.html vite.config.ts"
   },
   "dependencies": {

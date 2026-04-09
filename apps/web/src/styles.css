@@ -16,13 +16,13 @@ body {
 
 .app-shell {
   min-height: 100vh;
-  display: grid;
-  place-items: center;
+  display: flex;
+  justify-content: center;
   padding: 24px;
 }
 
 .hero-card {
-  width: min(100%, 480px);
+  width: min(100%, 720px);
   border-radius: 20px;
   background: white;
   padding: 24px;
@@ -38,13 +38,181 @@ body {
   letter-spacing: 0.08em;
 }
 
+h1,
+h2,
+p,
+ul,
+dl {
+  margin: 0;
+}
+
 h1 {
-  margin: 0 0 12px;
+  margin-bottom: 12px;
   font-size: 2rem;
 }
 
-p,
-ul {
-  margin: 0 0 12px;
+.lede {
   line-height: 1.5;
+}
+
+.control-stack,
+.conversation,
+.intent-panel,
+.recommendation-card {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.control-stack {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  font-size: 0.95rem;
+}
+
+.field input,
+.field select,
+.chip {
+  border: 1px solid #d5def0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font: inherit;
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.chip {
+  background: #f7f9fc;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.chip.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: white;
+}
+
+.section-title,
+.message-role,
+.status-pill,
+.fallback-note {
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.conversation,
+.recommendation-card {
+  border: 1px solid #e3e9f4;
+  border-radius: 16px;
+  padding: 16px;
+  background: #fbfcff;
+}
+
+.status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.status-pill {
+  border-radius: 999px;
+  background: #e8f0ff;
+  color: #1e40af;
+  padding: 6px 10px;
+}
+
+.message-list {
+  display: grid;
+  gap: 10px;
+}
+
+.message-bubble {
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+.message-bubble.user {
+  background: #eef4ff;
+}
+
+.message-bubble.assistant {
+  background: white;
+  border: 1px solid #e3e9f4;
+}
+
+.message-bubble p,
+.empty-state,
+.warning-banner,
+.route-summary,
+.fallback-note,
+.error-banner {
+  line-height: 1.5;
+}
+
+.empty-state {
+  color: #52607a;
+}
+
+.error-banner,
+.warning-banner {
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.error-banner {
+  background: #fff1f2;
+  color: #9f1239;
+}
+
+.warning-banner {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.stat-grid div {
+  border-radius: 12px;
+  background: white;
+  border: 1px solid #e3e9f4;
+  padding: 12px;
+}
+
+.stat-grid dt {
+  font-size: 0.8rem;
+  color: #52607a;
+}
+
+.stat-grid dd {
+  margin: 6px 0 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.route-summary {
+  color: #24324d;
+}
+
+@media (max-width: 640px) {
+  .app-shell {
+    padding: 12px;
+  }
+
+  .hero-card {
+    padding: 18px;
+  }
 }
