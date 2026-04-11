@@ -10,15 +10,27 @@ import type {
 const apiBaseUrl =
   import.meta.env.VITE_API_BASE_URL?.trim() || "http://127.0.0.1:8080";
 
+function buildHeaders(token?: string, hasBody = true) {
+  const headers = new Headers();
+
+  if (hasBody) {
+    headers.set("content-type", "application/json");
+  }
+
+  if (token) {
+    headers.set("authorization", `Bearer ${token}`);
+  }
+
+  return headers;
+}
+
 async function postJson<TResponse>(
   path: string,
   body: RecommendationRequestInput,
 ): Promise<TResponse> {
   const response = await fetch(`${apiBaseUrl}${path}`, {
     method: "POST",
-    headers: {
-      "content-type": "application/json",
-    },
+    headers: buildHeaders(),
     body: JSON.stringify(body),
   });
 
@@ -56,12 +68,13 @@ export async function getOperatorState() {
   return (await response.json()) as OperatorStateResponse;
 }
 
-export async function updateOperatorState(state: DestinationState) {
+export async function updateOperatorState(
+  state: DestinationState,
+  authToken?: string,
+) {
   const response = await fetch(`${apiBaseUrl}/operator/state`, {
     method: "POST",
-    headers: {
-      "content-type": "application/json",
-    },
+    headers: buildHeaders(authToken),
     body: JSON.stringify(state),
   });
 
@@ -72,12 +85,13 @@ export async function updateOperatorState(state: DestinationState) {
   return (await response.json()) as OperatorStateResponse;
 }
 
-export async function syncOperatorStates(states: DestinationState[]) {
+export async function syncOperatorStates(
+  states: DestinationState[],
+  authToken?: string,
+) {
   const response = await fetch(`${apiBaseUrl}/operator/state/bulk`, {
     method: "POST",
-    headers: {
-      "content-type": "application/json",
-    },
+    headers: buildHeaders(authToken),
     body: JSON.stringify({ states }),
   });
 
@@ -88,9 +102,10 @@ export async function syncOperatorStates(states: DestinationState[]) {
   return (await response.json()) as OperatorStateResponse;
 }
 
-export async function resetOperatorState() {
+export async function resetOperatorState(authToken?: string) {
   const response = await fetch(`${apiBaseUrl}/operator/reset`, {
     method: "POST",
+    headers: buildHeaders(authToken, false),
   });
 
   if (!response.ok) {

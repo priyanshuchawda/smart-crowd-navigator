@@ -12,6 +12,11 @@ import { z } from "zod";
 
 import { createGeminiAssistantService } from "./gemini.js";
 import {
+  OperatorAuthError,
+  type OperatorAuthService,
+  createOperatorAuthService,
+} from "./operator-auth.js";
+import {
   buildDeterministicAssistantResponse,
   buildRecommendationPayload,
   engine,
@@ -36,9 +41,14 @@ const operatorBulkSchema = z.strictObject({
 });
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
 
+type CreateAppServerOptions = {
+  operatorAuthService?: OperatorAuthService;
+};
+
 function getAllowedOrigins() {
   return (
-    process.env.ALLOWED_ORIGINS ?? "http://127.0.0.1:5173,http://localhost:5173"
+    process.env.ALLOWED_ORIGINS ??
+    "http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:4173"
   )
     .split(",")
     .map((origin) => origin.trim())
@@ -81,7 +91,7 @@ function getCorsHeaders(request: IncomingMessage) {
     "access-control-allow-origin":
       origin && isOriginAllowed(origin) ? origin : (allowedOrigins[0] ?? "*"),
     "access-control-allow-methods": "GET,POST,OPTIONS",
-    "access-control-allow-headers": "content-type",
+    "access-control-allow-headers": "authorization,content-type",
   };
 }
 
@@ -135,7 +145,7 @@ function auditOperatorMutation(
       type: "operator_audit",
       action,
       at: new Date().toISOString(),
-      actor: getClientKey(request),
+      actor: metadata.actor ?? getClientKey(request),
       ...metadata,
     }),
   );
@@ -173,226 +183,298 @@ async function readJsonBody(request: IncomingMessage) {
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
 
-async function requestHandler(
+async function requireOperator(
   request: IncomingMessage,
   response: ServerResponse,
+  operatorAuthService: OperatorAuthService,
 ) {
-  const method = request.method ?? "GET";
-  const url = new URL(request.url ?? "/", "http://localhost");
-  const origin = getRequestOrigin(request);
+  try {
+    return await operatorAuthService.requireOperator(request);
+  } catch (error) {
+    if (error instanceof OperatorAuthError) {
+      respondJson(request, response, error.statusCode, {
+        error: error.code,
+        message: error.message,
+      });
+      return null;
+    }
 
-  if (!isOriginAllowed(origin)) {
-    respondJson(request, response, 403, {
-      error: "forbidden_origin",
+    respondJson(request, response, 500, {
+      error: "operator_auth_failed",
+      message: "Unable to verify operator access",
     });
-    return;
+    return null;
   }
+}
 
-  if (method === "OPTIONS") {
-    respondJson(request, response, 204, {});
-    return;
-  }
+function createRequestHandler({
+  operatorAuthService = createOperatorAuthService(),
+}: CreateAppServerOptions = {}) {
+  return async function requestHandler(
+    request: IncomingMessage,
+    response: ServerResponse,
+  ) {
+    const method = request.method ?? "GET";
+    const url = new URL(request.url ?? "/", "http://localhost");
+    const origin = getRequestOrigin(request);
 
-  if (method === "GET" && url.pathname === "/health") {
-    respondJson(request, response, 200, {
-      service: `${APP_NAME} API`,
-      status: "ok",
-      engineVersion: engine.version,
-    });
-    return;
-  }
-
-  if (method === "GET" && url.pathname === "/operator/state") {
-    respondJson(request, response, 200, {
-      states: getOperatorState(),
-    });
-    return;
-  }
-
-  if (method === "POST" && url.pathname === "/operator/state") {
-    if (!checkRateLimit(request, "operator")) {
-      respondJson(request, response, 429, {
-        error: "rate_limited",
+    if (!isOriginAllowed(origin)) {
+      respondJson(request, response, 403, {
+        error: "forbidden_origin",
       });
       return;
     }
 
-    try {
-      const requestBody = await readJsonBody(request);
-      const payload = operatorStateSchema.parse(requestBody);
-      const states = updateOperatorState(payload);
-      auditOperatorMutation(request, "operator.state.update", {
-        nodeId: payload.nodeId,
-      });
+    if (method === "OPTIONS") {
+      respondJson(request, response, 204, {});
+      return;
+    }
 
+    if (method === "GET" && url.pathname === "/health") {
       respondJson(request, response, 200, {
-        states,
-      });
-      return;
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Invalid operator payload";
-
-      respondJson(
-        request,
-        response,
-        message === "Request body too large" ? 413 : 400,
-        {
-          error: "bad_request",
-          message,
-        },
-      );
-      return;
-    }
-  }
-
-  if (method === "POST" && url.pathname === "/operator/state/bulk") {
-    if (!checkRateLimit(request, "operator")) {
-      respondJson(request, response, 429, {
-        error: "rate_limited",
+        service: `${APP_NAME} API`,
+        status: "ok",
+        engineVersion: engine.version,
+        operatorAuthRequired: operatorAuthService.isRequired(),
       });
       return;
     }
 
-    try {
-      const requestBody = await readJsonBody(request);
-      const payload = operatorBulkSchema.parse(requestBody);
-
-      for (const state of payload.states) {
-        updateOperatorState(state);
-      }
-
-      auditOperatorMutation(request, "operator.state.bulk", {
-        count: payload.states.length,
-      });
-
+    if (method === "GET" && url.pathname === "/operator/state") {
       respondJson(request, response, 200, {
         states: getOperatorState(),
       });
       return;
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Invalid operator bulk payload";
-
-      respondJson(
-        request,
-        response,
-        message === "Request body too large" ? 413 : 400,
-        {
-          error: "bad_request",
-          message,
-        },
-      );
-      return;
-    }
-  }
-
-  if (method === "POST" && url.pathname === "/operator/reset") {
-    if (!checkRateLimit(request, "operator")) {
-      respondJson(request, response, 429, {
-        error: "rate_limited",
-      });
-      return;
     }
 
-    auditOperatorMutation(request, "operator.state.reset", {});
-
-    respondJson(request, response, 200, {
-      states: resetOperatorState(),
-    });
-    return;
-  }
-
-  if (method === "POST" && url.pathname === "/recommendation") {
-    try {
-      const requestBody = await readJsonBody(request);
-      const payload = buildRecommendationPayload(requestBody);
-
-      respondJson(request, response, 200, payload);
-      return;
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Invalid request payload";
-
-      respondJson(
-        request,
-        response,
-        message === "Request body too large" ? 413 : 400,
-        {
-          error: "bad_request",
-          message,
-        },
-      );
-      return;
-    }
-  }
-
-  if (method === "POST" && url.pathname === "/assistant-response") {
-    if (!checkRateLimit(request, "assistant")) {
-      respondJson(request, response, 429, {
-        error: "rate_limited",
-      });
-      return;
-    }
-
-    let requestBody: unknown;
-
-    try {
-      requestBody = await readJsonBody(request);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Invalid request payload";
-
-      respondJson(
-        request,
-        response,
-        message === "Request body too large" ? 413 : 400,
-        {
-          error: "bad_request",
-          message,
-        },
-      );
-      return;
-    }
-
-    try {
-      if (process.env.DISABLE_GEMINI_ASSISTANT === "true") {
-        respondJson(request, response, 200, {
-          ...buildDeterministicAssistantResponse(requestBody),
-          source: "deterministic-fallback",
+    if (method === "POST" && url.pathname === "/operator/state") {
+      if (!checkRateLimit(request, "operator")) {
+        respondJson(request, response, 429, {
+          error: "rate_limited",
         });
         return;
       }
 
-      const service = createGeminiAssistantService();
-      const payload = await service.generateAssistantResponse(requestBody);
+      const operator = await requireOperator(
+        request,
+        response,
+        operatorAuthService,
+      );
 
-      respondJson(request, response, 200, payload);
-      return;
-    } catch {
-      const payload = buildDeterministicAssistantResponse(requestBody);
+      if (operatorAuthService.isRequired() && !operator) {
+        return;
+      }
+
+      try {
+        const requestBody = await readJsonBody(request);
+        const payload = operatorStateSchema.parse(requestBody);
+        const states = updateOperatorState(payload);
+        auditOperatorMutation(request, "operator.state.update", {
+          actor: operator?.actor,
+          nodeId: payload.nodeId,
+          role: operator?.role,
+          uid: operator?.uid,
+        });
+
+        respondJson(request, response, 200, {
+          states,
+        });
+        return;
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Invalid operator payload";
+
+        respondJson(
+          request,
+          response,
+          message === "Request body too large" ? 413 : 400,
+          {
+            error: "bad_request",
+            message,
+          },
+        );
+        return;
+      }
+    }
+
+    if (method === "POST" && url.pathname === "/operator/state/bulk") {
+      if (!checkRateLimit(request, "operator")) {
+        respondJson(request, response, 429, {
+          error: "rate_limited",
+        });
+        return;
+      }
+
+      const operator = await requireOperator(
+        request,
+        response,
+        operatorAuthService,
+      );
+
+      if (operatorAuthService.isRequired() && !operator) {
+        return;
+      }
+
+      try {
+        const requestBody = await readJsonBody(request);
+        const payload = operatorBulkSchema.parse(requestBody);
+
+        for (const state of payload.states) {
+          updateOperatorState(state);
+        }
+
+        auditOperatorMutation(request, "operator.state.bulk", {
+          actor: operator?.actor,
+          count: payload.states.length,
+          role: operator?.role,
+          uid: operator?.uid,
+        });
+
+        respondJson(request, response, 200, {
+          states: getOperatorState(),
+        });
+        return;
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Invalid operator bulk payload";
+
+        respondJson(
+          request,
+          response,
+          message === "Request body too large" ? 413 : 400,
+          {
+            error: "bad_request",
+            message,
+          },
+        );
+        return;
+      }
+    }
+
+    if (method === "POST" && url.pathname === "/operator/reset") {
+      if (!checkRateLimit(request, "operator")) {
+        respondJson(request, response, 429, {
+          error: "rate_limited",
+        });
+        return;
+      }
+
+      const operator = await requireOperator(
+        request,
+        response,
+        operatorAuthService,
+      );
+
+      if (operatorAuthService.isRequired() && !operator) {
+        return;
+      }
+
+      auditOperatorMutation(request, "operator.state.reset", {
+        actor: operator?.actor,
+        role: operator?.role,
+        uid: operator?.uid,
+      });
 
       respondJson(request, response, 200, {
-        ...payload,
-        source: "deterministic-fallback",
+        states: resetOperatorState(),
       });
       return;
     }
-  }
 
-  respondJson(request, response, 404, {
-    error: "not_found",
-  });
+    if (method === "POST" && url.pathname === "/recommendation") {
+      try {
+        const requestBody = await readJsonBody(request);
+        const payload = buildRecommendationPayload(requestBody);
+
+        respondJson(request, response, 200, payload);
+        return;
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Invalid request payload";
+
+        respondJson(
+          request,
+          response,
+          message === "Request body too large" ? 413 : 400,
+          {
+            error: "bad_request",
+            message,
+          },
+        );
+        return;
+      }
+    }
+
+    if (method === "POST" && url.pathname === "/assistant-response") {
+      if (!checkRateLimit(request, "assistant")) {
+        respondJson(request, response, 429, {
+          error: "rate_limited",
+        });
+        return;
+      }
+
+      let requestBody: unknown;
+
+      try {
+        requestBody = await readJsonBody(request);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Invalid request payload";
+
+        respondJson(
+          request,
+          response,
+          message === "Request body too large" ? 413 : 400,
+          {
+            error: "bad_request",
+            message,
+          },
+        );
+        return;
+      }
+
+      try {
+        if (process.env.DISABLE_GEMINI_ASSISTANT === "true") {
+          respondJson(request, response, 200, {
+            ...buildDeterministicAssistantResponse(requestBody),
+            source: "deterministic-fallback",
+          });
+          return;
+        }
+
+        const service = createGeminiAssistantService();
+        const payload = await service.generateAssistantResponse(requestBody);
+
+        respondJson(request, response, 200, payload);
+        return;
+      } catch {
+        const payload = buildDeterministicAssistantResponse(requestBody);
+
+        respondJson(request, response, 200, {
+          ...payload,
+          source: "deterministic-fallback",
+        });
+        return;
+      }
+    }
+
+    respondJson(request, response, 404, {
+      error: "not_found",
+    });
+  };
 }
 
-function createAppServer() {
+function createAppServer(options?: CreateAppServerOptions) {
+  const requestHandler = createRequestHandler(options);
+
   return createServer((request, response) => {
     void requestHandler(request, response);
   });
 }
 
+const requestHandler = createRequestHandler();
 const server = createAppServer();
 
 if (process.env.NODE_ENV !== "test") {
@@ -401,4 +483,4 @@ if (process.env.NODE_ENV !== "test") {
   });
 }
 
-export { createAppServer, requestHandler, server };
+export { createAppServer, createRequestHandler, requestHandler, server };

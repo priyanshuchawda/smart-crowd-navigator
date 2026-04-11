@@ -18,13 +18,19 @@ import {
   updateOperatorState,
 } from "./api";
 import { ConversationPanel } from "./components/ConversationPanel";
+import { OperatorAccessPanel } from "./components/OperatorAccessPanel";
 import { OperatorPanel } from "./components/OperatorPanel";
 import { RecommendationPanel } from "./components/RecommendationPanel";
 import {
+  type OperatorSession,
   getFirebaseOperatorStates,
+  getOperatorIdToken,
   hasFirebaseConfig,
   setFirebaseOperatorStates,
+  signInOperator,
+  signOutOperator,
   subscribeToFirebaseOperatorStates,
+  subscribeToOperatorSession,
 } from "./firebase";
 import type { AssistantApiResponse, ChatMessage } from "./types";
 
@@ -52,6 +58,11 @@ export function App() {
     string | null
   >(null);
   const [isOperatorUpdating, setIsOperatorUpdating] = useState(false);
+  const [operatorSession, setOperatorSession] =
+    useState<OperatorSession | null>(null);
+  const [operatorEmail, setOperatorEmail] = useState("");
+  const [operatorPassword, setOperatorPassword] = useState("");
+  const [isOperatorSigningIn, setIsOperatorSigningIn] = useState(false);
   const activeIntentRef = useRef<CoreIntent | null>(null);
   const requestVersionRef = useRef(0);
 
@@ -65,6 +76,40 @@ export function App() {
     activeIntentRef.current = activeIntent;
   }, [activeIntent]);
 
+  useEffect(() => subscribeToOperatorSession(setOperatorSession), []);
+
+  useEffect(() => {
+    if (!hasFirebaseConfig || !operatorSession || operatorStates.length === 0) {
+      return;
+    }
+
+    let ignore = false;
+
+    async function syncAuthorizedSnapshot() {
+      try {
+        const idToken = await getOperatorIdToken();
+
+        if (!idToken || ignore) {
+          return;
+        }
+
+        await syncOperatorStates(operatorStates, idToken);
+      } catch {
+        if (!ignore) {
+          setOperatorErrorMessage(
+            "Operator sync to the local API failed. Live recommendations may lag until the next successful operator update.",
+          );
+        }
+      }
+    }
+
+    void syncAuthorizedSnapshot();
+
+    return () => {
+      ignore = true;
+    };
+  }, [operatorSession, operatorStates]);
+
   useEffect(() => {
     let ignore = false;
     let unsubscribe = () => {};
@@ -76,8 +121,6 @@ export function App() {
         setOperatorStates(payload.states);
         setOperatorErrorMessage(message ?? null);
       }
-
-      return payload.states;
     };
 
     async function bootstrapOperatorState() {
@@ -89,16 +132,9 @@ export function App() {
 
         const firebaseStates = await getFirebaseOperatorStates();
 
-        if (firebaseStates && firebaseStates.length > 0) {
-          await syncOperatorStates(firebaseStates);
-
-          if (!ignore) {
-            setOperatorStates(firebaseStates);
-            setOperatorErrorMessage(null);
-          }
-        } else {
-          const localStates = await loadLocalState();
-          await setFirebaseOperatorStates(localStates);
+        if (!ignore) {
+          setOperatorStates(firebaseStates ?? []);
+          setOperatorErrorMessage(null);
         }
 
         unsubscribe = subscribeToFirebaseOperatorStates(
@@ -109,7 +145,6 @@ export function App() {
 
             setOperatorStates(states);
             setOperatorErrorMessage(null);
-            void syncOperatorStates(states);
 
             if (activeIntentRef.current) {
               void requestRecommendation(activeIntentRef.current, {
@@ -204,15 +239,45 @@ export function App() {
     await requestRecommendation(intent);
   }
 
+  async function handleOperatorSignIn() {
+    setIsOperatorSigningIn(true);
+    setOperatorErrorMessage(null);
+
+    try {
+      await signInOperator(operatorEmail.trim(), operatorPassword);
+      setOperatorPassword("");
+    } catch (error) {
+      setOperatorErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Operator sign-in failed. Try again.",
+      );
+    } finally {
+      setIsOperatorSigningIn(false);
+    }
+  }
+
+  async function handleOperatorSignOut() {
+    setOperatorErrorMessage(null);
+    await signOutOperator();
+  }
+
   async function handleOperatorUpdate(nextState: DestinationState) {
     setIsOperatorUpdating(true);
     setOperatorErrorMessage(null);
 
     try {
       if (hasFirebaseConfig) {
+        const idToken = await getOperatorIdToken();
+
+        if (!idToken) {
+          throw new Error("Sign in as an operator before updating live state.");
+        }
+
         const nextStates = operatorStates.map((state) =>
           state.nodeId === nextState.nodeId ? nextState : state,
         );
+        await syncOperatorStates(nextStates, idToken);
         await setFirebaseOperatorStates(nextStates);
       } else {
         const payload = await updateOperatorState(nextState);
@@ -242,7 +307,15 @@ export function App() {
 
     try {
       if (hasFirebaseConfig) {
-        const payload = await resetOperatorState();
+        const idToken = await getOperatorIdToken();
+
+        if (!idToken) {
+          throw new Error(
+            "Sign in as an operator before resetting live state.",
+          );
+        }
+
+        const payload = await resetOperatorState(idToken);
         await setFirebaseOperatorStates(payload.states);
       } else {
         const payload = await resetOperatorState();
@@ -265,6 +338,8 @@ export function App() {
       setIsOperatorUpdating(false);
     }
   }
+
+  const showOperatorAccessPanel = hasFirebaseConfig && !operatorSession;
 
   return (
     <main className="app-shell">
@@ -355,13 +430,29 @@ export function App() {
           messages={messages}
         />
         <RecommendationPanel response={response} />
-        <OperatorPanel
-          errorMessage={operatorErrorMessage}
-          isUpdating={isOperatorUpdating}
-          onReset={() => void handleOperatorReset()}
-          onUpdate={(state) => void handleOperatorUpdate(state)}
-          states={operatorStates}
-        />
+        {showOperatorAccessPanel ? (
+          <OperatorAccessPanel
+            email={operatorEmail}
+            errorMessage={operatorErrorMessage}
+            isSubmitting={isOperatorSigningIn}
+            onEmailChange={setOperatorEmail}
+            onPasswordChange={setOperatorPassword}
+            onSubmit={() => void handleOperatorSignIn()}
+            password={operatorPassword}
+          />
+        ) : (
+          <OperatorPanel
+            currentOperatorEmail={operatorSession?.email}
+            errorMessage={operatorErrorMessage}
+            isUpdating={isOperatorUpdating}
+            onReset={() => void handleOperatorReset()}
+            onSignOut={
+              operatorSession ? () => void handleOperatorSignOut() : undefined
+            }
+            onUpdate={(state) => void handleOperatorUpdate(state)}
+            states={operatorStates}
+          />
+        )}
       </section>
     </main>
   );

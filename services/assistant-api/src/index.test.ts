@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   assistantRecommendationSchema,
@@ -6,6 +6,10 @@ import {
 } from "@smart-crowd-navigator/shared";
 
 import { createAppServer } from "./index.js";
+import {
+  OperatorAuthError,
+  type OperatorAuthService,
+} from "./operator-auth.js";
 
 const activeServers = new Set<ReturnType<typeof createAppServer>>();
 
@@ -15,6 +19,7 @@ beforeEach(() => {
   process.env.RATE_LIMIT_WINDOW_MS = undefined;
   process.env.RATE_LIMIT_MAX_ASSISTANT = undefined;
   process.env.RATE_LIMIT_MAX_OPERATOR = undefined;
+  process.env.OPERATOR_AUTH_REQUIRED = undefined;
 });
 
 afterEach(async () => {
@@ -37,8 +42,10 @@ afterEach(async () => {
   );
 });
 
-async function startServer() {
-  const server = createAppServer();
+async function startServer(options?: {
+  operatorAuthService?: OperatorAuthService;
+}) {
+  const server = createAppServer(options);
   activeServers.add(server);
 
   await new Promise<void>((resolve, reject) => {
@@ -68,6 +75,7 @@ describe("assistant API", () => {
     expect(payload).toMatchObject({
       status: "ok",
       engineVersion: "0.2.0",
+      operatorAuthRequired: false,
     });
   });
 
@@ -143,6 +151,76 @@ describe("assistant API", () => {
         (state: { nodeId: string }) => state.nodeId === "stall-b",
       )?.queueMinutes,
     ).toBe(1);
+  });
+
+  it("requires authenticated operator access for operator mutations when enabled", async () => {
+    const operatorAuthService: OperatorAuthService = {
+      isRequired: () => true,
+      requireOperator: vi
+        .fn()
+        .mockRejectedValue(
+          new OperatorAuthError(
+            401,
+            "operator_auth_required",
+            "Operator authentication is required",
+          ),
+        ),
+    };
+    const { baseUrl } = await startServer({ operatorAuthService });
+
+    const response = await fetch(`${baseUrl}/operator/state`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        nodeId: "stall-b",
+        queueMinutes: 1,
+        crowdPenalty: 0,
+        queueTrendAfterFiveMinutes: 0,
+        serviceMinutesPerAdditionalPerson: 2,
+      }),
+    });
+    const payload = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(payload.error).toBe("operator_auth_required");
+  });
+
+  it("accepts operator mutations with an authorized operator service", async () => {
+    const operatorAuthService: OperatorAuthService = {
+      isRequired: () => true,
+      requireOperator: vi.fn().mockResolvedValue({
+        actor: "operator@example.com",
+        email: "operator@example.com",
+        role: "operator",
+        uid: "operator-1",
+      }),
+    };
+    const { baseUrl } = await startServer({ operatorAuthService });
+
+    const response = await fetch(`${baseUrl}/operator/state/bulk`, {
+      method: "POST",
+      headers: {
+        authorization: "Bearer valid-token",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        states: [
+          {
+            nodeId: "stall-b",
+            queueMinutes: 6,
+            crowdPenalty: 1,
+            queueTrendAfterFiveMinutes: -2,
+            serviceMinutesPerAdditionalPerson: 2,
+          },
+        ],
+      }),
+    });
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.states[0].nodeId).toBe("stall-b");
   });
 
   it("accepts a bulk operator state sync payload", async () => {
