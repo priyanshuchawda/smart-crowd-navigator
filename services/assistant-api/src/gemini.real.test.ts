@@ -1,5 +1,6 @@
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
 import { config as loadEnv } from "dotenv";
 import { describe, expect, it } from "vitest";
 
@@ -49,5 +50,5 @@ maybeDescribe("real Gemini boundary smoke", () => {
       ).toBe(true);
       expect(result.recommendation.intent).toBe(scenario.intent);
     }
-  }, 120_000);
+  }, 300_000);
 });

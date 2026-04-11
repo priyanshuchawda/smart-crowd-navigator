@@ -1,5 +1,6 @@
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
 import { config as loadEnv } from "dotenv";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -29,7 +30,7 @@ afterEach(async () => {
         }),
     ),
   );
-});
+}, 60_000);
 
 async function startServer() {
   const server = createAppServer();
@@ -73,5 +74,5 @@ maybeDescribe("real Gemini API smoke", () => {
     expect(response.status).toBe(200);
     expect(payload.source).toBe("gemini");
     expect(payload.recommendation?.intent).toBe("food");
-  }, 120_000);
+  }, 300_000);
 });

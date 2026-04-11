@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
   assistantRecommendationSchema,
@@ -8,6 +8,14 @@ import {
 import { createAppServer } from "./index.js";
 
 const activeServers = new Set<ReturnType<typeof createAppServer>>();
+
+beforeEach(() => {
+  process.env.DISABLE_GEMINI_ASSISTANT = undefined;
+  process.env.MAX_BODY_BYTES = undefined;
+  process.env.RATE_LIMIT_WINDOW_MS = undefined;
+  process.env.RATE_LIMIT_MAX_ASSISTANT = undefined;
+  process.env.RATE_LIMIT_MAX_OPERATOR = undefined;
+});
 
 afterEach(async () => {
   await Promise.all(
@@ -160,5 +168,69 @@ describe("assistant API", () => {
 
     expect(response.status).toBe(200);
     expect(payload.states[0].nodeId).toBe("stall-b");
+  });
+
+  it("rejects disallowed origins", async () => {
+    const { baseUrl } = await startServer();
+    const response = await fetch(`${baseUrl}/health`, {
+      headers: {
+        origin: "https://evil.example.com",
+      },
+    });
+
+    expect(response.status).toBe(403);
+  });
+
+  it("rejects oversized request bodies", async () => {
+    const { baseUrl } = await startServer();
+    process.env.MAX_BODY_BYTES = "10";
+    const response = await fetch(`${baseUrl}/recommendation`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        section: "section-a12",
+        intent: "food",
+        partySize: 3,
+        eventPhase: "break",
+        mobilityMode: "standard",
+      }),
+    });
+
+    expect(response.status).toBe(413);
+  });
+
+  it("rate limits assistant requests when configured aggressively", async () => {
+    const { baseUrl } = await startServer();
+    process.env.DISABLE_GEMINI_ASSISTANT = "true";
+    process.env.RATE_LIMIT_WINDOW_MS = "60000";
+    process.env.RATE_LIMIT_MAX_ASSISTANT = "1";
+
+    const requestBody = {
+      section: "section-a12",
+      intent: "food",
+      partySize: 3,
+      eventPhase: "break",
+      mobilityMode: "standard",
+    };
+
+    const first = await fetch(`${baseUrl}/assistant-response`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
+    const second = await fetch(`${baseUrl}/assistant-response`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(429);
   });
 });

@@ -31,26 +31,139 @@ const operatorStateSchema = z.strictObject({
   queueTrendAfterFiveMinutes: z.number().int(),
   serviceMinutesPerAdditionalPerson: z.number().nonnegative(),
 });
+const operatorBulkSchema = z.strictObject({
+  states: z.array(operatorStateSchema),
+});
+const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
+
+function getAllowedOrigins() {
+  return (
+    process.env.ALLOWED_ORIGINS ?? "http://127.0.0.1:5173,http://localhost:5173"
+  )
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
+
+function getMaxBodyBytes() {
+  return Number(process.env.MAX_BODY_BYTES ?? 16_384);
+}
+
+function getRateLimitWindowMs() {
+  return Number(process.env.RATE_LIMIT_WINDOW_MS ?? 60_000);
+}
+
+function getRateLimitMax(bucket: "assistant" | "operator") {
+  return bucket === "assistant"
+    ? Number(process.env.RATE_LIMIT_MAX_ASSISTANT ?? 20)
+    : Number(process.env.RATE_LIMIT_MAX_OPERATOR ?? 30);
+}
+
+function getRequestOrigin(request: IncomingMessage) {
+  const originHeader = request.headers.origin;
+  return typeof originHeader === "string" ? originHeader : null;
+}
+
+function isOriginAllowed(origin: string | null) {
+  if (!origin) {
+    return true;
+  }
+
+  return getAllowedOrigins().includes(origin);
+}
+
+function getCorsHeaders(request: IncomingMessage) {
+  const allowedOrigins = getAllowedOrigins();
+  const origin = getRequestOrigin(request);
+
+  return {
+    "content-type": "application/json",
+    "access-control-allow-origin":
+      origin && isOriginAllowed(origin) ? origin : (allowedOrigins[0] ?? "*"),
+    "access-control-allow-methods": "GET,POST,OPTIONS",
+    "access-control-allow-headers": "content-type",
+  };
+}
+
+function getClientKey(request: IncomingMessage) {
+  const forwardedFor = request.headers["x-forwarded-for"];
+  const forwardedValue = Array.isArray(forwardedFor)
+    ? forwardedFor[0]
+    : forwardedFor;
+
+  if (typeof forwardedValue === "string" && forwardedValue.length > 0) {
+    return forwardedValue.split(",")[0]?.trim() ?? "unknown";
+  }
+
+  return request.socket.remoteAddress ?? "unknown";
+}
+
+function checkRateLimit(
+  request: IncomingMessage,
+  bucket: "assistant" | "operator",
+) {
+  const maxRequests = getRateLimitMax(bucket);
+  const windowMs = getRateLimitWindowMs();
+  const key = `${bucket}:${getClientKey(request)}`;
+  const now = Date.now();
+  const current = rateLimitStore.get(key);
+
+  if (!current || current.resetAt <= now) {
+    rateLimitStore.set(key, {
+      count: 1,
+      resetAt: now + windowMs,
+    });
+    return true;
+  }
+
+  if (current.count >= maxRequests) {
+    return false;
+  }
+
+  current.count += 1;
+  rateLimitStore.set(key, current);
+  return true;
+}
+
+function auditOperatorMutation(
+  request: IncomingMessage,
+  action: string,
+  metadata: Record<string, unknown>,
+) {
+  console.info(
+    JSON.stringify({
+      type: "operator_audit",
+      action,
+      at: new Date().toISOString(),
+      actor: getClientKey(request),
+      ...metadata,
+    }),
+  );
+}
 
 function respondJson(
+  request: IncomingMessage,
   response: ServerResponse,
   statusCode: number,
   payload: unknown,
 ) {
-  response.writeHead(statusCode, {
-    "content-type": "application/json",
-    "access-control-allow-origin": "*",
-    "access-control-allow-methods": "GET,POST,OPTIONS",
-    "access-control-allow-headers": "content-type",
-  });
+  response.writeHead(statusCode, getCorsHeaders(request));
   response.end(JSON.stringify(payload));
 }
 
 async function readJsonBody(request: IncomingMessage) {
   const chunks: Buffer[] = [];
+  let totalBytes = 0;
 
   for await (const chunk of request) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    totalBytes += buffer.length;
+
+    if (totalBytes > getMaxBodyBytes()) {
+      throw new Error("Request body too large");
+    }
+
+    chunks.push(buffer);
   }
 
   if (chunks.length === 0) {
@@ -66,14 +179,22 @@ async function requestHandler(
 ) {
   const method = request.method ?? "GET";
   const url = new URL(request.url ?? "/", "http://localhost");
+  const origin = getRequestOrigin(request);
+
+  if (!isOriginAllowed(origin)) {
+    respondJson(request, response, 403, {
+      error: "forbidden_origin",
+    });
+    return;
+  }
 
   if (method === "OPTIONS") {
-    respondJson(response, 204, {});
+    respondJson(request, response, 204, {});
     return;
   }
 
   if (method === "GET" && url.pathname === "/health") {
-    respondJson(response, 200, {
+    respondJson(request, response, 200, {
       service: `${APP_NAME} API`,
       status: "ok",
       engineVersion: engine.version,
@@ -82,47 +203,70 @@ async function requestHandler(
   }
 
   if (method === "GET" && url.pathname === "/operator/state") {
-    respondJson(response, 200, {
+    respondJson(request, response, 200, {
       states: getOperatorState(),
     });
     return;
   }
 
   if (method === "POST" && url.pathname === "/operator/state") {
+    if (!checkRateLimit(request, "operator")) {
+      respondJson(request, response, 429, {
+        error: "rate_limited",
+      });
+      return;
+    }
+
     try {
       const requestBody = await readJsonBody(request);
       const payload = operatorStateSchema.parse(requestBody);
+      const states = updateOperatorState(payload);
+      auditOperatorMutation(request, "operator.state.update", {
+        nodeId: payload.nodeId,
+      });
 
-      respondJson(response, 200, {
-        states: updateOperatorState(payload),
+      respondJson(request, response, 200, {
+        states,
       });
       return;
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Invalid operator payload";
 
-      respondJson(response, 400, {
-        error: "bad_request",
-        message,
-      });
+      respondJson(
+        request,
+        response,
+        message === "Request body too large" ? 413 : 400,
+        {
+          error: "bad_request",
+          message,
+        },
+      );
       return;
     }
   }
 
   if (method === "POST" && url.pathname === "/operator/state/bulk") {
+    if (!checkRateLimit(request, "operator")) {
+      respondJson(request, response, 429, {
+        error: "rate_limited",
+      });
+      return;
+    }
+
     try {
       const requestBody = await readJsonBody(request);
-      const payload = z
-        .strictObject({
-          states: z.array(operatorStateSchema),
-        })
-        .parse(requestBody);
+      const payload = operatorBulkSchema.parse(requestBody);
 
       for (const state of payload.states) {
         updateOperatorState(state);
       }
 
-      respondJson(response, 200, {
+      auditOperatorMutation(request, "operator.state.bulk", {
+        count: payload.states.length,
+      });
+
+      respondJson(request, response, 200, {
         states: getOperatorState(),
       });
       return;
@@ -132,16 +276,30 @@ async function requestHandler(
           ? error.message
           : "Invalid operator bulk payload";
 
-      respondJson(response, 400, {
-        error: "bad_request",
-        message,
-      });
+      respondJson(
+        request,
+        response,
+        message === "Request body too large" ? 413 : 400,
+        {
+          error: "bad_request",
+          message,
+        },
+      );
       return;
     }
   }
 
   if (method === "POST" && url.pathname === "/operator/reset") {
-    respondJson(response, 200, {
+    if (!checkRateLimit(request, "operator")) {
+      respondJson(request, response, 429, {
+        error: "rate_limited",
+      });
+      return;
+    }
+
+    auditOperatorMutation(request, "operator.state.reset", {});
+
+    respondJson(request, response, 200, {
       states: resetOperatorState(),
     });
     return;
@@ -152,26 +310,56 @@ async function requestHandler(
       const requestBody = await readJsonBody(request);
       const payload = buildRecommendationPayload(requestBody);
 
-      respondJson(response, 200, payload);
+      respondJson(request, response, 200, payload);
       return;
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Invalid request payload";
 
-      respondJson(response, 400, {
-        error: "bad_request",
-        message,
-      });
+      respondJson(
+        request,
+        response,
+        message === "Request body too large" ? 413 : 400,
+        {
+          error: "bad_request",
+          message,
+        },
+      );
       return;
     }
   }
 
   if (method === "POST" && url.pathname === "/assistant-response") {
-    const requestBody = await readJsonBody(request);
+    if (!checkRateLimit(request, "assistant")) {
+      respondJson(request, response, 429, {
+        error: "rate_limited",
+      });
+      return;
+    }
+
+    let requestBody: unknown;
+
+    try {
+      requestBody = await readJsonBody(request);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Invalid request payload";
+
+      respondJson(
+        request,
+        response,
+        message === "Request body too large" ? 413 : 400,
+        {
+          error: "bad_request",
+          message,
+        },
+      );
+      return;
+    }
 
     try {
       if (process.env.DISABLE_GEMINI_ASSISTANT === "true") {
-        respondJson(response, 200, {
+        respondJson(request, response, 200, {
           ...buildDeterministicAssistantResponse(requestBody),
           source: "deterministic-fallback",
         });
@@ -181,12 +369,12 @@ async function requestHandler(
       const service = createGeminiAssistantService();
       const payload = await service.generateAssistantResponse(requestBody);
 
-      respondJson(response, 200, payload);
+      respondJson(request, response, 200, payload);
       return;
-    } catch (error) {
+    } catch {
       const payload = buildDeterministicAssistantResponse(requestBody);
 
-      respondJson(response, 200, {
+      respondJson(request, response, 200, {
         ...payload,
         source: "deterministic-fallback",
       });
@@ -194,7 +382,7 @@ async function requestHandler(
     }
   }
 
-  respondJson(response, 404, {
+  respondJson(request, response, 404, {
     error: "not_found",
   });
 }
