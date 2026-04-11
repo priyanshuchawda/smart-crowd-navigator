@@ -28,6 +28,9 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
+const appCheckSiteKey = import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY?.trim();
+const appCheckDebugToken =
+  import.meta.env.VITE_FIREBASE_APPCHECK_DEBUG_TOKEN?.trim();
 const hasFirebaseConfig = [
   firebaseConfig.apiKey,
   firebaseConfig.authDomain,
@@ -48,6 +51,9 @@ const firestore = firebaseApp ? getFirestore(firebaseApp) : null;
 const operatorStateDoc = firestore
   ? doc(firestore, "operator-state", "demoVenue")
   : null;
+let appCheckHandlePromise: Promise<{
+  getTokenValue: () => Promise<string | null>;
+} | null> | null = null;
 
 type OperatorSession = {
   email: string | null;
@@ -79,7 +85,51 @@ async function maybeEnableAnalytics() {
   }
 }
 
+async function getAppCheckHandle() {
+  if (
+    !firebaseApp ||
+    !appCheckSiteKey ||
+    typeof window === "undefined" ||
+    typeof self === "undefined"
+  ) {
+    return null;
+  }
+
+  if (!appCheckHandlePromise) {
+    appCheckHandlePromise = (async () => {
+      if (appCheckDebugToken) {
+        (
+          self as typeof globalThis & {
+            FIREBASE_APPCHECK_DEBUG_TOKEN?: boolean | string;
+          }
+        ).FIREBASE_APPCHECK_DEBUG_TOKEN =
+          appCheckDebugToken === "true" ? true : appCheckDebugToken;
+      }
+
+      const { ReCaptchaEnterpriseProvider, getToken, initializeAppCheck } =
+        await import("firebase/app-check");
+      const appCheck = initializeAppCheck(firebaseApp, {
+        isTokenAutoRefreshEnabled: true,
+        provider: new ReCaptchaEnterpriseProvider(appCheckSiteKey),
+      });
+
+      return {
+        async getTokenValue() {
+          const token = await getToken(appCheck, false);
+          return token.token;
+        },
+      };
+    })().catch((error) => {
+      appCheckHandlePromise = null;
+      throw error;
+    });
+  }
+
+  return appCheckHandlePromise;
+}
+
 void maybeEnableAnalytics();
+void getAppCheckHandle().catch(() => {});
 
 async function getFirebaseOperatorStates() {
   if (!operatorStateDoc) {
@@ -165,7 +215,22 @@ async function getOperatorIdToken() {
   return firebaseAuth.currentUser.getIdToken();
 }
 
+async function getAppCheckToken() {
+  try {
+    const appCheckHandle = await getAppCheckHandle();
+
+    if (!appCheckHandle) {
+      return null;
+    }
+
+    return await appCheckHandle.getTokenValue();
+  } catch {
+    return null;
+  }
+}
+
 export {
+  getAppCheckToken,
   getFirebaseOperatorStates,
   getOperatorIdToken,
   hasFirebaseConfig,

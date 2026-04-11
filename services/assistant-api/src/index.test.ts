@@ -5,7 +5,8 @@ import {
   recommendationRequestSchema,
 } from "@smart-crowd-navigator/shared";
 
-import { createAppServer } from "./index.js";
+import { AppCheckError, type AppCheckService } from "./app-check.js";
+import { createAppServer, resetRateLimitStore } from "./index.js";
 import {
   OperatorAuthError,
   type OperatorAuthService,
@@ -15,11 +16,13 @@ const activeServers = new Set<ReturnType<typeof createAppServer>>();
 
 beforeEach(() => {
   process.env.DISABLE_GEMINI_ASSISTANT = undefined;
+  process.env.APP_CHECK_REQUIRED = undefined;
   process.env.MAX_BODY_BYTES = undefined;
   process.env.RATE_LIMIT_WINDOW_MS = undefined;
   process.env.RATE_LIMIT_MAX_ASSISTANT = undefined;
   process.env.RATE_LIMIT_MAX_OPERATOR = undefined;
   process.env.OPERATOR_AUTH_REQUIRED = undefined;
+  resetRateLimitStore();
 });
 
 afterEach(async () => {
@@ -43,6 +46,7 @@ afterEach(async () => {
 });
 
 async function startServer(options?: {
+  appCheckService?: AppCheckService;
   operatorAuthService?: OperatorAuthService;
 }) {
   const server = createAppServer(options);
@@ -73,6 +77,7 @@ describe("assistant API", () => {
 
     expect(response.status).toBe(200);
     expect(payload).toMatchObject({
+      appCheckRequired: false,
       status: "ok",
       engineVersion: "0.2.0",
       operatorAuthRequired: false,
@@ -185,6 +190,68 @@ describe("assistant API", () => {
 
     expect(response.status).toBe(401);
     expect(payload.error).toBe("operator_auth_required");
+  });
+
+  it("requires App Check for protected endpoints when enabled", async () => {
+    const appCheckService: AppCheckService = {
+      isRequired: () => true,
+      requireToken: vi
+        .fn()
+        .mockRejectedValue(
+          new AppCheckError(
+            401,
+            "app_check_required",
+            "App Check token is required",
+          ),
+        ),
+    };
+    const { baseUrl } = await startServer({ appCheckService });
+
+    const response = await fetch(`${baseUrl}/assistant-response`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        section: "section-a12",
+        intent: "food",
+        partySize: 3,
+        eventPhase: "break",
+        mobilityMode: "standard",
+      }),
+    });
+    const payload = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(payload.error).toBe("app_check_required");
+  });
+
+  it("accepts protected requests with a verified App Check token", async () => {
+    process.env.DISABLE_GEMINI_ASSISTANT = "true";
+    const appCheckService: AppCheckService = {
+      isRequired: () => true,
+      requireToken: vi.fn().mockResolvedValue({
+        appId: "1:1234567890:web:demoapp",
+      }),
+    };
+    const { baseUrl } = await startServer({ appCheckService });
+
+    const response = await fetch(`${baseUrl}/assistant-response`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-firebase-appcheck": "valid-app-check-token",
+      },
+      body: JSON.stringify({
+        section: "section-a12",
+        intent: "food",
+        partySize: 3,
+        eventPhase: "break",
+        mobilityMode: "standard",
+      }),
+    });
+
+    expect(response.status).toBe(200);
   });
 
   it("accepts operator mutations with an authorized operator service", async () => {

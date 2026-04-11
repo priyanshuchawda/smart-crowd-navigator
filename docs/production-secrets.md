@@ -27,12 +27,17 @@ Recommended plain environment variables:
 
 - `NODE_ENV=production`
 - `ALLOWED_ORIGINS=<deployed web origin>`
+- `APP_CHECK_REQUIRED=true`
+- `FIREBASE_PROJECT_NUMBER=<firebase project number>`
 - `OPERATOR_AUTH_REQUIRED=true`
 - `FIREBASE_PROJECT_ID=<firebase project id>`
 
 ## Firebase production notes
 
 - Provision operator accounts in Firebase Auth.
+- Register the deployed web app in Firebase App Check with a reCAPTCHA Enterprise site key.
+- Inject `VITE_FIREBASE_APPCHECK_SITE_KEY` into the web build.
+- Safelist debug tokens only for localhost / CI workflows; never for public production traffic.
 - Add `operator-roles/{uid}` documents with:
 
 ```json
@@ -43,6 +48,7 @@ Recommended plain environment variables:
 ```
 
 - Deploy `firestore.rules` before enabling production operator writes.
+- Enable App Check enforcement in the Firebase console for Firestore (and other protected Firebase products) when rollout is ready.
 
 ## API key restriction checklist
 
@@ -61,4 +67,5 @@ Use this for future Google Maps / Places browser keys:
 - Production deploy command uses env vars / Secret Manager references only.
 - No production runbook step references `key.md`.
 - `pnpm setup:local` remains documented as local-only.
+- Protected backend routes reject requests without a valid `X-Firebase-AppCheck` token when `APP_CHECK_REQUIRED=true`.
 - Browser API keys have origin and API allowlists.

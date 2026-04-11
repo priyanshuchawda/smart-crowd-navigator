@@ -173,10 +173,14 @@ Implemented with the current operator-hardening pass:
   - public attendee reads for live state
   - operator/admin-only writes through `operator-roles/{uid}`
 
-Still deferred:
-
 - **Firebase App Check**
-  - helps protect web traffic from abuse
+  - web initialization path for browser attestation
+  - backend verification path for protected Node API routes
+
+- **Firebase App Check enforcement**
+  - still needs Firebase console enforcement toggled for Firestore and any other protected products
+
+Still deferred:
 
 - **Firebase Hosting**
   - web app deployment
@@ -231,7 +235,7 @@ Implemented now:
 - local verification workflow
 
 Deferred for later:
-- Firebase App Check
+- Firebase App Check console enforcement rollout
 - Firebase Hosting production setup
 - Google Maps perimeter integration
 
