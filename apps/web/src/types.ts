@@ -12,6 +12,7 @@ export interface ChatMessage {
 export interface AssistantApiResponse {
   message: string;
   recommendation: AssistantRecommendation;
+  source?: "gemini" | "deterministic-fallback";
 }
 
 export interface RecommendationRequestInput {

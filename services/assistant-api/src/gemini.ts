@@ -69,6 +69,7 @@ async function runGeminiRecommendationAssistant({
     return {
       message: response1.text ?? buildFallbackNarration(recommendation),
       recommendation,
+      source: "gemini" as const,
     };
   }
 
@@ -109,6 +110,7 @@ async function runGeminiRecommendationAssistant({
   return {
     message: response2.text ?? buildFallbackNarration(recommendation),
     recommendation,
+    source: "gemini" as const,
   };
 }
 
