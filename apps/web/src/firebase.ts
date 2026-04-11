@@ -1,5 +1,12 @@
 import { getAnalytics, isSupported } from "firebase/analytics";
-import { getApp, getApps, initializeApp } from "firebase/app";
+import { type FirebaseApp, getApp, getApps, initializeApp } from "firebase/app";
+import {
+  type User,
+  getAuth,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+} from "firebase/auth";
 import {
   doc,
   getDoc,
@@ -30,16 +37,33 @@ const hasFirebaseConfig = [
   firebaseConfig.appId,
 ].every(Boolean);
 
-const firebaseApp = hasFirebaseConfig
+const firebaseApp: FirebaseApp | null = hasFirebaseConfig
   ? getApps().length > 0
     ? getApp()
     : initializeApp(firebaseConfig)
   : null;
 
+const firebaseAuth = firebaseApp ? getAuth(firebaseApp) : null;
 const firestore = firebaseApp ? getFirestore(firebaseApp) : null;
 const operatorStateDoc = firestore
   ? doc(firestore, "operator-state", "demoVenue")
   : null;
+
+type OperatorSession = {
+  email: string | null;
+  uid: string;
+};
+
+function normalizeOperatorSession(user: User | null): OperatorSession | null {
+  if (!user) {
+    return null;
+  }
+
+  return {
+    email: user.email,
+    uid: user.uid,
+  };
+}
 
 async function maybeEnableAnalytics() {
   if (
@@ -104,9 +128,51 @@ function subscribeToFirebaseOperatorStates(
   );
 }
 
+function subscribeToOperatorSession(
+  onChange: (session: OperatorSession | null) => void,
+) {
+  if (!firebaseAuth) {
+    onChange(null);
+    return () => {};
+  }
+
+  return onAuthStateChanged(firebaseAuth, (user) => {
+    onChange(normalizeOperatorSession(user));
+  });
+}
+
+async function signInOperator(email: string, password: string) {
+  if (!firebaseAuth) {
+    throw new Error("Firebase Auth is not configured.");
+  }
+
+  await signInWithEmailAndPassword(firebaseAuth, email, password);
+}
+
+async function signOutOperator() {
+  if (!firebaseAuth) {
+    return;
+  }
+
+  await signOut(firebaseAuth);
+}
+
+async function getOperatorIdToken() {
+  if (!firebaseAuth?.currentUser) {
+    return null;
+  }
+
+  return firebaseAuth.currentUser.getIdToken();
+}
+
 export {
   getFirebaseOperatorStates,
+  getOperatorIdToken,
   hasFirebaseConfig,
   setFirebaseOperatorStates,
+  signInOperator,
+  signOutOperator,
   subscribeToFirebaseOperatorStates,
+  subscribeToOperatorSession,
 };
+export type { OperatorSession };

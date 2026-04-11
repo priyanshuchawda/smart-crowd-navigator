@@ -158,16 +158,22 @@ Currently implemented:
   - structured response generation
   - explanation of live recommendations
 
-Planned after Firebase details are provided:
+Implemented with the current operator-hardening pass:
 
 - **Firebase Auth**
-  - lightweight user/session identity
+  - operator sign-in for restricted console access
 
 - **Firestore**
   - persistent live venue state
   - queue updates
-  - operator-triggered changes
+  - operator-triggered changes guarded by Firestore rules
   - session data
+
+- **Firestore Security Rules**
+  - public attendee reads for live state
+  - operator/admin-only writes through `operator-roles/{uid}`
+
+Still deferred:
 
 - **Firebase App Check**
   - helps protect web traffic from abuse
@@ -225,8 +231,7 @@ Implemented now:
 - local verification workflow
 
 Deferred for later:
-- Firebase Auth
-- App Check
+- Firebase App Check
 - Firebase Hosting production setup
 - Google Maps perimeter integration
 
@@ -363,6 +368,7 @@ pnpm test:gemini-real
 Firebase handoff checklist:
 
 - [docs/firebase-handoff.md](./docs/firebase-handoff.md)
+- [firestore.rules](./firestore.rules)
 
 Automatic GitHub Actions runs are disabled to avoid unnecessary hosted CI usage during development.
 

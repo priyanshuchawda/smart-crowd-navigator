@@ -3,17 +3,21 @@ import { useEffect, useState } from "react";
 import type { DestinationState } from "@smart-crowd-navigator/venue-engine";
 
 interface OperatorPanelProps {
+  currentOperatorEmail?: string | null;
   errorMessage: string | null;
   isUpdating: boolean;
   onReset: () => void;
+  onSignOut?: () => void;
   onUpdate: (nextState: DestinationState) => void;
   states: DestinationState[];
 }
 
 export function OperatorPanel({
+  currentOperatorEmail,
   errorMessage,
   isUpdating,
   onReset,
+  onSignOut,
   onUpdate,
   states,
 }: OperatorPanelProps) {
@@ -26,11 +30,26 @@ export function OperatorPanel({
   return (
     <section className="recommendation-card" aria-label="Operator console">
       <div className="status-row">
-        <span className="section-title">Operator console</span>
+        <div>
+          <span className="section-title">Operator console</span>
+          {currentOperatorEmail ? (
+            <p className="operator-meta">Signed in as {currentOperatorEmail}</p>
+          ) : null}
+        </div>
         <div className="chip-row">
           <span className="status-pill">
             {isUpdating ? "Updating…" : "Ready"}
           </span>
+          {onSignOut ? (
+            <button
+              className="chip"
+              disabled={isUpdating}
+              type="button"
+              onClick={onSignOut}
+            >
+              Sign out
+            </button>
+          ) : null}
           <button
             className="chip"
             disabled={isUpdating}

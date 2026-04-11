@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function operatorRoleDoc() {
+      return /databases/$(database)/documents/operator-roles/$(request.auth.uid);
+    }
+
+    function isApprovedOperator() {
+      return signedIn()
+        && exists(operatorRoleDoc())
+        && get(operatorRoleDoc()).data.active == true
+        && get(operatorRoleDoc()).data.role in ['operator', 'admin'];
+    }
+
+    match /operator-state/{documentId} {
+      allow read: if true;
+      allow write: if isApprovedOperator();
+    }
+
+    match /operator-roles/{userId} {
+      allow read: if signedIn() && request.auth.uid == userId;
+      allow write: if false;
+    }
+  }
+}

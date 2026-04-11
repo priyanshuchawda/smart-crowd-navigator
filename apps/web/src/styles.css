@@ -155,11 +155,13 @@ h1 {
 .warning-banner,
 .route-summary,
 .fallback-note,
-.error-banner {
+.error-banner,
+.operator-meta {
   line-height: 1.5;
 }
 
-.empty-state {
+.empty-state,
+.operator-meta {
   color: #52607a;
 }
 
@@ -233,5 +235,10 @@ h1 {
 
   .hero-card {
     padding: 18px;
+  }
+
+  .status-row {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
