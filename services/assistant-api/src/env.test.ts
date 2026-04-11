@@ -49,4 +49,30 @@ describe("validateRuntimeEnvironment", () => {
       "Production operator auth requires FIREBASE_PROJECT_ID (or VITE_FIREBASE_PROJECT_ID) to be injected from env.",
     );
   });
+
+  it("requires a Firebase project number when production App Check is enabled", () => {
+    expect(() =>
+      validateRuntimeEnvironment({
+        APP_CHECK_REQUIRED: "true",
+        GEMINI_API_KEY: "real-key",
+        NODE_ENV: "production",
+        VITE_FIREBASE_APPCHECK_SITE_KEY: "site-key",
+      }),
+    ).toThrow(
+      "Production App Check requires FIREBASE_PROJECT_NUMBER to be injected from env.",
+    );
+  });
+
+  it("requires a web App Check site key when production App Check is enabled", () => {
+    expect(() =>
+      validateRuntimeEnvironment({
+        APP_CHECK_REQUIRED: "true",
+        FIREBASE_PROJECT_NUMBER: "1234567890",
+        GEMINI_API_KEY: "real-key",
+        NODE_ENV: "production",
+      }),
+    ).toThrow(
+      "Production App Check requires VITE_FIREBASE_APPCHECK_SITE_KEY for the web client.",
+    );
+  });
 });

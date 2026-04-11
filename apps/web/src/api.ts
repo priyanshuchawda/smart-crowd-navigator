@@ -1,6 +1,7 @@
 import type { AssistantRecommendation } from "@smart-crowd-navigator/shared";
 import type { DestinationState } from "@smart-crowd-navigator/venue-engine";
 
+import { getAppCheckToken } from "./firebase";
 import type {
   AssistantApiResponse,
   OperatorStateResponse,
@@ -10,15 +11,27 @@ import type {
 const apiBaseUrl =
   import.meta.env.VITE_API_BASE_URL?.trim() || "http://127.0.0.1:8080";
 
-function buildHeaders(token?: string, hasBody = true) {
+async function buildHeaders({
+  authToken,
+  hasBody = true,
+}: {
+  authToken?: string;
+  hasBody?: boolean;
+}) {
   const headers = new Headers();
 
   if (hasBody) {
     headers.set("content-type", "application/json");
   }
 
-  if (token) {
-    headers.set("authorization", `Bearer ${token}`);
+  if (authToken) {
+    headers.set("authorization", `Bearer ${authToken}`);
+  }
+
+  const appCheckToken = await getAppCheckToken();
+
+  if (appCheckToken) {
+    headers.set("x-firebase-appcheck", appCheckToken);
   }
 
   return headers;
@@ -30,7 +43,7 @@ async function postJson<TResponse>(
 ): Promise<TResponse> {
   const response = await fetch(`${apiBaseUrl}${path}`, {
     method: "POST",
-    headers: buildHeaders(),
+    headers: await buildHeaders({ hasBody: true }),
     body: JSON.stringify(body),
   });
 
@@ -74,7 +87,7 @@ export async function updateOperatorState(
 ) {
   const response = await fetch(`${apiBaseUrl}/operator/state`, {
     method: "POST",
-    headers: buildHeaders(authToken),
+    headers: await buildHeaders({ authToken, hasBody: true }),
     body: JSON.stringify(state),
   });
 
@@ -91,7 +104,7 @@ export async function syncOperatorStates(
 ) {
   const response = await fetch(`${apiBaseUrl}/operator/state/bulk`, {
     method: "POST",
-    headers: buildHeaders(authToken),
+    headers: await buildHeaders({ authToken, hasBody: true }),
     body: JSON.stringify({ states }),
   });
 
@@ -105,7 +118,7 @@ export async function syncOperatorStates(
 export async function resetOperatorState(authToken?: string) {
   const response = await fetch(`${apiBaseUrl}/operator/reset`, {
     method: "POST",
-    headers: buildHeaders(authToken, false),
+    headers: await buildHeaders({ authToken, hasBody: false }),
   });
 
   if (!response.ok) {

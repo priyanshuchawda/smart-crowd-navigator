@@ -10,6 +10,11 @@ import { APP_NAME } from "@smart-crowd-navigator/shared";
 import { config as loadEnv } from "dotenv";
 import { z } from "zod";
 
+import {
+  AppCheckError,
+  type AppCheckService,
+  createAppCheckService,
+} from "./app-check.js";
 import { validateRuntimeEnvironment } from "./env.js";
 import { createGeminiAssistantService } from "./gemini.js";
 import {
@@ -43,7 +48,12 @@ const operatorBulkSchema = z.strictObject({
 });
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
 
+function resetRateLimitStore() {
+  rateLimitStore.clear();
+}
+
 type CreateAppServerOptions = {
+  appCheckService?: AppCheckService;
   operatorAuthService?: OperatorAuthService;
 };
 
@@ -93,7 +103,8 @@ function getCorsHeaders(request: IncomingMessage) {
     "access-control-allow-origin":
       origin && isOriginAllowed(origin) ? origin : (allowedOrigins[0] ?? "*"),
     "access-control-allow-methods": "GET,POST,OPTIONS",
-    "access-control-allow-headers": "authorization,content-type",
+    "access-control-allow-headers":
+      "authorization,content-type,x-firebase-appcheck",
   };
 }
 
@@ -209,7 +220,32 @@ async function requireOperator(
   }
 }
 
+async function requireAppCheck(
+  request: IncomingMessage,
+  response: ServerResponse,
+  appCheckService: AppCheckService,
+) {
+  try {
+    return await appCheckService.requireToken(request);
+  } catch (error) {
+    if (error instanceof AppCheckError) {
+      respondJson(request, response, error.statusCode, {
+        error: error.code,
+        message: error.message,
+      });
+      return null;
+    }
+
+    respondJson(request, response, 500, {
+      error: "app_check_failed",
+      message: "Unable to verify App Check protection",
+    });
+    return null;
+  }
+}
+
 function createRequestHandler({
+  appCheckService = createAppCheckService(),
   operatorAuthService = createOperatorAuthService(),
 }: CreateAppServerOptions = {}) {
   return async function requestHandler(
@@ -237,6 +273,7 @@ function createRequestHandler({
         service: `${APP_NAME} API`,
         status: "ok",
         engineVersion: engine.version,
+        appCheckRequired: appCheckService.isRequired(),
         operatorAuthRequired: operatorAuthService.isRequired(),
       });
       return;
@@ -250,6 +287,16 @@ function createRequestHandler({
     }
 
     if (method === "POST" && url.pathname === "/operator/state") {
+      const appCheck = await requireAppCheck(
+        request,
+        response,
+        appCheckService,
+      );
+
+      if (appCheckService.isRequired() && !appCheck) {
+        return;
+      }
+
       if (!checkRateLimit(request, "operator")) {
         respondJson(request, response, 429, {
           error: "rate_limited",
@@ -300,6 +347,16 @@ function createRequestHandler({
     }
 
     if (method === "POST" && url.pathname === "/operator/state/bulk") {
+      const appCheck = await requireAppCheck(
+        request,
+        response,
+        appCheckService,
+      );
+
+      if (appCheckService.isRequired() && !appCheck) {
+        return;
+      }
+
       if (!checkRateLimit(request, "operator")) {
         respondJson(request, response, 429, {
           error: "rate_limited",
@@ -356,6 +413,16 @@ function createRequestHandler({
     }
 
     if (method === "POST" && url.pathname === "/operator/reset") {
+      const appCheck = await requireAppCheck(
+        request,
+        response,
+        appCheckService,
+      );
+
+      if (appCheckService.isRequired() && !appCheck) {
+        return;
+      }
+
       if (!checkRateLimit(request, "operator")) {
         respondJson(request, response, 429, {
           error: "rate_limited",
@@ -410,6 +477,16 @@ function createRequestHandler({
     }
 
     if (method === "POST" && url.pathname === "/assistant-response") {
+      const appCheck = await requireAppCheck(
+        request,
+        response,
+        appCheckService,
+      );
+
+      if (appCheckService.isRequired() && !appCheck) {
+        return;
+      }
+
       if (!checkRateLimit(request, "assistant")) {
         respondJson(request, response, 429, {
           error: "rate_limited",
@@ -485,4 +562,10 @@ if (process.env.NODE_ENV !== "test") {
   });
 }
 
-export { createAppServer, createRequestHandler, requestHandler, server };
+export {
+  createAppServer,
+  createRequestHandler,
+  requestHandler,
+  resetRateLimitStore,
+  server,
+};
