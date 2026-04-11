@@ -1,7 +1,6 @@
 import type { AssistantRecommendation } from "@smart-crowd-navigator/shared";
 import type { DestinationState } from "@smart-crowd-navigator/venue-engine";
 
-import { getAppCheckToken } from "./firebase";
 import type {
   AssistantApiResponse,
   OperatorStateResponse,
@@ -10,6 +9,15 @@ import type {
 
 const apiBaseUrl =
   import.meta.env.VITE_API_BASE_URL?.trim() || "http://127.0.0.1:8080";
+
+async function getAppCheckTokenForRequest() {
+  try {
+    const { getAppCheckToken } = await import("./firebase");
+    return await getAppCheckToken();
+  } catch {
+    return null;
+  }
+}
 
 async function buildHeaders({
   authToken,
@@ -28,7 +36,7 @@ async function buildHeaders({
     headers.set("authorization", `Bearer ${authToken}`);
   }
 
-  const appCheckToken = await getAppCheckToken();
+  const appCheckToken = await getAppCheckTokenForRequest();
 
   if (appCheckToken) {
     headers.set("x-firebase-appcheck", appCheckToken);
