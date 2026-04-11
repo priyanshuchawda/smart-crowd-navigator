@@ -171,11 +171,10 @@ async function requestHandler(
 
     try {
       if (process.env.DISABLE_GEMINI_ASSISTANT === "true") {
-        respondJson(
-          response,
-          200,
-          buildDeterministicAssistantResponse(requestBody),
-        );
+        respondJson(response, 200, {
+          ...buildDeterministicAssistantResponse(requestBody),
+          source: "deterministic-fallback",
+        });
         return;
       }
 
@@ -187,7 +186,10 @@ async function requestHandler(
     } catch (error) {
       const payload = buildDeterministicAssistantResponse(requestBody);
 
-      respondJson(response, 200, payload);
+      respondJson(response, 200, {
+        ...payload,
+        source: "deterministic-fallback",
+      });
       return;
     }
   }

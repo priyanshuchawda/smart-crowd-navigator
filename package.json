@@ -13,7 +13,8 @@
     "dev:api": "pnpm --filter @smart-crowd-navigator/assistant-api dev",
     "test:e2e": "pnpm build && playwright test",
     "dev": "./scripts/dev-local.sh",
-    "setup:local": "./scripts/setup-local-env.sh"
+    "setup:local": "./scripts/setup-local-env.sh",
+    "test:gemini-real": "pnpm --filter @smart-crowd-navigator/assistant-api test:gemini-real"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
