@@ -354,6 +354,12 @@ Recommended one-command local gate:
 pnpm verify
 ```
 
+Real Gemini integration verification:
+
+```bash
+pnpm test:gemini-real
+```
+
 Firebase handoff checklist:
 
 - [docs/firebase-handoff.md](./docs/firebase-handoff.md)

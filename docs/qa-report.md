@@ -39,6 +39,7 @@ Remaining deferred scope:
 ### Command evidence
 - `pnpm verify` → pass
 - `pnpm test:e2e` → pass
+- `pnpm test:gemini-real` → pass
 - `pnpm setup:local` → pass
 - `pnpm dev` → confirmed API and web startup
 - Firebase-enabled local `.env` verified with the provided `winning-every` project values
@@ -46,6 +47,9 @@ Remaining deferred scope:
 ### Live checks previously confirmed
 - `GET /health` returns API status and engine version
 - `POST /assistant-response` returns Gemini-backed assistant output when `.env` contains a valid Gemini key
+- dedicated real Gemini smoke tests passed for both:
+  - direct SDK boundary
+  - API-level assistant route
 - operator update changes recommendation output in the same attendee flow
 - Firestore-backed operator state path is wired in the web app with local API fallback when Firebase sync is unavailable
 
