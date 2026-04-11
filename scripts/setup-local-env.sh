@@ -8,6 +8,8 @@ fi
 
 cp .env.example .env
 
+echo 'setup-local-env: local development helper only (not for production secrets)'
+
 if [ -f key.md ]; then
   key=$(grep -o 'AIza[[:alnum:]_-]*' key.md | head -n1 || true)
   if [ -n "$key" ]; then

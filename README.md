@@ -10,7 +10,7 @@ pnpm setup:local
 pnpm dev
 ```
 
-If `key.md` contains a Gemini API key, `pnpm setup:local` will create `.env` and populate `GEMINI_API_KEY` automatically for local testing.
+If `key.md` contains a Gemini API key, `pnpm setup:local` will create `.env` and populate `GEMINI_API_KEY` automatically for local testing only. Production should inject secrets through environment variables or Secret Manager-backed deploy configuration.
 
 Then open:
 - web: `http://127.0.0.1:5173`
@@ -369,6 +369,7 @@ Firebase handoff checklist:
 
 - [docs/firebase-handoff.md](./docs/firebase-handoff.md)
 - [firestore.rules](./firestore.rules)
+- [docs/production-secrets.md](./docs/production-secrets.md)
 
 Automatic GitHub Actions runs are disabled to avoid unnecessary hosted CI usage during development.
 
