@@ -10,6 +10,7 @@ import { APP_NAME } from "@smart-crowd-navigator/shared";
 import { config as loadEnv } from "dotenv";
 import { z } from "zod";
 
+import { validateRuntimeEnvironment } from "./env.js";
 import { createGeminiAssistantService } from "./gemini.js";
 import {
   OperatorAuthError,
@@ -27,6 +28,7 @@ import {
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 loadEnv({ path: resolve(currentDir, "../../../.env") });
+validateRuntimeEnvironment(process.env);
 
 const port = Number(process.env.PORT ?? 8080);
 const operatorStateSchema = z.strictObject({
