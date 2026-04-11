@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { runGeminiRecommendationAssistant } from "./gemini.js";
+import {
+  ASSISTANT_PROMPT,
+  buildAssistantPrompt,
+  normalizeAssistantMessage,
+  runGeminiRecommendationAssistant,
+} from "./gemini.js";
 
 describe("runGeminiRecommendationAssistant", () => {
   it("supports a two-turn function-calling flow", async () => {
@@ -70,5 +75,31 @@ describe("runGeminiRecommendationAssistant", () => {
 
     expect(result.message).toContain("Stall B");
     expect(generateContent).toHaveBeenCalledTimes(1);
+  });
+
+  it("builds a constrained assistant prompt with style examples", () => {
+    const prompt = buildAssistantPrompt({
+      section: "section-a12",
+      intent: "food",
+      partySize: 3,
+      eventPhase: "break",
+      mobilityMode: "standard",
+    });
+
+    expect(ASSISTANT_PROMPT).toContain("Always call get_recommendation_data");
+    expect(prompt).toContain("Example style (wait)");
+    expect(prompt).toContain('"intent":"food"');
+  });
+
+  it("normalizes markdown-heavy or empty model output", () => {
+    expect(
+      normalizeAssistantMessage(
+        "**Go now** to Stall B.\n\nThis is the fastest option.",
+        "Fallback message",
+      ),
+    ).toBe("Go now to Stall B. This is the fastest option.");
+    expect(normalizeAssistantMessage("", "Fallback message")).toBe(
+      "Fallback message",
+    );
   });
 });

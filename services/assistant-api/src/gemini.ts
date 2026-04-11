@@ -13,6 +13,23 @@ type GenerateContent = (
   params: GenerateContentParameters,
 ) => Promise<GenerateContentResponse>;
 
+const ASSISTANT_PROMPT = [
+  "You are Smart Crowd Navigator, a stadium movement assistant.",
+  "Always call get_recommendation_data before answering.",
+  "Do not invent routes, queue times, crowd levels, or timing advice.",
+  "Use only the tool result as the source of truth.",
+  "Respond in 2 to 4 plain sentences.",
+  "Do not use markdown, bullet lists, JSON, or code formatting.",
+  "Always state one primary action, include wait/go guidance, and keep the tone calm and practical.",
+  "",
+  "Example style (wait): Wait 5 minutes, then head to Stall B via the East Concourse. This saves about 3 minutes overall and avoids the current rush near your section.",
+  "Example style (go now): Go now to Exit South. It is currently the quickest route out with less crowd pressure than Exit North.",
+].join("\n");
+
+function buildAssistantPrompt(requestPayload: unknown) {
+  return `${ASSISTANT_PROMPT}\n\nAttendee request:\n${JSON.stringify(requestPayload)}`;
+}
+
 function buildFallbackNarration(recommendation: AssistantRecommendation) {
   const action =
     recommendation.timingDecision === "wait"
@@ -20,6 +37,21 @@ function buildFallbackNarration(recommendation: AssistantRecommendation) {
       : "Go now to";
 
   return `${action} ${recommendation.primaryOption.label}. ${recommendation.waitOrGoReason}`;
+}
+
+function normalizeAssistantMessage(
+  message: string | undefined,
+  fallback: string,
+) {
+  if (!message || message.trim().length === 0) {
+    return fallback;
+  }
+
+  const normalized = message.replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
+
+  return normalized.length > 400
+    ? `${normalized.slice(0, 397)}...`
+    : normalized;
 }
 
 const recommendationTool = {
@@ -49,12 +81,11 @@ async function runGeminiRecommendationAssistant({
   requestPayload: unknown;
 }) {
   const toolConfig = { functionDeclarations: [recommendationTool] };
-  const prompt =
-    "You are Smart Crowd Navigator. Always call get_recommendation_data before answering. Then respond with a concise, helpful stadium assistant message.";
+  const prompt = buildAssistantPrompt(requestPayload);
 
   const response1 = await generateContent({
     model,
-    contents: `${prompt}\n\nRequest: ${JSON.stringify(requestPayload)}`,
+    contents: prompt,
     config: {
       tools: [toolConfig],
     },
@@ -66,8 +97,9 @@ async function runGeminiRecommendationAssistant({
   );
 
   if (!functionCall) {
+    const fallback = buildFallbackNarration(recommendation);
     return {
-      message: response1.text ?? buildFallbackNarration(recommendation),
+      message: normalizeAssistantMessage(response1.text, fallback),
       recommendation,
       source: "gemini" as const,
     };
@@ -80,9 +112,7 @@ async function runGeminiRecommendationAssistant({
   const history = [
     {
       role: "user",
-      parts: [
-        { text: `${prompt}\n\nRequest: ${JSON.stringify(requestPayload)}` },
-      ],
+      parts: [{ text: prompt }],
     },
     response1.candidates?.[0]?.content ?? { role: "model", parts: [] },
     {
@@ -107,8 +137,10 @@ async function runGeminiRecommendationAssistant({
     },
   });
 
+  const fallback = buildFallbackNarration(recommendation);
+
   return {
-    message: response2.text ?? buildFallbackNarration(recommendation),
+    message: normalizeAssistantMessage(response2.text, fallback),
     recommendation,
     source: "gemini" as const,
   };
@@ -139,7 +171,10 @@ function createGeminiAssistantService({
 }
 
 export {
+  ASSISTANT_PROMPT,
+  buildAssistantPrompt,
   buildFallbackNarration,
   createGeminiAssistantService,
+  normalizeAssistantMessage,
   runGeminiRecommendationAssistant,
 };
