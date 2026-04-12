@@ -14,8 +14,10 @@ describe("App", () => {
     expect(markup).toContain("Washroom");
     expect(markup).toContain("Entry Gate");
     expect(markup).toContain("Exit");
+    expect(markup).toContain("Try the Food Demo");
+    expect(markup).toContain("How It Works");
     expect(markup).toContain("Live Assistant");
-    expect(markup).toContain("Operator Tools");
+    expect(markup).toContain("Demo Controls");
     expect(markup).toContain(
       "Loading live venue controls in a separate optimized bundle.",
     );
