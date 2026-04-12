@@ -84,6 +84,16 @@ describe("assistant API", () => {
     });
   });
 
+  it("serves the built web shell from the root path", async () => {
+    const { baseUrl } = await startServer();
+    const response = await fetch(`${baseUrl}/`);
+    const markup = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/html");
+    expect(markup).toContain("Smart Crowd Navigator");
+  });
+
   it("returns a structured recommendation payload", async () => {
     const { baseUrl } = await startServer();
     const requestPayload = recommendationRequestSchema.parse({

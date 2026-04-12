@@ -16,6 +16,9 @@ Then open:
 - web: `http://127.0.0.1:5173`
 - API: `http://127.0.0.1:8080`
 
+Live Cloud Run URL:
+- app + API: `https://smart-crowd-navigator-1051094454693.us-central1.run.app`
+
 For a single-command local quality gate:
 
 ```bash
@@ -375,6 +378,7 @@ Firebase handoff checklist:
 - [firestore.rules](./firestore.rules)
 - [docs/production-secrets.md](./docs/production-secrets.md)
 - [docs/operations-runbook.md](./docs/operations-runbook.md)
+- [docs/cloud-run-deploy.md](./docs/cloud-run-deploy.md)
 - [docs/security-review.md](./docs/security-review.md)
 - [docs/qa-report.md](./docs/qa-report.md)
 - [docs/privacy-policy.md](./docs/privacy-policy.md)
