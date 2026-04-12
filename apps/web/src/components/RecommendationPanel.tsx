@@ -6,7 +6,33 @@ interface RecommendationPanelProps {
 
 export function RecommendationPanel({ response }: RecommendationPanelProps) {
   if (!response) {
-    return null;
+    return (
+      <section
+        className="recommendation-card panel-card"
+        aria-label="Recommendation details"
+      >
+        <div className="panel-heading-row">
+          <div>
+            <span className="section-title">Current Recommendation</span>
+            <p className="section-supporting-text">
+              Your live route, wait/go guidance, and fallback option will appear
+              here after you choose a goal.
+            </p>
+          </div>
+          <span className="status-pill status-pill-muted">
+            Waiting for input
+          </span>
+        </div>
+
+        <div className="empty-state-card recommendation-placeholder">
+          <p className="empty-state-title">No recommendation yet</p>
+          <p className="empty-state">
+            Complete the attendee context, choose one quick action, and the page
+            will immediately explain where to go next.
+          </p>
+        </div>
+      </section>
+    );
   }
 
   return (

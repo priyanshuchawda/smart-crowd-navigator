@@ -36,6 +36,21 @@ const intentDescriptions: Record<CoreIntent, string> = {
   exit: "Leave smoothly with less crowd pressure and fewer bottlenecks.",
 };
 
+const attendeeSteps = [
+  {
+    description: "Set your section, group size, and mobility needs first.",
+    title: "1. Add your context",
+  },
+  {
+    description: "Pick what you need help with right now.",
+    title: "2. Choose your goal",
+  },
+  {
+    description: "Read the recommendation and follow the suggested guidance.",
+    title: "3. Follow the next move",
+  },
+];
+
 export function App() {
   const [section, setSection] = useState("section-a12");
   const [partySize, setPartySize] = useState(3);
@@ -170,6 +185,33 @@ export function App() {
         <div className="app-grid">
           <div className="primary-column">
             <section
+              className="panel-card step-panel"
+              aria-label="How to use this page"
+            >
+              <div className="panel-heading-row">
+                <div>
+                  <p className="section-title">How It Works</p>
+                  <p className="section-supporting-text">
+                    This page is designed for first-time visitors: move from top
+                    to bottom and left to right.
+                  </p>
+                </div>
+                <span className="status-pill status-pill-muted">
+                  Beginner-friendly flow
+                </span>
+              </div>
+
+              <div className="step-grid">
+                {attendeeSteps.map((step) => (
+                  <article key={step.title} className="step-card">
+                    <strong className="step-title">{step.title}</strong>
+                    <p className="step-description">{step.description}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section
               className="panel-card control-panel"
               aria-label="Attendee context"
             >
@@ -289,6 +331,12 @@ export function App() {
                     </span>
                   </button>
                 ))}
+              </div>
+
+              <div className="hint-banner">
+                <strong>Tip:</strong> Start with <span>Food</span> or{" "}
+                <span>Exit</span> during the demo to see the clearest route
+                changes.
               </div>
             </section>
 

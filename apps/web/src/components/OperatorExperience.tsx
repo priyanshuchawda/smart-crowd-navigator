@@ -251,29 +251,52 @@ export function OperatorExperience({
 
   if (showOperatorAccessPanel) {
     return (
-      <OperatorAccessPanel
-        email={operatorEmail}
-        errorMessage={operatorErrorMessage}
-        isSubmitting={isOperatorSigningIn}
-        onEmailChange={setOperatorEmail}
-        onPasswordChange={setOperatorPassword}
-        onSubmit={() => void handleOperatorSignIn()}
-        password={operatorPassword}
-      />
+      <details className="operator-disclosure">
+        <summary className="operator-disclosure-summary">
+          <span>
+            <strong>Demo Controls</strong>
+            <span className="operator-disclosure-copy">
+              Expand only if you are operating the live venue demo.
+            </span>
+          </span>
+        </summary>
+
+        <OperatorAccessPanel
+          email={operatorEmail}
+          errorMessage={operatorErrorMessage}
+          isSubmitting={isOperatorSigningIn}
+          onEmailChange={setOperatorEmail}
+          onPasswordChange={setOperatorPassword}
+          onSubmit={() => void handleOperatorSignIn()}
+          password={operatorPassword}
+        />
+      </details>
     );
   }
 
   return (
-    <OperatorPanel
-      currentOperatorEmail={operatorSession?.email}
-      errorMessage={operatorErrorMessage}
-      isUpdating={isOperatorUpdating}
-      onReset={() => void handleOperatorReset()}
-      onSignOut={
-        operatorSession ? () => void handleOperatorSignOut() : undefined
-      }
-      onUpdate={(state) => void handleOperatorUpdate(state)}
-      states={operatorStates}
-    />
+    <details className="operator-disclosure">
+      <summary className="operator-disclosure-summary">
+        <span>
+          <strong>Demo Controls</strong>
+          <span className="operator-disclosure-copy">
+            Venue operators can adjust live conditions here without distracting
+            the attendee flow.
+          </span>
+        </span>
+      </summary>
+
+      <OperatorPanel
+        currentOperatorEmail={operatorSession?.email}
+        errorMessage={operatorErrorMessage}
+        isUpdating={isOperatorUpdating}
+        onReset={() => void handleOperatorReset()}
+        onSignOut={
+          operatorSession ? () => void handleOperatorSignOut() : undefined
+        }
+        onUpdate={(state) => void handleOperatorUpdate(state)}
+        states={operatorStates}
+      />
+    </details>
   );
 }
