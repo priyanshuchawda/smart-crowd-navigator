@@ -28,10 +28,16 @@ export function OperatorPanel({
   }, [states]);
 
   return (
-    <section className="recommendation-card" aria-label="Operator console">
-      <div className="status-row">
+    <section
+      className="recommendation-card panel-card operator-shell"
+      aria-label="Operator console"
+    >
+      <div className="panel-heading-row">
         <div>
-          <span className="section-title">Operator console</span>
+          <span className="section-title">Operator Console</span>
+          <p className="section-supporting-text">
+            Live venue conditions update the attendee guidance immediately.
+          </p>
           {currentOperatorEmail ? (
             <p className="operator-meta">Signed in as {currentOperatorEmail}</p>
           ) : null}
@@ -47,7 +53,7 @@ export function OperatorPanel({
               type="button"
               onClick={onSignOut}
             >
-              Sign out
+              Sign Out
             </button>
           ) : null}
           <button
@@ -56,7 +62,7 @@ export function OperatorPanel({
             type="button"
             onClick={onReset}
           >
-            Reset live state
+            Reset Live State
           </button>
         </div>
       </div>
@@ -66,10 +72,15 @@ export function OperatorPanel({
       <div className="operator-grid">
         {draftStates.map((state) => (
           <article key={state.nodeId} className="operator-card">
-            <h3>{state.nodeId}</h3>
+            <div className="operator-card-header">
+              <h3>{state.nodeId}</h3>
+              <span className="summary-label">Live node</span>
+            </div>
             <label className="field">
-              <span>Queue minutes</span>
+              <span>Queue Minutes</span>
               <input
+                inputMode="numeric"
+                name={`${state.nodeId}-queueMinutes`}
                 type="number"
                 value={state.queueMinutes}
                 onChange={(event) =>
@@ -90,8 +101,10 @@ export function OperatorPanel({
               />
             </label>
             <label className="field">
-              <span>Crowd penalty</span>
+              <span>Crowd Penalty</span>
               <input
+                inputMode="numeric"
+                name={`${state.nodeId}-crowdPenalty`}
                 type="number"
                 value={state.crowdPenalty}
                 onChange={(event) =>
@@ -112,8 +125,10 @@ export function OperatorPanel({
               />
             </label>
             <label className="field">
-              <span>Queue trend / 5 min</span>
+              <span>Queue Trend / 5 Min</span>
               <input
+                inputMode="numeric"
+                name={`${state.nodeId}-queueTrendAfterFiveMinutes`}
                 type="number"
                 value={state.queueTrendAfterFiveMinutes}
                 onChange={(event) =>
@@ -134,12 +149,12 @@ export function OperatorPanel({
               />
             </label>
             <button
-              className="chip"
+              className="chip primary-chip"
               disabled={isUpdating}
               type="button"
               onClick={() => onUpdate(state)}
             >
-              Apply change
+              Apply Change
             </button>
           </article>
         ))}

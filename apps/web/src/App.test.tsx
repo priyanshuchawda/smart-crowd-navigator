@@ -14,9 +14,11 @@ describe("App", () => {
     expect(markup).toContain("Washroom");
     expect(markup).toContain("Entry Gate");
     expect(markup).toContain("Exit");
-    expect(markup).toContain("Live assistant");
-    expect(markup).toContain("Operator tools");
-    expect(markup).toContain("Loading operator tools in a separate bundle.");
+    expect(markup).toContain("Live Assistant");
+    expect(markup).toContain("Operator Tools");
+    expect(markup).toContain(
+      "Loading live venue controls in a separate optimized bundle.",
+    );
   });
 
   it("renders the conversation empty state", () => {
@@ -61,8 +63,9 @@ describe("App", () => {
     );
 
     expect(markup).toContain("Stall B");
-    expect(markup).toContain("Fallback: Stall D");
-    expect(markup).toContain("Time saved");
+    expect(markup).toContain("Backup option");
+    expect(markup).toContain("Stall D");
+    expect(markup).toContain("Time Saved");
     expect(markup).toContain("Crowd pressure is elevated");
   });
 });
