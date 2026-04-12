@@ -11,20 +11,38 @@ export function RecommendationPanel({ response }: RecommendationPanelProps) {
 
   return (
     <section
-      className="recommendation-card"
+      className="recommendation-card panel-card"
       aria-label="Recommendation details"
     >
-      <div className="status-row">
-        <span className="section-title">Current recommendation</span>
-        <span className="status-pill">
+      <div className="panel-heading-row">
+        <div>
+          <span className="section-title">Current Recommendation</span>
+          <p className="section-supporting-text">
+            A live suggestion based on current venue pressure and route timing.
+          </p>
+        </div>
+        <span className="status-pill status-pill-accent">
           {response.recommendation.timingDecision === "wait"
             ? "Wait"
-            : "Go now"}
+            : "Go Now"}
         </span>
       </div>
 
-      <h2>{response.recommendation.primaryOption.label}</h2>
-      <p>{response.recommendation.waitOrGoReason}</p>
+      <div className="recommendation-hero">
+        <div>
+          <p className="recommendation-kicker">Best next move</p>
+          <h2>{response.recommendation.primaryOption.label}</h2>
+          <p className="recommendation-copy">
+            {response.recommendation.waitOrGoReason}
+          </p>
+        </div>
+        <div className="recommendation-badge-card">
+          <span className="summary-label">Confidence</span>
+          <strong className="summary-value">
+            {response.recommendation.confidence}
+          </strong>
+        </div>
+      </div>
 
       <dl className="stat-grid">
         <div>
@@ -36,24 +54,38 @@ export function RecommendationPanel({ response }: RecommendationPanelProps) {
           <dd>{response.recommendation.waitMinutes} min</dd>
         </div>
         <div>
-          <dt>Time saved</dt>
+          <dt>Time Saved</dt>
           <dd>{response.recommendation.timeSavedMinutes} min</dd>
         </div>
         <div>
-          <dt>Confidence</dt>
-          <dd>{response.recommendation.confidence}</dd>
+          <dt>Decision</dt>
+          <dd>{response.recommendation.timingDecision}</dd>
         </div>
       </dl>
 
-      <p className="route-summary">{response.recommendation.routeSummary}</p>
-      {response.recommendation.crowdWarning ? (
-        <p className="warning-banner">{response.recommendation.crowdWarning}</p>
-      ) : null}
-      {response.recommendation.fallbackOption ? (
-        <p className="fallback-note">
-          Fallback: {response.recommendation.fallbackOption.label}
-        </p>
-      ) : null}
+      <div className="detail-stack">
+        <div className="detail-card">
+          <span className="summary-label">Recommended route</span>
+          <p className="route-summary">
+            {response.recommendation.routeSummary}
+          </p>
+        </div>
+
+        {response.recommendation.crowdWarning ? (
+          <p className="warning-banner">
+            {response.recommendation.crowdWarning}
+          </p>
+        ) : null}
+
+        {response.recommendation.fallbackOption ? (
+          <div className="fallback-card">
+            <span className="summary-label">Backup option</span>
+            <p className="fallback-note">
+              {response.recommendation.fallbackOption.label}
+            </p>
+          </div>
+        ) : null}
+      </div>
     </section>
   );
 }
