@@ -7,8 +7,25 @@ import type {
   RecommendationRequestInput,
 } from "./types";
 
-const apiBaseUrl =
-  import.meta.env.VITE_API_BASE_URL?.trim() || "http://127.0.0.1:8080";
+function resolveApiBaseUrl() {
+  const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+
+  if (configuredBaseUrl) {
+    return configuredBaseUrl;
+  }
+
+  if (typeof window === "undefined") {
+    return "http://127.0.0.1:8080";
+  }
+
+  const { hostname, origin, port } = window.location;
+  const isLocalPreview =
+    (hostname === "127.0.0.1" || hostname === "localhost") && port !== "8080";
+
+  return isLocalPreview ? "http://127.0.0.1:8080" : origin;
+}
+
+const apiBaseUrl = resolveApiBaseUrl();
 
 async function getAppCheckTokenForRequest() {
   try {

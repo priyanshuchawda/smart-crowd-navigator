@@ -1,9 +1,10 @@
+import { readFile } from "node:fs/promises";
 import {
   type IncomingMessage,
   type ServerResponse,
   createServer,
 } from "node:http";
-import { dirname, resolve } from "node:path";
+import { dirname, extname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { APP_NAME } from "@smart-crowd-navigator/shared";
@@ -36,6 +37,17 @@ loadEnv({ path: resolve(currentDir, "../../../.env") });
 validateRuntimeEnvironment(process.env);
 
 const port = Number(process.env.PORT ?? 8080);
+const webDistDir = resolve(currentDir, "../../../apps/web/dist");
+const staticAssetTypes: Record<string, string> = {
+  ".css": "text/css; charset=utf-8",
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".png": "image/png",
+  ".svg": "image/svg+xml",
+  ".txt": "text/plain; charset=utf-8",
+  ".webp": "image/webp",
+};
 const operatorStateSchema = z.strictObject({
   nodeId: z.string().min(1),
   queueMinutes: z.number().int().nonnegative(),
@@ -182,6 +194,64 @@ function respondJson(
 ) {
   response.writeHead(statusCode, getCorsHeaders(request));
   response.end(JSON.stringify(payload));
+}
+
+async function readStaticFile(pathname: string) {
+  const normalizedPath = pathname === "/" ? "/index.html" : pathname;
+  const staticFilePath = resolve(webDistDir, `.${normalizedPath}`);
+
+  if (!staticFilePath.startsWith(webDistDir)) {
+    return null;
+  }
+
+  try {
+    return {
+      buffer: await readFile(staticFilePath),
+      filePath: staticFilePath,
+    };
+  } catch {
+    if (pathname.includes(".")) {
+      return null;
+    }
+
+    try {
+      return {
+        buffer: await readFile(resolve(webDistDir, "index.html")),
+        filePath: resolve(webDistDir, "index.html"),
+      };
+    } catch {
+      return null;
+    }
+  }
+}
+
+async function serveStaticAsset(
+  request: IncomingMessage,
+  response: ServerResponse,
+  pathname: string,
+) {
+  const staticFile = await readStaticFile(pathname);
+
+  if (!staticFile) {
+    return false;
+  }
+
+  response.writeHead(200, {
+    "cache-control": pathname.startsWith("/assets/")
+      ? "public, max-age=31536000, immutable"
+      : "no-cache",
+    "content-type":
+      staticAssetTypes[extname(staticFile.filePath)] ??
+      "application/octet-stream",
+  });
+
+  if (request.method === "HEAD") {
+    response.end();
+    return true;
+  }
+
+  response.end(staticFile.buffer);
+  return true;
 }
 
 async function readJsonBody(request: IncomingMessage) {
@@ -555,6 +625,13 @@ function createRequestHandler({
         });
         return;
       }
+    }
+
+    if (
+      (method === "GET" || method === "HEAD") &&
+      (await serveStaticAsset(request, response, url.pathname))
+    ) {
+      return;
     }
 
     respondJson(request, response, 404, {
