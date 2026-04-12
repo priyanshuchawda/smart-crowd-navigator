@@ -1,77 +1,52 @@
 # Security Review
 
 ## Scope
-Production-readiness security review of the current Smart Crowd Navigator codebase.
+Production-readiness security review of the current Smart Crowd Navigator codebase after the April 11, 2026 hardening pass.
 
-## Current High-Priority Risks
+## Completed high-priority fixes
 
-### 1. Operator state can be modified without authentication or authorization
-Current code paths allow operator-state writes through public web/API flows.
+### 1. Operator state writes are now authenticated and authorized
+Resolved in repo:
+- Firebase Auth-backed operator access path exists in `apps/web/src/firebase.ts`
+- Firestore write access is limited by `firestore.rules`
+- Node API operator mutations verify Firebase ID tokens in `services/assistant-api/src/operator-auth.ts`
 
-Repo-grounded evidence:
-- `apps/web/src/firebase.ts` writes operator state directly with Firestore client SDK.
-- `services/assistant-api/src/index.ts` exposes `/operator/state`, `/operator/state/bulk`, and `/operator/reset` without auth.
+### 2. Public API abuse controls are now in place
+Resolved in repo:
+- CORS allowlist in `services/assistant-api/src/index.ts`
+- rate limits on assistant/operator write surfaces
+- structured operator audit logs for mutation events
+- prompt/response hardening and deterministic fallback path
 
-Production fix:
-- add Firebase Auth
-- define operator/admin role model
-- add Firestore Security Rules
-- restrict operator endpoints to authorized actors only
+### 3. App Check support exists for the web client and Node API
+Resolved in repo:
+- web App Check bootstrap in `apps/web/src/firebase.ts`
+- protected backend routes verify `X-Firebase-AppCheck` in `services/assistant-api/src/app-check.ts`
 
-### 2. API surface is public and expensive endpoints are unprotected
-`/assistant-response` can trigger paid model usage and `/operator/*` mutates live state.
+## Remaining production gaps
 
-Repo-grounded evidence:
-- wildcard CORS in `services/assistant-api/src/index.ts`
-- no auth checks or rate limiting on live endpoints
+### 1. Console-side Firebase rollout still must happen
+Code support exists, but public launch still requires:
+- App Check enforcement in Firebase console
+- deployed site key / debug-token hygiene
+- operator role provisioning in Firestore/Auth
 
-Production fix:
-- origin allowlist
-- auth or signed access for operator mutations
-- rate limiting and abuse controls
-- audit logging
+### 2. Observability still needs deployment-side wiring
+Repo support exists for structured logs, including:
+- `operator_audit`
+- `assistant_fallback`
 
-### 3. App Check is not enabled yet
-Without App Check, browser traffic can be replayed or abused more easily.
+Still needed outside the repo:
+- log sinks / dashboards
+- alerting thresholds
+- incident notifications
 
-Production fix:
-- add App Check for web
-- enforce where possible in Firebase-backed flows
+### 3. Privacy and public-policy rollout still matters
+Before public launch, add and customize:
+- privacy policy
+- terms / acceptable-use policy
+- support/security contact details
+- data retention review for analytics/session data
 
-## Medium Risks
-
-### 4. Real Gemini outages currently fall back correctly, but outage visibility is weak
-Fallback is good for UX, but operators may need observability to know Gemini is degraded.
-
-Production fix:
-- structured logs and counters for fallback usage
-- alerting/monitoring for upstream failures
-
-### 5. Large build chunk warning
-Not a security issue by itself, but performance and bundle discipline matter in production.
-
-Production fix:
-- code splitting
-- lazy-load heavy Firebase/Gemini-adjacent paths where practical
-
-### 6. key.md local-helper path is fine for dev, not for production
-Local convenience is acceptable, but production should rely on deploy-time secret injection only.
-
-Production fix:
-- Cloud Run env vars / Secret Manager
-- no runtime dependence on `key.md`
-
-## Lower-Priority / Future
-- App-level audit views for operator changes
-- stronger multi-operator concurrency controls
-- privacy/data retention review for analytics and session data
-
-## Recommended Security Backlog
-- #53 Harden operator access with Firebase Auth and Firestore rules
-- #54 Add App Check and protect backend/API surfaces
-- #55 Harden Node API against abuse and oversized input
-- #56 Production secret handling and API key restrictions
-- #57 Prompt and response hardening for production assistant behavior
-
-## Current Verdict
-The current build is suitable as an MVP/demo, but not yet production-secure until operator authz, App Check, API hardening, and production secret handling are completed.
+## Current verdict
+The codebase is now materially hardened for production compared with the original MVP. Remaining blockers are primarily deployment/configuration, monitoring, and public-policy rollout rather than missing core security controls in the repo.

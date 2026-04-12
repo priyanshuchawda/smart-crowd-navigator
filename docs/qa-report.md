@@ -1,16 +1,10 @@
 # QA Evidence Report
 
-_Last updated: 2026-04-09 (post Firebase web integration)_
+_Last updated: 2026-04-11 (post production-readiness hardening)_
 
 ## Current Status
 
-Smart Crowd Navigator is complete for the currently planned implementation.
-
-Remaining deferred scope:
-- Firebase Auth
-- App Check
-- Firebase Hosting deployment
-- Google Maps perimeter integration
+Core product code is implemented and locally verified.
 
 ## Implemented Areas
 
@@ -20,43 +14,40 @@ Remaining deferred scope:
 - timing advice and fallback logic
 - recommendation API
 - Gemini tool-calling boundary
+- prompt/response hardening
 - attendee chat shell
-- operator console
+- operator console and operator auth flow
 - live recommendation refresh
-- Firebase web config module
-- Firestore-backed operator state sync with local API fallback
+- Firestore-backed operator state sync
+- Firestore security rules
+- App Check web + backend support
+- production env validation for secrets/runtime config
+- code-split operator/Firebase web loading path
 - local verification workflow
 - deterministic Playwright E2E coverage
-- local env bootstrap and demo runner
 
 ## Latest Verification Evidence
 
 ### Repository state
 - branch: `main`
-- working tree: clean
-- no open implementation blockers remain in the repo issue list after the current QA refresh lands
+- no open GitHub issues remain after the current hardening pass
 
 ### Command evidence
 - `pnpm verify` → pass
 - `pnpm test:e2e` → pass
-- `pnpm test:gemini-real` → pass
-- `pnpm setup:local` → pass
-- `pnpm dev` → confirmed API and web startup
-- Firebase-enabled local `.env` verified with the provided `winning-every` project values
+- `pnpm test:gemini-real` → previously documented pass
+- `pnpm setup:local` → local-dev helper path remains available
 
-### Live checks previously confirmed
-- `GET /health` returns API status and engine version
-- `POST /assistant-response` returns Gemini-backed assistant output when `.env` contains a valid Gemini key
-- dedicated real Gemini smoke tests passed for both:
-  - direct SDK boundary
-  - API-level assistant route
-- operator update changes recommendation output in the same attendee flow
-- Firestore-backed operator state path is wired in the web app with local API fallback when Firebase sync is unavailable
+### Current build evidence
+- initial attendee web chunk reduced to ~244 kB gzip-uncompressed artifact size class
+- Firebase/operator logic is split into separate web chunks
+- no Vite large-chunk warning remains in the latest verified build output
 
-## Known Deferred Scope
+## Remaining non-code rollout work
 
-Still deferred:
-- Firebase Auth
-- App Check
-- Firebase Hosting deployment wiring
-- Google Maps perimeter integration
+Still required before real public launch:
+- Firebase console-side App Check enforcement
+- hosting/domain rollout
+- production monitoring and alerting wiring
+- privacy/terms/support policy customization
+- deployed smoke tests against real cloud infrastructure
