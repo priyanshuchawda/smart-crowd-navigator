@@ -378,4 +378,34 @@ describe("assistant API", () => {
     expect(first.status).toBe(200);
     expect(second.status).toBe(429);
   });
+
+  it("emits a structured log when deterministic fallback is forced", async () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    const { baseUrl } = await startServer();
+    process.env.DISABLE_GEMINI_ASSISTANT = "true";
+
+    const response = await fetch(`${baseUrl}/assistant-response`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        section: "section-a12",
+        intent: "food",
+        partySize: 3,
+        eventPhase: "break",
+        mobilityMode: "standard",
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(infoSpy).toHaveBeenCalledWith(
+      expect.stringContaining('"type":"assistant_fallback"'),
+    );
+    expect(infoSpy).toHaveBeenCalledWith(
+      expect.stringContaining('"reason":"disabled_by_env"'),
+    );
+
+    infoSpy.mockRestore();
+  });
 });

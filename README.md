@@ -374,6 +374,9 @@ Firebase handoff checklist:
 - [docs/firebase-handoff.md](./docs/firebase-handoff.md)
 - [firestore.rules](./firestore.rules)
 - [docs/production-secrets.md](./docs/production-secrets.md)
+- [docs/operations-runbook.md](./docs/operations-runbook.md)
+- [docs/security-review.md](./docs/security-review.md)
+- [docs/qa-report.md](./docs/qa-report.md)
 
 Automatic GitHub Actions runs are disabled to avoid unnecessary hosted CI usage during development.
 

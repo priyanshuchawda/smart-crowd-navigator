@@ -164,6 +164,16 @@ function auditOperatorMutation(
   );
 }
 
+function logRuntimeEvent(type: string, metadata: Record<string, unknown>) {
+  console.info(
+    JSON.stringify({
+      type,
+      at: new Date().toISOString(),
+      ...metadata,
+    }),
+  );
+}
+
 function respondJson(
   request: IncomingMessage,
   response: ServerResponse,
@@ -516,6 +526,9 @@ function createRequestHandler({
 
       try {
         if (process.env.DISABLE_GEMINI_ASSISTANT === "true") {
+          logRuntimeEvent("assistant_fallback", {
+            reason: "disabled_by_env",
+          });
           respondJson(request, response, 200, {
             ...buildDeterministicAssistantResponse(requestBody),
             source: "deterministic-fallback",
@@ -528,7 +541,12 @@ function createRequestHandler({
 
         respondJson(request, response, 200, payload);
         return;
-      } catch {
+      } catch (error) {
+        logRuntimeEvent("assistant_fallback", {
+          error:
+            error instanceof Error ? error.message : "unknown_assistant_error",
+          reason: "gemini_failure",
+        });
         const payload = buildDeterministicAssistantResponse(requestBody);
 
         respondJson(request, response, 200, {
