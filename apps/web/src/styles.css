@@ -159,6 +159,35 @@ h2 {
   gap: 14px;
 }
 
+.step-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.step-card {
+  display: grid;
+  gap: 8px;
+  padding: 16px 18px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 18px;
+  background: linear-gradient(
+    180deg,
+    rgba(248, 250, 252, 0.96),
+    rgba(255, 255, 255, 0.98)
+  );
+}
+
+.step-title {
+  color: #0f172a;
+  font-size: 0.95rem;
+}
+
+.step-description {
+  color: #475569;
+  line-height: 1.55;
+}
+
 .summary-card,
 .recommendation-badge-card,
 .detail-card,
@@ -369,6 +398,18 @@ h2 {
   gap: 12px;
 }
 
+.hint-banner {
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(239, 246, 255, 0.9);
+  color: #1e3a8a;
+  line-height: 1.55;
+}
+
+.hint-banner span {
+  font-weight: 700;
+}
+
 .message-bubble {
   display: grid;
   gap: 8px;
@@ -391,6 +432,11 @@ h2 {
     rgba(239, 246, 255, 0.9),
     rgba(248, 250, 252, 0.95)
   );
+}
+
+.recommendation-placeholder {
+  min-height: 140px;
+  align-content: center;
 }
 
 .empty-state-title {
@@ -458,6 +504,48 @@ h2 {
 .operator-shell {
   position: sticky;
   top: 20px;
+}
+
+.operator-disclosure {
+  display: grid;
+  gap: 14px;
+}
+
+.operator-disclosure-summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 20px;
+  background: rgba(248, 250, 252, 0.96);
+  cursor: pointer;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.operator-disclosure-summary::-webkit-details-marker {
+  display: none;
+}
+
+.operator-disclosure-summary::after {
+  content: "▾";
+  color: #2563eb;
+  font-size: 1rem;
+}
+
+.operator-disclosure[open] .operator-disclosure-summary::after {
+  content: "▴";
+}
+
+.operator-disclosure-copy {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 
 .operator-grid {
@@ -530,7 +618,8 @@ h2 {
 
   .control-stack,
   .intent-grid,
-  .stat-grid {
+  .stat-grid,
+  .step-grid {
     grid-template-columns: 1fr;
   }
 }
