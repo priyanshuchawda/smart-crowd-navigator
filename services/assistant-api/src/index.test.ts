@@ -15,6 +15,7 @@ import {
   OperatorAuthError,
   type OperatorAuthService,
 } from "./operator-auth.js";
+import { resetOperatorState, updateOperatorState } from "./recommendation.js";
 
 const activeServers = new Set<ReturnType<typeof createAppServer>>();
 const currentDir = dirname(fileURLToPath(import.meta.url));
@@ -29,6 +30,7 @@ beforeEach(() => {
   process.env.RATE_LIMIT_MAX_OPERATOR = undefined;
   process.env.OPERATOR_AUTH_REQUIRED = undefined;
   resetRateLimitStore();
+  resetOperatorState();
 });
 
 afterEach(async () => {
@@ -494,5 +496,81 @@ describe("assistant API", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-cache, no-store");
+  });
+
+  it("returns valid recommendation responses for all supported intents", async () => {
+    const { baseUrl } = await startServer();
+    const intents = ["food", "washroom", "entry-gate", "exit"] as const;
+
+    for (const intent of intents) {
+      const response = await fetch(`${baseUrl}/recommendation`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          section: "section-a12",
+          intent,
+          partySize: 3,
+          eventPhase: "break",
+          mobilityMode: "standard",
+        }),
+      });
+      const payload = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(assistantRecommendationSchema.safeParse(payload).success).toBe(
+        true,
+      );
+      expect(payload.intent).toBe(intent);
+    }
+  });
+
+  it("changes recommendation output when operator state changes", async () => {
+    const { baseUrl } = await startServer();
+    process.env.DISABLE_GEMINI_ASSISTANT = "true";
+
+    const baselineResponse = await fetch(`${baseUrl}/assistant-response`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        section: "section-a12",
+        intent: "food",
+        partySize: 3,
+        eventPhase: "break",
+        mobilityMode: "standard",
+      }),
+    });
+    const baselinePayload = await baselineResponse.json();
+
+    updateOperatorState({
+      nodeId: "stall-b",
+      queueMinutes: 20,
+      crowdPenalty: 4,
+      queueTrendAfterFiveMinutes: 0,
+      serviceMinutesPerAdditionalPerson: 2,
+    });
+
+    const changedResponse = await fetch(`${baseUrl}/assistant-response`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        section: "section-a12",
+        intent: "food",
+        partySize: 3,
+        eventPhase: "break",
+        mobilityMode: "standard",
+      }),
+    });
+    const changedPayload = await changedResponse.json();
+
+    expect(baselineResponse.status).toBe(200);
+    expect(changedResponse.status).toBe(200);
+    expect(baselinePayload.recommendation.primaryOption.id).toBe("stall-b");
+    expect(changedPayload.recommendation.primaryOption.id).toBe("stall-d");
   });
 });

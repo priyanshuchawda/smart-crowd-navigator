@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { demoVenueFixture } from "./fixture";
 import { createVenueEngine } from "./index";
 
 describe("createVenueEngine", () => {
@@ -127,6 +128,107 @@ describe("createVenueEngine", () => {
     expect(group[0]?.destinationId).toBe("stall-d");
     expect(group[0]?.score.partyServiceMinutes).toBeLessThan(
       group[1]?.score.partyServiceMinutes ?? Number.POSITIVE_INFINITY,
+    );
+  });
+
+  it("keeps washroom ranking deterministic when candidate queues are equal", () => {
+    const engine = createVenueEngine();
+    const equalQueueFixture = {
+      ...demoVenueFixture,
+      destinationStates: demoVenueFixture.destinationStates.map((state) => {
+        if (
+          state.nodeId === "washroom-east" ||
+          state.nodeId === "washroom-west"
+        ) {
+          return {
+            ...state,
+            crowdPenalty: 0,
+            queueMinutes: 4,
+            queueTrendAfterFiveMinutes: 0,
+          };
+        }
+
+        return { ...state };
+      }),
+    };
+
+    const first = engine.rankDestinations(
+      {
+        sectionId: "section-a12",
+        intent: "washroom",
+        eventPhase: "in-play",
+        partySize: 1,
+      },
+      equalQueueFixture,
+    );
+    const second = engine.rankDestinations(
+      {
+        sectionId: "section-a12",
+        intent: "washroom",
+        eventPhase: "in-play",
+        partySize: 1,
+      },
+      equalQueueFixture,
+    );
+
+    expect(first.map((ranking) => ranking.destinationId)).toEqual(
+      second.map((ranking) => ranking.destinationId),
+    );
+    expect(first[0]?.score.queueMinutes).toBe(4);
+  });
+
+  it("recommends go_now when queue trends are flat for exits", () => {
+    const engine = createVenueEngine();
+    const flatTrendFixture = {
+      ...demoVenueFixture,
+      destinationStates: demoVenueFixture.destinationStates.map((state) => {
+        if (state.nodeId === "exit-north" || state.nodeId === "exit-south") {
+          return {
+            ...state,
+            queueTrendAfterFiveMinutes: 0,
+          };
+        }
+
+        return { ...state };
+      }),
+    };
+    const advice = engine.getTimingAdvice(
+      {
+        sectionId: "section-a12",
+        intent: "exit",
+        eventPhase: "post-event",
+        waitWindowMinutes: 5,
+        partySize: 2,
+      },
+      flatTrendFixture,
+    );
+
+    expect(advice.decision).toBe("go_now");
+    expect(advice.timeSavedMinutes).toBe(0);
+    expect(advice.currentBest.destinationId).toBe(
+      advice.projectedBest.destinationId,
+    );
+  });
+
+  it("shifts food winner for very large parties due to service penalties", () => {
+    const engine = createVenueEngine();
+    const solo = engine.rankDestinations({
+      sectionId: "section-a12",
+      intent: "food",
+      eventPhase: "break",
+      partySize: 1,
+    });
+    const largeParty = engine.rankDestinations({
+      sectionId: "section-a12",
+      intent: "food",
+      eventPhase: "break",
+      partySize: 12,
+    });
+
+    expect(solo[0]?.destinationId).toBe("stall-b");
+    expect(largeParty[0]?.destinationId).toBe("stall-d");
+    expect(largeParty[1]?.score.partyServiceMinutes).toBeGreaterThan(
+      largeParty[0]?.score.partyServiceMinutes ?? 0,
     );
   });
 });
