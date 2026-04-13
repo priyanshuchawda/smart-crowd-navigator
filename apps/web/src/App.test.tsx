@@ -10,6 +10,7 @@ describe("App", () => {
     const markup = renderToStaticMarkup(<App />);
 
     expect(markup).toContain("Smart Crowd Navigator");
+    expect(markup).toContain("Skip to main content");
     expect(markup).toContain("Food");
     expect(markup).toContain("Washroom");
     expect(markup).toContain("Entry Gate");
@@ -30,6 +31,7 @@ describe("App", () => {
 
     expect(markup).toContain("Tap a quick action");
     expect(markup).toContain("Ready");
+    expect(markup).toContain('aria-live="polite"');
   });
 
   it("renders recommendation details when a response is available", () => {
@@ -69,5 +71,6 @@ describe("App", () => {
     expect(markup).toContain("Stall D");
     expect(markup).toContain("Time Saved");
     expect(markup).toContain("Crowd pressure is elevated");
+    expect(markup).toContain('role="alert"');
   });
 });

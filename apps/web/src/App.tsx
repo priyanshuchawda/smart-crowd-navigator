@@ -144,6 +144,7 @@ export function App() {
   const requestVersionRef = useRef(0);
   const demoSectionRef = useRef<HTMLDivElement | null>(null);
   const recommendationSectionRef = useRef<HTMLDivElement | null>(null);
+  const recommendationHeadingRef = useRef<HTMLHeadingElement | null>(null);
   const demoControlsRef = useRef<HTMLElement | null>(null);
 
   const summary = useMemo(
@@ -237,6 +238,7 @@ export function App() {
       ]);
 
       scrollToRecommendation();
+      recommendationHeadingRef.current?.focus();
     } catch (error) {
       const message =
         error instanceof Error
@@ -260,6 +262,13 @@ export function App() {
       <a className="skip-link" href="#main-content">
         Skip to main content
       </a>
+      <output className="visually-hidden" aria-live="polite">
+        {isLoading
+          ? "Loading recommendation..."
+          : response
+            ? "Recommendation ready."
+            : ""}
+      </output>
       <div className="ambient-orb ambient-orb-one" aria-hidden="true" />
       <div className="ambient-orb ambient-orb-two" aria-hidden="true" />
 
@@ -600,7 +609,10 @@ export function App() {
               messages={messages}
             />
             <div ref={recommendationSectionRef}>
-              <RecommendationPanel response={response} />
+              <RecommendationPanel
+                response={response}
+                headingRef={recommendationHeadingRef}
+              />
             </div>
           </div>
 

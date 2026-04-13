@@ -1,10 +1,16 @@
+import type { RefObject } from "react";
+
 import type { AssistantApiResponse } from "../types";
 
 interface RecommendationPanelProps {
+  headingRef?: RefObject<HTMLHeadingElement | null>;
   response: AssistantApiResponse | null;
 }
 
-export function RecommendationPanel({ response }: RecommendationPanelProps) {
+export function RecommendationPanel({
+  headingRef,
+  response,
+}: RecommendationPanelProps) {
   if (!response) {
     return (
       <section
@@ -54,40 +60,44 @@ export function RecommendationPanel({ response }: RecommendationPanelProps) {
         </span>
       </div>
 
-      <div className="recommendation-hero">
-        <div>
-          <p className="recommendation-kicker">Best next move</p>
-          <h2>{response.recommendation.primaryOption.label}</h2>
-          <p className="recommendation-copy">
-            {response.recommendation.waitOrGoReason}
-          </p>
+      <div aria-live="polite" aria-atomic="true">
+        <div className="recommendation-hero">
+          <div>
+            <p className="recommendation-kicker">Best next move</p>
+            <h2 ref={headingRef} tabIndex={-1}>
+              {response.recommendation.primaryOption.label}
+            </h2>
+            <p className="recommendation-copy">
+              {response.recommendation.waitOrGoReason}
+            </p>
+          </div>
+          <div className="recommendation-badge-card">
+            <span className="summary-label">Confidence</span>
+            <strong className="summary-value">
+              {response.recommendation.confidence}
+            </strong>
+          </div>
         </div>
-        <div className="recommendation-badge-card">
-          <span className="summary-label">Confidence</span>
-          <strong className="summary-value">
-            {response.recommendation.confidence}
-          </strong>
-        </div>
-      </div>
 
-      <dl className="stat-grid">
-        <div>
-          <dt>ETA</dt>
-          <dd>{response.recommendation.etaMinutes} min</dd>
-        </div>
-        <div>
-          <dt>Queue</dt>
-          <dd>{response.recommendation.waitMinutes} min</dd>
-        </div>
-        <div>
-          <dt>Time Saved</dt>
-          <dd>{response.recommendation.timeSavedMinutes} min</dd>
-        </div>
-        <div>
-          <dt>Decision</dt>
-          <dd>{response.recommendation.timingDecision}</dd>
-        </div>
-      </dl>
+        <dl className="stat-grid">
+          <div>
+            <dt>ETA</dt>
+            <dd>{response.recommendation.etaMinutes} min</dd>
+          </div>
+          <div>
+            <dt>Queue</dt>
+            <dd>{response.recommendation.waitMinutes} min</dd>
+          </div>
+          <div>
+            <dt>Time Saved</dt>
+            <dd>{response.recommendation.timeSavedMinutes} min</dd>
+          </div>
+          <div>
+            <dt>Decision</dt>
+            <dd>{response.recommendation.timingDecision}</dd>
+          </div>
+        </dl>
+      </div>
 
       <div className="detail-stack">
         <div className="detail-card">
@@ -98,7 +108,7 @@ export function RecommendationPanel({ response }: RecommendationPanelProps) {
         </div>
 
         {response.recommendation.crowdWarning ? (
-          <p className="warning-banner">
+          <p className="warning-banner" role="alert">
             {response.recommendation.crowdWarning}
           </p>
         ) : null}

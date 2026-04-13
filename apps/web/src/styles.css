@@ -19,7 +19,7 @@
   /* Text palette */
   --text-primary: #f1f5f9;
   --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-muted: #7e8fa5;
   --text-inverse: #0f172a;
 
   /* Accent palette */
@@ -1245,4 +1245,16 @@ h2 {
 ::selection {
   background: var(--accent-primary-dim);
   color: var(--text-primary);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
