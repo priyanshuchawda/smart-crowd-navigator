@@ -498,6 +498,56 @@ describe("assistant API", () => {
     expect(response.headers.get("cache-control")).toBe("no-cache, no-store");
   });
 
+  it("compresses recommendation responses when gzip is requested", async () => {
+    const { baseUrl } = await startServer();
+    const response = await fetch(`${baseUrl}/recommendation`, {
+      method: "POST",
+      headers: {
+        "accept-encoding": "gzip",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        section: "section-a12",
+        intent: "food",
+        partySize: 3,
+        eventPhase: "break",
+        mobilityMode: "standard",
+      }),
+    });
+    const payload = (await response.json()) as {
+      primaryOption: { id: string };
+    };
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-encoding")).toBe("gzip");
+    expect(response.headers.get("cache-control")).toBe("no-cache, no-store");
+    expect(payload.primaryOption.id).toBe("stall-b");
+  });
+
+  it("does not compress recommendation responses when gzip is not requested", async () => {
+    const { baseUrl } = await startServer();
+    const response = await fetch(`${baseUrl}/recommendation`, {
+      method: "POST",
+      headers: {
+        "accept-encoding": "identity",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        section: "section-a12",
+        intent: "food",
+        partySize: 3,
+        eventPhase: "break",
+        mobilityMode: "standard",
+      }),
+    });
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-encoding")).toBeNull();
+    expect(response.headers.get("cache-control")).toBe("no-cache, no-store");
+    expect(payload.primaryOption.id).toBe("stall-b");
+  });
+
   it("returns valid recommendation responses for all supported intents", async () => {
     const { baseUrl } = await startServer();
     const intents = ["food", "washroom", "entry-gate", "exit"] as const;
