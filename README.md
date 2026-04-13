@@ -2,6 +2,10 @@
 
 A Gemini-powered stadium assistant that tells attendees where to go, whether to go now or wait, and which route will be fastest with the least congestion.
 
+![Verification](https://img.shields.io/badge/verify-local%20gate-brightgreen)
+![Stack](https://img.shields.io/badge/stack-React%20%2B%20TypeScript%20%2B%20Node-blue)
+![Deployment](https://img.shields.io/badge/deploy-Cloud%20Run-4285F4)
+
 ## Quick Start
 
 ```bash
@@ -23,6 +27,18 @@ For a single-command local quality gate:
 
 ```bash
 pnpm verify
+```
+
+## Demo Snapshot
+
+Add your latest demo screenshot or GIF at:
+
+`docs/assets/demo-snapshot.png`
+
+Then reference it here:
+
+```md
+![Smart Crowd Navigator Demo](./docs/assets/demo-snapshot.png)
 ```
 
 ## Chosen Vertical
@@ -152,6 +168,17 @@ The system can also recommend:
 when waiting creates a better total outcome.
 
 ## Google Services Used
+
+| Service | Role | Status |
+|---|---|---|
+| Gemini API | Tool-calling assistant response orchestration | Active |
+| Cloud Run | Deployed API/service runtime | Active |
+| Firebase Auth | Operator authentication path | Implemented |
+| Firestore | Live operator-state persistence path | Implemented |
+| Firestore Security Rules | Operator write authorization and policy guardrails | Implemented |
+| Firebase App Check | Client and backend verification path | Implemented (enforcement rollout pending) |
+| Firebase Hosting | Static web deployment target | Deferred |
+| Google Maps | Perimeter context integration path | Planned |
 
 Currently implemented:
 
