@@ -34,6 +34,25 @@ describe("App", () => {
     expect(markup).toContain('aria-live="polite"');
   });
 
+  it("renders conversation loading and error states", () => {
+    const markup = renderToStaticMarkup(
+      <ConversationPanel
+        errorMessage="Request failed with status 500"
+        isLoading
+        messages={[]}
+      />,
+    );
+
+    expect(markup).toContain("Thinking…");
+    expect(markup).toContain("Request failed with status 500");
+  });
+
+  it("renders quick action buttons with aria-pressed state", () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain('aria-pressed="false"');
+  });
+
   it("renders recommendation details when a response is available", () => {
     const markup = renderToStaticMarkup(
       <RecommendationPanel
