@@ -229,6 +229,13 @@ export function rankDestinations(
   );
 }
 
+/**
+ * Returns the second-best option from the ranked destination list.
+ *
+ * @param input - Request context used to produce destination rankings.
+ * @param fixture - Optional venue fixture override for tests and simulations.
+ * @returns The fallback destination or null if there is no second candidate.
+ */
 export function getFallbackDestination(
   input: RankDestinationsInput,
   fixture: VenueFixture = demoVenueFixture,
@@ -238,6 +245,13 @@ export function getFallbackDestination(
   return rankings[1] ?? null;
 }
 
+/**
+ * Compares going now vs waiting for queue trend changes, then returns timing advice.
+ *
+ * @param input - Ranking context plus optional wait window in minutes.
+ * @param fixture - Optional venue fixture override for tests and simulations.
+ * @returns Timing decision details with current/projected best options.
+ */
 export function getTimingAdvice(
   input: TimingAdviceInput,
   fixture: VenueFixture = demoVenueFixture,

@@ -218,6 +218,7 @@ function respondJson(
   response.end(JSON.stringify(payload));
 }
 
+/** Serves built frontend assets from `apps/web/dist` with static cache policy. */
 async function readStaticFile(pathname: string) {
   const normalizedPath = pathname === "/" ? "/index.html" : pathname;
   const staticFilePath = resolve(webDistDir, `.${normalizedPath}`);
@@ -247,6 +248,7 @@ async function readStaticFile(pathname: string) {
   }
 }
 
+/** Resolves and streams a static asset for GET/HEAD requests when present. */
 async function serveStaticAsset(
   request: IncomingMessage,
   response: ServerResponse,
@@ -277,6 +279,7 @@ async function serveStaticAsset(
   return true;
 }
 
+/** Reads and parses JSON request bodies with maximum body-size enforcement. */
 async function readJsonBody(request: IncomingMessage) {
   const chunks: Buffer[] = [];
   let totalBytes = 0;
@@ -299,6 +302,7 @@ async function readJsonBody(request: IncomingMessage) {
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
 
+/** Enforces operator auth for protected mutation routes and maps auth errors to JSON responses. */
 async function requireOperator(
   request: IncomingMessage,
   response: ServerResponse,
@@ -323,6 +327,7 @@ async function requireOperator(
   }
 }
 
+/** Enforces App Check on protected endpoints and maps verification errors to JSON responses. */
 async function requireAppCheck(
   request: IncomingMessage,
   response: ServerResponse,
@@ -347,6 +352,7 @@ async function requireAppCheck(
   }
 }
 
+/** Creates the API request router handling health, assistant, recommendation, operator, and static routes. */
 function createRequestHandler({
   appCheckService = createAppCheckService(),
   operatorAuthService = createOperatorAuthService(),
