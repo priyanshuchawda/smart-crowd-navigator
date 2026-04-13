@@ -1,3 +1,7 @@
+import { access, mkdir, rm, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -13,6 +17,8 @@ import {
 } from "./operator-auth.js";
 
 const activeServers = new Set<ReturnType<typeof createAppServer>>();
+const currentDir = dirname(fileURLToPath(import.meta.url));
+const webDistDir = resolve(currentDir, "../../../apps/web/dist");
 
 beforeEach(() => {
   process.env.DISABLE_GEMINI_ASSISTANT = undefined;
@@ -85,6 +91,20 @@ describe("assistant API", () => {
   });
 
   it("serves the built web shell from the root path", async () => {
+    const indexPath = resolve(webDistDir, "index.html");
+    let createdFixture = false;
+
+    try {
+      await access(indexPath);
+    } catch {
+      createdFixture = true;
+      await mkdir(webDistDir, { recursive: true });
+      await writeFile(
+        indexPath,
+        "<!doctype html><html><body>Smart Crowd Navigator</body></html>",
+      );
+    }
+
     const { baseUrl } = await startServer();
     const response = await fetch(`${baseUrl}/`);
     const markup = await response.text();
@@ -92,6 +112,10 @@ describe("assistant API", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("text/html");
     expect(markup).toContain("Smart Crowd Navigator");
+
+    if (createdFixture) {
+      await rm(webDistDir, { force: true, recursive: true });
+    }
   });
 
   it("returns a structured recommendation payload", async () => {
@@ -134,6 +158,30 @@ describe("assistant API", () => {
 
     expect(response.status).toBe(400);
     expect(payload.error).toBe("bad_request");
+  });
+
+  it("rejects invalid assistant-response requests without crashing the server", async () => {
+    const { baseUrl } = await startServer();
+
+    const invalidResponse = await fetch(`${baseUrl}/assistant-response`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        invalid: true,
+      }),
+    });
+    const invalidPayload = await invalidResponse.json();
+
+    expect(invalidResponse.status).toBe(400);
+    expect(invalidPayload.error).toBe("bad_request");
+
+    const healthResponse = await fetch(`${baseUrl}/health`);
+    const healthPayload = await healthResponse.json();
+
+    expect(healthResponse.status).toBe(200);
+    expect(healthPayload.status).toBe("ok");
   });
 
   it("returns and updates operator state", async () => {

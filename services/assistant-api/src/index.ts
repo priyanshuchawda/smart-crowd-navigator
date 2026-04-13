@@ -28,6 +28,7 @@ import {
   buildRecommendationPayload,
   engine,
   getOperatorState,
+  parseRecommendationRequest,
   resetOperatorState,
   updateOperatorState,
 } from "./recommendation.js";
@@ -594,20 +595,36 @@ function createRequestHandler({
         return;
       }
 
+      let validatedRequestBody: ReturnType<typeof parseRecommendationRequest>;
+
+      try {
+        validatedRequestBody = parseRecommendationRequest(requestBody);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Invalid request payload";
+
+        respondJson(request, response, 400, {
+          error: "bad_request",
+          message,
+        });
+        return;
+      }
+
       try {
         if (process.env.DISABLE_GEMINI_ASSISTANT === "true") {
           logRuntimeEvent("assistant_fallback", {
             reason: "disabled_by_env",
           });
           respondJson(request, response, 200, {
-            ...buildDeterministicAssistantResponse(requestBody),
+            ...buildDeterministicAssistantResponse(validatedRequestBody),
             source: "deterministic-fallback",
           });
           return;
         }
 
         const service = createGeminiAssistantService();
-        const payload = await service.generateAssistantResponse(requestBody);
+        const payload =
+          await service.generateAssistantResponse(validatedRequestBody);
 
         respondJson(request, response, 200, payload);
         return;
@@ -617,7 +634,8 @@ function createRequestHandler({
             error instanceof Error ? error.message : "unknown_assistant_error",
           reason: "gemini_failure",
         });
-        const payload = buildDeterministicAssistantResponse(requestBody);
+        const payload =
+          buildDeterministicAssistantResponse(validatedRequestBody);
 
         respondJson(request, response, 200, {
           ...payload,

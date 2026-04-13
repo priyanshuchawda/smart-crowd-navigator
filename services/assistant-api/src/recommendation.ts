@@ -30,10 +30,14 @@ function describeRoute(nodeIds: string[]) {
     .join(" → ");
 }
 
+function parseRecommendationRequest(requestBody: unknown) {
+  return recommendationRequestSchema.parse(requestBody);
+}
+
 function buildRecommendationPayload(
   requestBody: unknown,
 ): AssistantRecommendation {
-  const input = recommendationRequestSchema.parse(requestBody);
+  const input = parseRecommendationRequest(requestBody);
   const engineInput = {
     sectionId: input.section,
     intent: input.intent,
@@ -117,6 +121,7 @@ export {
   buildRecommendationPayload,
   engine,
   getOperatorState,
+  parseRecommendationRequest,
   resetOperatorState,
   updateOperatorState,
 };
