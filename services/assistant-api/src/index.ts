@@ -6,6 +6,7 @@ import {
 } from "node:http";
 import { dirname, extname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { gzipSync } from "node:zlib";
 
 import { APP_NAME } from "@smart-crowd-navigator/shared";
 import { config as loadEnv } from "dotenv";
@@ -128,8 +129,47 @@ function getCorsHeaders(request: IncomingMessage) {
     "access-control-allow-methods": "GET,POST,OPTIONS",
     "access-control-allow-headers":
       "authorization,content-type,x-firebase-appcheck",
+    vary: "Origin, Accept-Encoding",
     ...securityHeaders,
   };
+}
+
+function requestAcceptsGzip(request: IncomingMessage) {
+  const acceptEncodingHeader = request.headers["accept-encoding"];
+  const acceptEncoding = Array.isArray(acceptEncodingHeader)
+    ? acceptEncodingHeader.join(",")
+    : (acceptEncodingHeader ?? "");
+
+  if (!acceptEncoding) {
+    return false;
+  }
+
+  const encodings = acceptEncoding
+    .split(",")
+    .map((entry) => entry.trim().toLowerCase())
+    .filter(Boolean);
+
+  for (const encodingValue of encodings) {
+    const [encoding, ...params] = encodingValue.split(";").map((p) => p.trim());
+
+    if (encoding !== "gzip" && encoding !== "*") {
+      continue;
+    }
+
+    const qualityParam = params.find((param) => param.startsWith("q="));
+
+    if (!qualityParam) {
+      return true;
+    }
+
+    const quality = Number.parseFloat(qualityParam.slice(2));
+
+    if (!Number.isNaN(quality) && quality > 0) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function getClientKey(request: IncomingMessage) {
@@ -207,6 +247,9 @@ function respondJson(
     cacheControl?: string;
   },
 ) {
+  const responseBody = statusCode === 204 ? "" : JSON.stringify(payload);
+  const shouldCompress = statusCode !== 204 && requestAcceptsGzip(request);
+
   response.writeHead(statusCode, {
     ...getCorsHeaders(request),
     ...(options?.cacheControl
@@ -214,8 +257,19 @@ function respondJson(
           "cache-control": options.cacheControl,
         }
       : {}),
+    ...(shouldCompress
+      ? {
+          "content-encoding": "gzip",
+        }
+      : {}),
   });
-  response.end(JSON.stringify(payload));
+
+  if (statusCode === 204) {
+    response.end();
+    return;
+  }
+
+  response.end(shouldCompress ? gzipSync(responseBody) : responseBody);
 }
 
 /** Serves built frontend assets from `apps/web/dist` with static cache policy. */
