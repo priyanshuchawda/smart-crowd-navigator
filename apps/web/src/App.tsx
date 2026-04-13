@@ -69,6 +69,66 @@ const productBenefits = [
   },
 ];
 
+function DeferredOperatorExperience({
+  activeIntent,
+  onRequestRecommendation,
+}: {
+  activeIntent: CoreIntent | null;
+  onRequestRecommendation: (
+    intent: CoreIntent,
+    options?: {
+      announceUser?: boolean;
+      assistantPrefix?: string;
+    },
+  ) => Promise<void>;
+}) {
+  const [hasOpened, setHasOpened] = useState(false);
+
+  return (
+    <details
+      className="operator-disclosure"
+      onToggle={(event) => {
+        if (event.currentTarget.open) {
+          setHasOpened(true);
+        }
+      }}
+    >
+      <summary className="operator-disclosure-summary">
+        <span>
+          <strong>Demo Controls</strong>
+          <span className="operator-disclosure-copy">
+            Expand only if you are operating the live venue demo.
+          </span>
+        </span>
+      </summary>
+
+      {hasOpened ? (
+        <Suspense
+          fallback={
+            <section
+              className="recommendation-card panel-card"
+              aria-label="Demo controls"
+            >
+              <div className="status-row">
+                <span className="section-title">Demo Controls</span>
+                <span className="status-pill">Loading…</span>
+              </div>
+              <p className="empty-state">
+                Loading live venue controls in a separate optimized bundle.
+              </p>
+            </section>
+          }
+        >
+          <OperatorExperience
+            activeIntent={activeIntent}
+            onRequestRecommendation={onRequestRecommendation}
+          />
+        </Suspense>
+      ) : null}
+    </details>
+  );
+}
+
 export function App() {
   const [section, setSection] = useState("section-a12");
   const [partySize, setPartySize] = useState(3);
@@ -545,27 +605,10 @@ export function App() {
           </div>
 
           <aside ref={demoControlsRef} className="secondary-column">
-            <Suspense
-              fallback={
-                <section
-                  className="recommendation-card panel-card"
-                  aria-label="Demo controls"
-                >
-                  <div className="status-row">
-                    <span className="section-title">Demo Controls</span>
-                    <span className="status-pill">Loading…</span>
-                  </div>
-                  <p className="empty-state">
-                    Loading live venue controls in a separate optimized bundle.
-                  </p>
-                </section>
-              }
-            >
-              <OperatorExperience
-                activeIntent={activeIntent}
-                onRequestRecommendation={requestRecommendation}
-              />
-            </Suspense>
+            <DeferredOperatorExperience
+              activeIntent={activeIntent}
+              onRequestRecommendation={requestRecommendation}
+            />
           </aside>
         </div>
       </section>
