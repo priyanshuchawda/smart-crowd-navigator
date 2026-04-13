@@ -17,6 +17,22 @@ This runbook covers the minimum operating procedure for a public Smart Crowd Nav
 - Production build does not use an App Check debug token
 - Operator accounts and `operator-roles/{uid}` documents are provisioned
 
+## Current security posture decisions
+
+### Public operator-state reads
+
+- The attendee demo intentionally reads the shared live `operator-state` dataset so recommendation cards can reflect the same venue conditions shown to operators.
+- Treat that data as publishable venue telemetry, not private operator-only data.
+- If the venue later classifies queue/crowd state as sensitive operational data, tighten both:
+  - `GET /operator/state` in `services/assistant-api/src/index.ts`
+  - `read` access on `operator-state` in `firestore.rules`
+
+### Rate limiting
+
+- The current `rate_limited` responses come from an in-memory per-instance limiter in the Node API.
+- This is a baseline abuse control for local/dev and low-scale deployment, not a distributed production guarantee.
+- Future hardening can move this responsibility to shared infrastructure such as Cloud Armor, an API gateway, or a centralized rate-limit store if the traffic profile requires it.
+
 ## Key runtime signals to monitor
 
 ### Must-watch signals

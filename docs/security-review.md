@@ -18,6 +18,9 @@ Resolved in repo:
 - structured operator audit logs for mutation events
 - prompt/response hardening and deterministic fallback path
 
+Posture note:
+- The current limiter is intentionally lightweight and instance-local. It reduces casual abuse but is not equivalent to shared edge enforcement.
+
 ### 3. App Check support exists for the web client and Node API
 Resolved in repo:
 - web App Check bootstrap in `apps/web/src/firebase.ts`
@@ -41,7 +44,17 @@ Still needed outside the repo:
 - alerting thresholds
 - incident notifications
 
-### 3. Privacy and public-policy rollout still matters
+### 3. Public operator-state reads are an intentional product tradeoff
+Current posture:
+- attendee experiences can read the same live venue-state data that powers recommendations
+- Firestore `operator-state` reads and `GET /operator/state` are therefore currently public by design
+
+If that changes later:
+- classify operator-state as sensitive operational data
+- add authn/authz to the public API read path
+- tighten Firestore reads before rollout
+
+### 4. Privacy and public-policy rollout still matters
 Before public launch, add and customize:
 - privacy policy
 - terms / acceptable-use policy
