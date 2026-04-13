@@ -18,6 +18,7 @@ describe("App", () => {
     expect(markup).toContain("Try the Food Demo");
     expect(markup).toContain("How It Works");
     expect(markup).toContain("Live Assistant");
+    expect(markup).toContain("Venue Layout");
     expect(markup).toContain("Demo Controls");
     expect(markup).toContain(
       "Expand only if you are operating the live venue demo.",

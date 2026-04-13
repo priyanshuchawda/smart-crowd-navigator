@@ -1,0 +1,16 @@
+{
+  "name": "Smart Crowd Navigator",
+  "short_name": "CrowdNav",
+  "description": "Live venue crowd routing assistant",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0B1121",
+  "theme_color": "#0B1121",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
