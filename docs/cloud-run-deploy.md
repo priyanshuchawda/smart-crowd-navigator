@@ -32,11 +32,17 @@ VITE_FIREBASE_MESSAGING_SENDER_ID=602429979967
 VITE_FIREBASE_APP_ID=1:602429979967:web:3c3a7d064bc600cddb278a
 VITE_FIREBASE_MEASUREMENT_ID=G-HRF6VGM95G
 OPERATOR_AUTH_REQUIRED=true
-APP_CHECK_REQUIRED=false
-APP_CHECK_ALLOWED_APP_IDS=
-VITE_FIREBASE_APPCHECK_SITE_KEY=
+APP_CHECK_REQUIRED=true
+APP_CHECK_ALLOWED_APP_IDS=1:602429979967:web:3c3a7d064bc600cddb278a
+VITE_FIREBASE_APPCHECK_SITE_KEY=<recaptcha-enterprise-site-key>
 VITE_FIREBASE_APPCHECK_DEBUG_TOKEN=
 ```
+
+Production posture:
+
+- App Check is required for protected backend routes in public production deployments.
+- `VITE_FIREBASE_APPCHECK_DEBUG_TOKEN` should stay empty in production and only be used for localhost / CI debugging.
+- `APP_CHECK_ALLOWED_APP_IDS` should explicitly list the deployed web app ids allowed to call the API.
 
 ## Deploy shape
 
@@ -46,10 +52,12 @@ Example:
 gcloud run deploy smart-crowd-navigator \
   --source . \
   --region us-central1 \
+  --set-env-vars NODE_ENV=production,OPERATOR_AUTH_REQUIRED=true,APP_CHECK_REQUIRED=true,ALLOWED_ORIGINS=https://YOUR_WEB_HOST,FIREBASE_PROJECT_ID=YOUR_FIREBASE_PROJECT_ID,FIREBASE_PROJECT_NUMBER=YOUR_FIREBASE_PROJECT_NUMBER,APP_CHECK_ALLOWED_APP_IDS=1:YOUR_PROJECT_NUMBER:web:YOUR_APP_ID \
+  --set-secrets GEMINI_API_KEY=smart-crowd-gemini-api-key:latest \
   --allow-unauthenticated
 ```
 
-Then update `ALLOWED_ORIGINS` to the final Cloud Run URL if needed.
+Then build/deploy the web app with the matching Firebase env values, especially `VITE_FIREBASE_APPCHECK_SITE_KEY`, and update `ALLOWED_ORIGINS` to the final Cloud Run URL if needed.
 
 ## Post-deploy checks
 
@@ -57,6 +65,7 @@ Then update `ALLOWED_ORIGINS` to the final Cloud Run URL if needed.
 - `/` serves the web app shell
 - attendee recommendation flow works
 - operator endpoints reject unauthorized writes
+- protected routes reject requests without App Check
 
 ## Cost posture
 
