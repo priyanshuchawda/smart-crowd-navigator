@@ -60,6 +60,16 @@ const operatorBulkSchema = z.strictObject({
   states: z.array(operatorStateSchema),
 });
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
+const securityHeaders: Record<string, string> = {
+  "x-content-type-options": "nosniff",
+  "x-frame-options": "DENY",
+  "referrer-policy": "strict-origin-when-cross-origin",
+  "permissions-policy": "camera=(), microphone=(), geolocation=()",
+  "strict-transport-security": "max-age=31536000; includeSubDomains",
+  "content-security-policy":
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com; img-src 'self' data: https://*.googleapis.com https://*.gstatic.com; frame-src https://www.google.com https://maps.google.com;",
+};
+const dynamicEndpointCacheControl = "no-cache, no-store";
 
 function resetRateLimitStore() {
   rateLimitStore.clear();
@@ -118,6 +128,7 @@ function getCorsHeaders(request: IncomingMessage) {
     "access-control-allow-methods": "GET,POST,OPTIONS",
     "access-control-allow-headers":
       "authorization,content-type,x-firebase-appcheck",
+    ...securityHeaders,
   };
 }
 
@@ -192,8 +203,18 @@ function respondJson(
   response: ServerResponse,
   statusCode: number,
   payload: unknown,
+  options?: {
+    cacheControl?: string;
+  },
 ) {
-  response.writeHead(statusCode, getCorsHeaders(request));
+  response.writeHead(statusCode, {
+    ...getCorsHeaders(request),
+    ...(options?.cacheControl
+      ? {
+          "cache-control": options.cacheControl,
+        }
+      : {}),
+  });
   response.end(JSON.stringify(payload));
 }
 
@@ -238,6 +259,7 @@ async function serveStaticAsset(
   }
 
   response.writeHead(200, {
+    ...securityHeaders,
     "cache-control": pathname.startsWith("/assets/")
       ? "public, max-age=31536000, immutable"
       : "no-cache",
@@ -350,13 +372,21 @@ function createRequestHandler({
     }
 
     if (method === "GET" && url.pathname === "/health") {
-      respondJson(request, response, 200, {
-        service: `${APP_NAME} API`,
-        status: "ok",
-        engineVersion: engine.version,
-        appCheckRequired: appCheckService.isRequired(),
-        operatorAuthRequired: operatorAuthService.isRequired(),
-      });
+      respondJson(
+        request,
+        response,
+        200,
+        {
+          service: `${APP_NAME} API`,
+          status: "ok",
+          engineVersion: engine.version,
+          appCheckRequired: appCheckService.isRequired(),
+          operatorAuthRequired: operatorAuthService.isRequired(),
+        },
+        {
+          cacheControl: "public, max-age=3600",
+        },
+      );
       return;
     }
 
@@ -538,7 +568,9 @@ function createRequestHandler({
         const requestBody = await readJsonBody(request);
         const payload = buildRecommendationPayload(requestBody);
 
-        respondJson(request, response, 200, payload);
+        respondJson(request, response, 200, payload, {
+          cacheControl: dynamicEndpointCacheControl,
+        });
         return;
       } catch (error) {
         const message =
@@ -551,6 +583,9 @@ function createRequestHandler({
           {
             error: "bad_request",
             message,
+          },
+          {
+            cacheControl: dynamicEndpointCacheControl,
           },
         );
         return;
@@ -591,6 +626,9 @@ function createRequestHandler({
             error: "bad_request",
             message,
           },
+          {
+            cacheControl: dynamicEndpointCacheControl,
+          },
         );
         return;
       }
@@ -603,10 +641,18 @@ function createRequestHandler({
         const message =
           error instanceof Error ? error.message : "Invalid request payload";
 
-        respondJson(request, response, 400, {
-          error: "bad_request",
-          message,
-        });
+        respondJson(
+          request,
+          response,
+          400,
+          {
+            error: "bad_request",
+            message,
+          },
+          {
+            cacheControl: dynamicEndpointCacheControl,
+          },
+        );
         return;
       }
 
@@ -615,10 +661,18 @@ function createRequestHandler({
           logRuntimeEvent("assistant_fallback", {
             reason: "disabled_by_env",
           });
-          respondJson(request, response, 200, {
-            ...buildDeterministicAssistantResponse(validatedRequestBody),
-            source: "deterministic-fallback",
-          });
+          respondJson(
+            request,
+            response,
+            200,
+            {
+              ...buildDeterministicAssistantResponse(validatedRequestBody),
+              source: "deterministic-fallback",
+            },
+            {
+              cacheControl: dynamicEndpointCacheControl,
+            },
+          );
           return;
         }
 
@@ -626,7 +680,9 @@ function createRequestHandler({
         const payload =
           await service.generateAssistantResponse(validatedRequestBody);
 
-        respondJson(request, response, 200, payload);
+        respondJson(request, response, 200, payload, {
+          cacheControl: dynamicEndpointCacheControl,
+        });
         return;
       } catch (error) {
         logRuntimeEvent("assistant_fallback", {
@@ -637,10 +693,18 @@ function createRequestHandler({
         const payload =
           buildDeterministicAssistantResponse(validatedRequestBody);
 
-        respondJson(request, response, 200, {
-          ...payload,
-          source: "deterministic-fallback",
-        });
+        respondJson(
+          request,
+          response,
+          200,
+          {
+            ...payload,
+            source: "deterministic-fallback",
+          },
+          {
+            cacheControl: dynamicEndpointCacheControl,
+          },
+        );
         return;
       }
     }
