@@ -88,6 +88,12 @@ describe("assistant API", () => {
       engineVersion: "0.2.0",
       operatorAuthRequired: false,
     });
+    expect(response.headers.get("cache-control")).toBe("public, max-age=3600");
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(response.headers.get("x-frame-options")).toBe("DENY");
+    expect(response.headers.get("strict-transport-security")).toContain(
+      "max-age=31536000",
+    );
   });
 
   it("serves the built web shell from the root path", async () => {
@@ -140,6 +146,7 @@ describe("assistant API", () => {
     expect(response.status).toBe(200);
     expect(assistantRecommendationSchema.safeParse(payload).success).toBe(true);
     expect(payload.primaryOption.id).toBe("stall-b");
+    expect(response.headers.get("cache-control")).toBe("no-cache, no-store");
   });
 
   it("rejects invalid recommendation requests", async () => {
@@ -465,5 +472,27 @@ describe("assistant API", () => {
     );
 
     infoSpy.mockRestore();
+  });
+
+  it("sets dynamic cache headers for assistant responses", async () => {
+    process.env.DISABLE_GEMINI_ASSISTANT = "true";
+    const { baseUrl } = await startServer();
+
+    const response = await fetch(`${baseUrl}/assistant-response`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        section: "section-a12",
+        intent: "food",
+        partySize: 3,
+        eventPhase: "break",
+        mobilityMode: "standard",
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-cache, no-store");
   });
 });

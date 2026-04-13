@@ -17,6 +17,18 @@ Resolved in repo:
 - rate limits on assistant/operator write surfaces
 - structured operator audit logs for mutation events
 - prompt/response hardening and deterministic fallback path
+- request-size guards and explicit `413` handling for oversized payloads
+
+### 2.1 Input validation and sanitization boundaries
+Current request safety model:
+- all assistant and recommendation payloads are validated with shared Zod schemas (`packages/shared/src/contracts.ts`)
+- operator mutation payloads are validated server-side with strict Zod objects in `services/assistant-api/src/index.ts`
+- body parsing is bounded by `MAX_BODY_BYTES` and rejects large inputs with controlled `413` responses
+- malformed JSON or schema-invalid payloads return controlled `400` responses instead of crashing
+- CORS origin checks and per-bucket rate limits reduce abuse on public surfaces
+
+Sanitization note:
+- this API does not render user-provided HTML and keeps responses JSON-only, so the primary protection model is strict schema validation and bounded parsing rather than HTML sanitization.
 
 Posture note:
 - The current limiter is intentionally lightweight and instance-local. It reduces casual abuse but is not equivalent to shared edge enforcement.
