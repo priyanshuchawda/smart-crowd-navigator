@@ -14,9 +14,9 @@ Example deploy shape:
 ```bash
 gcloud run deploy smart-crowd-navigator-api \
   --image REGION-docker.pkg.dev/PROJECT/REPO/smart-crowd-navigator-api:TAG \
-  --set-env-vars NODE_ENV=production,OPERATOR_AUTH_REQUIRED=true,ALLOWED_ORIGINS=https://YOUR_WEB_HOST \
+  --set-env-vars NODE_ENV=production,OPERATOR_AUTH_REQUIRED=true,APP_CHECK_REQUIRED=true,ALLOWED_ORIGINS=https://YOUR_WEB_HOST,FIREBASE_PROJECT_ID=YOUR_FIREBASE_PROJECT_ID,FIREBASE_PROJECT_NUMBER=YOUR_FIREBASE_PROJECT_NUMBER,APP_CHECK_ALLOWED_APP_IDS=1:YOUR_PROJECT_NUMBER:web:YOUR_APP_ID \
   --set-secrets GEMINI_API_KEY=smart-crowd-gemini-api-key:latest \
-  --set-env-vars FIREBASE_PROJECT_ID=YOUR_FIREBASE_PROJECT_ID
+  --allow-unauthenticated
 ```
 
 Recommended Secret Manager contents:
@@ -29,6 +29,7 @@ Recommended plain environment variables:
 - `ALLOWED_ORIGINS=<deployed web origin>`
 - `APP_CHECK_REQUIRED=true`
 - `FIREBASE_PROJECT_NUMBER=<firebase project number>`
+- `APP_CHECK_ALLOWED_APP_IDS=1:YOUR_PROJECT_NUMBER:web:YOUR_APP_ID`
 - `OPERATOR_AUTH_REQUIRED=true`
 - `FIREBASE_PROJECT_ID=<firebase project id>`
 
@@ -38,6 +39,7 @@ Recommended plain environment variables:
 - Register the deployed web app in Firebase App Check with a reCAPTCHA Enterprise site key.
 - Inject `VITE_FIREBASE_APPCHECK_SITE_KEY` into the web build.
 - Safelist debug tokens only for localhost / CI workflows; never for public production traffic.
+- Keep `VITE_FIREBASE_APPCHECK_DEBUG_TOKEN` empty in public production builds.
 - Add `operator-roles/{uid}` documents with:
 
 ```json

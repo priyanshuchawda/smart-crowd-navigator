@@ -14,6 +14,7 @@ This runbook covers the minimum operating procedure for a public Smart Crowd Nav
 - `FIREBASE_PROJECT_ID` and `FIREBASE_PROJECT_NUMBER` are set
 - Firestore rules are deployed
 - App Check is enabled in the Firebase console for the intended products
+- Production build does not use an App Check debug token
 - Operator accounts and `operator-roles/{uid}` documents are provisioned
 
 ## Key runtime signals to monitor
@@ -36,6 +37,8 @@ This runbook covers the minimum operating procedure for a public Smart Crowd Nav
 1. Deploy backend image to Cloud Run
 2. Confirm env vars and secrets are present
 3. Deploy web build with the correct Firebase/App Check values
+   - `VITE_FIREBASE_APPCHECK_SITE_KEY` set
+   - `VITE_FIREBASE_APPCHECK_DEBUG_TOKEN` empty in production
 4. Deploy Firestore rules
 5. Verify App Check enforcement configuration in Firebase console
 6. Run smoke checks:
