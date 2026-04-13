@@ -12,6 +12,7 @@ import {
 import { requestAssistantResponse } from "./api";
 import { ConversationPanel } from "./components/ConversationPanel";
 import { RecommendationPanel } from "./components/RecommendationPanel";
+import { VenueMapPanel } from "./components/VenueMapPanel";
 import type { AssistantApiResponse, ChatMessage } from "./types";
 
 const OperatorExperience = lazy(async () => {
@@ -614,6 +615,7 @@ export function App() {
                 headingRef={recommendationHeadingRef}
               />
             </div>
+            <VenueMapPanel response={response} />
           </div>
 
           <aside ref={demoControlsRef} className="secondary-column">
