@@ -19,7 +19,7 @@ describe("App", () => {
     expect(markup).toContain("Live Assistant");
     expect(markup).toContain("Demo Controls");
     expect(markup).toContain(
-      "Loading live venue controls in a separate optimized bundle.",
+      "Expand only if you are operating the live venue demo.",
     );
   });
 
