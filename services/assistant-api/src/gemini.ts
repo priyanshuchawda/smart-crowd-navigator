@@ -64,6 +64,29 @@ const ASSISTANT_PROMPT = [
   "Example style (go now): Go now to Exit South. It is currently the quickest route out with less crowd pressure than Exit North.",
 ].join("\n");
 
+const recommendationTool = {
+  name: "get_recommendation_data",
+  description:
+    "Returns the latest deterministic recommendation payload for a stadium attendee request.",
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      section: { type: Type.STRING },
+      intent: { type: Type.STRING },
+      partySize: { type: Type.NUMBER },
+      eventPhase: { type: Type.STRING },
+      mobilityMode: { type: Type.STRING },
+    },
+    required: ["section", "intent", "partySize", "eventPhase", "mobilityMode"],
+  },
+};
+
+const DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite-preview";
+const GEMINI_MODEL_FALLBACK_ORDER = [
+  "gemini-3-flash-preview",
+  "gemini-2.5-flash",
+] as const;
+
 function buildAssistantPrompt(requestPayload: unknown) {
   const typedPayload = requestPayload as RecommendationRequest;
   const conversationHistory = typedPayload.conversationHistory
@@ -140,22 +163,60 @@ function normalizeAssistantMessage(
     : normalized;
 }
 
-const recommendationTool = {
-  name: "get_recommendation_data",
-  description:
-    "Returns the latest deterministic recommendation payload for a stadium attendee request.",
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      section: { type: Type.STRING },
-      intent: { type: Type.STRING },
-      partySize: { type: Type.NUMBER },
-      eventPhase: { type: Type.STRING },
-      mobilityMode: { type: Type.STRING },
-    },
-    required: ["section", "intent", "partySize", "eventPhase", "mobilityMode"],
-  },
-};
+function getGeminiModelFallbackChain(primaryModel: string) {
+  return [
+    primaryModel,
+    ...GEMINI_MODEL_FALLBACK_ORDER.filter((model) => model !== primaryModel),
+  ];
+}
+
+function isRetryableGeminiError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const status =
+    "status" in error && typeof error.status === "number" ? error.status : null;
+  const normalizedMessage = error.message.toLowerCase();
+
+  if (status !== null && [429, 500, 502, 503, 504].includes(status)) {
+    return true;
+  }
+
+  return (
+    normalizedMessage.includes("high demand") ||
+    normalizedMessage.includes("resource exhausted") ||
+    normalizedMessage.includes("unavailable") ||
+    normalizedMessage.includes("temporarily unavailable")
+  );
+}
+
+async function runGeminiAssistantWithFallbacks({
+  executeModel,
+  primaryModel,
+}: {
+  executeModel: (model: string) => Promise<AssistantResponsePayload>;
+  primaryModel: string;
+}) {
+  let lastError: unknown = null;
+  const modelChain = getGeminiModelFallbackChain(primaryModel);
+
+  for (const model of modelChain) {
+    try {
+      return await executeModel(model);
+    } catch (error) {
+      lastError = error;
+
+      if (!isRetryableGeminiError(error) || model === modelChain.at(-1)) {
+        throw error;
+      }
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Gemini request failed");
+}
 
 function shouldUseMapsGrounding(requestPayload: RecommendationRequest) {
   const normalizedQuestion =
@@ -277,7 +338,7 @@ async function runGeminiRecommendationAssistant({
       message: normalizeAssistantMessage(response1.text, fallback),
       recommendation,
       source: "gemini" as const,
-    };
+    } satisfies AssistantResponsePayload;
   }
 
   if (!functionCall.name) {
@@ -319,7 +380,7 @@ async function runGeminiRecommendationAssistant({
     message: normalizeAssistantMessage(response2.text, fallback),
     recommendation,
     source: "gemini" as const,
-  };
+  } satisfies AssistantResponsePayload;
 }
 
 async function runGeminiMapsGroundedAssistant({
@@ -360,14 +421,14 @@ async function runGeminiMapsGroundedAssistant({
 
 function createGeminiAssistantService({
   apiKey = process.env.GEMINI_API_KEY,
-  mapsLocationContext = process.env.VENUE_CONTEXT_LATITUDE &&
-  process.env.VENUE_CONTEXT_LONGITUDE
-    ? {
-        latitude: Number(process.env.VENUE_CONTEXT_LATITUDE),
-        longitude: Number(process.env.VENUE_CONTEXT_LONGITUDE),
-      }
-    : undefined,
-  model = process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite-preview",
+  mapsLocationContext =
+    process.env.VENUE_CONTEXT_LATITUDE && process.env.VENUE_CONTEXT_LONGITUDE
+      ? {
+          latitude: Number(process.env.VENUE_CONTEXT_LATITUDE),
+          longitude: Number(process.env.VENUE_CONTEXT_LONGITUDE),
+        }
+      : undefined,
+  model = process.env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL,
 }: {
   apiKey?: string;
   mapsLocationContext?: MapsLocationContext;
@@ -383,25 +444,30 @@ function createGeminiAssistantService({
     async generateAssistantResponse(requestPayload: unknown) {
       const typedRequestPayload = requestPayload as RecommendationRequest;
 
-      if (shouldUseMapsGrounding(typedRequestPayload)) {
-        return runGeminiMapsGroundedAssistant({
-          generateContent: (params) => ai.models.generateContent(params),
-          mapsLocationContext,
-          model,
-          requestPayload: typedRequestPayload,
-        });
-      }
+      return runGeminiAssistantWithFallbacks({
+        executeModel: (attemptModel) => {
+          if (shouldUseMapsGrounding(typedRequestPayload)) {
+            return runGeminiMapsGroundedAssistant({
+              generateContent: (params) => ai.models.generateContent(params),
+              mapsLocationContext,
+              model: attemptModel,
+              requestPayload: typedRequestPayload,
+            });
+          }
 
-      return runGeminiRecommendationAssistant({
-        createChat: ({ config, history, model: chatModel }) =>
-          ai.chats.create({
-            config,
-            history,
-            model: chatModel,
-          }),
-        generateContent: (params) => ai.models.generateContent(params),
-        model,
-        requestPayload,
+          return runGeminiRecommendationAssistant({
+            createChat: ({ config, history, model: chatModel }) =>
+              ai.chats.create({
+                config,
+                history,
+                model: chatModel,
+              }),
+            generateContent: (params) => ai.models.generateContent(params),
+            model: attemptModel,
+            requestPayload,
+          });
+        },
+        primaryModel: model,
       });
     },
   };
@@ -409,6 +475,7 @@ function createGeminiAssistantService({
 
 export {
   ASSISTANT_PROMPT,
+  DEFAULT_GEMINI_MODEL,
   buildAssistantPrompt,
   buildChatHistory,
   buildFallbackNarration,
@@ -416,7 +483,10 @@ export {
   buildMapsGroundedPrompt,
   createGeminiAssistantService,
   extractMapsGrounding,
+  getGeminiModelFallbackChain,
+  isRetryableGeminiError,
   normalizeAssistantMessage,
+  runGeminiAssistantWithFallbacks,
   runGeminiMapsGroundedAssistant,
   runGeminiRecommendationAssistant,
   shouldUseMapsGrounding,
