@@ -2,12 +2,16 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   ASSISTANT_PROMPT,
+  DEFAULT_GEMINI_MODEL,
   buildAssistantPrompt,
   buildChatHistory,
   buildLatestQuestion,
   buildMapsGroundedPrompt,
   extractMapsGrounding,
+  getGeminiModelFallbackChain,
+  isRetryableGeminiError,
   normalizeAssistantMessage,
+  runGeminiAssistantWithFallbacks,
   runGeminiMapsGroundedAssistant,
   runGeminiRecommendationAssistant,
   shouldUseMapsGrounding,
@@ -187,6 +191,88 @@ describe("runGeminiRecommendationAssistant", () => {
         question: "Why is Stall B better?",
       }),
     ).toBe("Why is Stall B better?");
+  });
+
+  it("keeps 3.1 flash lite as the default and falls back to 3 flash then 2.5 flash", () => {
+    expect(DEFAULT_GEMINI_MODEL).toBe("gemini-3.1-flash-lite-preview");
+    expect(
+      getGeminiModelFallbackChain("gemini-3.1-flash-lite-preview"),
+    ).toEqual([
+      "gemini-3.1-flash-lite-preview",
+      "gemini-3-flash-preview",
+      "gemini-2.5-flash",
+    ]);
+  });
+
+  it("retries retryable Gemini availability failures on the next model", async () => {
+    const executeModel = vi
+      .fn()
+      .mockRejectedValueOnce(
+        Object.assign(
+          new Error("This model is currently experiencing high demand."),
+          {
+            status: 503,
+          },
+        ),
+      )
+      .mockResolvedValueOnce({
+        message: "Recovered on fallback model.",
+        recommendation: {
+          intent: "food",
+          timingDecision: "go_now",
+          waitOrGoReason:
+            "Leaving now is still the fastest option once wait time is included.",
+          primaryOption: {
+            id: "stall-b",
+            label: "Stall B",
+            kind: "food",
+          },
+          primaryReason: "Best total score: 7 minutes.",
+          etaMinutes: 4,
+          waitMinutes: 3,
+          timeSavedMinutes: 0,
+          routeSummary: "Section A-12 → Concourse East → Stall B",
+          crowdWarning: null,
+          fallbackOption: null,
+          confidence: "high",
+        },
+        source: "gemini" as const,
+      });
+
+    const result = await runGeminiAssistantWithFallbacks({
+      executeModel,
+      primaryModel: "gemini-3.1-flash-lite-preview",
+    });
+
+    expect(executeModel.mock.calls.map(([model]) => model)).toEqual([
+      "gemini-3.1-flash-lite-preview",
+      "gemini-3-flash-preview",
+    ]);
+    expect(result.message).toBe("Recovered on fallback model.");
+  });
+
+  it("does not retry non-retryable Gemini errors", async () => {
+    const executeModel = vi.fn().mockRejectedValue(new Error("Invalid API key"));
+
+    await expect(
+      runGeminiAssistantWithFallbacks({
+        executeModel,
+        primaryModel: "gemini-3.1-flash-lite-preview",
+      }),
+    ).rejects.toThrow("Invalid API key");
+
+    expect(executeModel).toHaveBeenCalledTimes(1);
+  });
+
+  it("recognizes retryable provider pressure signals", () => {
+    expect(
+      isRetryableGeminiError(
+        Object.assign(new Error("UNAVAILABLE"), {
+          status: 503,
+        }),
+      ),
+    ).toBe(true);
+    expect(isRetryableGeminiError(new Error("Invalid API key"))).toBe(false);
   });
 
   it("detects venue-perimeter questions that should use Google Maps grounding", () => {
