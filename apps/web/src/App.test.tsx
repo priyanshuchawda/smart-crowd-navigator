@@ -71,6 +71,16 @@ describe("App", () => {
     const markup = renderToStaticMarkup(
       <RecommendationPanel
         response={{
+          grounding: {
+            places: [
+              {
+                title: "Demo Pickup Zone",
+                uri: "https://maps.google.com/?cid=demo",
+              },
+            ],
+            source: "google-maps",
+            widgetContextToken: "widget-token",
+          },
           message: "Wait five minutes, then head to Stall B.",
           recommendation: {
             intent: "food",
@@ -105,5 +115,8 @@ describe("App", () => {
     expect(markup).toContain("Time Saved");
     expect(markup).toContain("Crowd pressure is elevated");
     expect(markup).toContain('role="alert"');
+    expect(markup).toContain("Google Maps grounding");
+    expect(markup).toContain("Demo Pickup Zone");
+    expect(markup).toContain("VITE_GOOGLE_MAPS_API_KEY");
   });
 });
