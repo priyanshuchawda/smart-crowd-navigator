@@ -421,13 +421,13 @@ async function runGeminiMapsGroundedAssistant({
 
 function createGeminiAssistantService({
   apiKey = process.env.GEMINI_API_KEY,
-  mapsLocationContext =
-    process.env.VENUE_CONTEXT_LATITUDE && process.env.VENUE_CONTEXT_LONGITUDE
-      ? {
-          latitude: Number(process.env.VENUE_CONTEXT_LATITUDE),
-          longitude: Number(process.env.VENUE_CONTEXT_LONGITUDE),
-        }
-      : undefined,
+  mapsLocationContext = process.env.VENUE_CONTEXT_LATITUDE &&
+  process.env.VENUE_CONTEXT_LONGITUDE
+    ? {
+        latitude: Number(process.env.VENUE_CONTEXT_LATITUDE),
+        longitude: Number(process.env.VENUE_CONTEXT_LONGITUDE),
+      }
+    : undefined,
   model = process.env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL,
 }: {
   apiKey?: string;

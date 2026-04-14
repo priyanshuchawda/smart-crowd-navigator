@@ -3,6 +3,7 @@ import { useMemo, useRef, useState } from "react";
 import type {
   CoreIntent,
   EVENT_PHASES,
+  GROUP_WORKFLOWS,
   MOBILITY_MODES,
 } from "@smart-crowd-navigator/shared";
 
@@ -56,6 +57,8 @@ export function App() {
     useState<(typeof EVENT_PHASES)[number]>("break");
   const [mobilityMode, setMobilityMode] =
     useState<(typeof MOBILITY_MODES)[number]>("standard");
+  const [groupWorkflow, setGroupWorkflow] =
+    useState<(typeof GROUP_WORKFLOWS)[number]>("auto");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draftQuestion, setDraftQuestion] = useState("");
   const [response, setResponse] = useState<AssistantApiResponse | null>(null);
@@ -152,6 +155,7 @@ export function App() {
         intent: resolvedIntent,
         partySize,
         eventPhase,
+        groupWorkflow,
         mobilityMode,
         question,
         conversationHistory: nextConversationHistory,
@@ -228,8 +232,10 @@ export function App() {
             isLoading={isLoading}
             messages={messages}
             mobilityMode={mobilityMode}
+            groupWorkflow={groupWorkflow}
             onDraftQuestionChange={setDraftQuestion}
             onEventPhaseChange={setEventPhase}
+            onGroupWorkflowChange={setGroupWorkflow}
             onMobilityModeChange={setMobilityMode}
             onPartySizeChange={setPartySize}
             onRequestRecommendation={(intent) =>

@@ -2,6 +2,7 @@ import {
   CORE_INTENTS,
   type CoreIntent,
   EVENT_PHASES,
+  GROUP_WORKFLOWS,
   MOBILITY_MODES,
 } from "@smart-crowd-navigator/shared";
 
@@ -32,11 +33,13 @@ interface AttendeeFlowPanelsProps {
   draftQuestion: string;
   errorMessage: string | null;
   eventPhase: (typeof EVENT_PHASES)[number];
+  groupWorkflow: (typeof GROUP_WORKFLOWS)[number];
   isLoading: boolean;
   messages: ChatMessage[];
   mobilityMode: (typeof MOBILITY_MODES)[number];
   onDraftQuestionChange: (value: string) => void;
   onEventPhaseChange: (value: (typeof EVENT_PHASES)[number]) => void;
+  onGroupWorkflowChange: (value: (typeof GROUP_WORKFLOWS)[number]) => void;
   onMobilityModeChange: (value: (typeof MOBILITY_MODES)[number]) => void;
   onPartySizeChange: (value: number) => void;
   onRequestRecommendation: (intent: CoreIntent) => void;
@@ -55,11 +58,13 @@ export function AttendeeFlowPanels({
   draftQuestion,
   errorMessage,
   eventPhase,
+  groupWorkflow,
   isLoading,
   messages,
   mobilityMode,
   onDraftQuestionChange,
   onEventPhaseChange,
+  onGroupWorkflowChange,
   onMobilityModeChange,
   onPartySizeChange,
   onRequestRecommendation,
@@ -174,6 +179,30 @@ export function AttendeeFlowPanels({
             </select>
             <small id="event-phase-help" className="field-help-text">
               Use break or post-event to preview the clearest crowd shifts.
+            </small>
+          </label>
+
+          <label className="field">
+            <span>Group coordination</span>
+            <select
+              aria-describedby="group-workflow-help"
+              name="groupWorkflow"
+              value={groupWorkflow}
+              onChange={(event) =>
+                onGroupWorkflowChange(
+                  event.target.value as (typeof GROUP_WORKFLOWS)[number],
+                )
+              }
+            >
+              {GROUP_WORKFLOWS.map((workflow) => (
+                <option key={workflow} value={workflow}>
+                  {workflow}
+                </option>
+              ))}
+            </select>
+            <small id="group-workflow-help" className="field-help-text">
+              Use runner pickup, meet-up, or return-before-play to make the
+              group plan more explicit.
             </small>
           </label>
 

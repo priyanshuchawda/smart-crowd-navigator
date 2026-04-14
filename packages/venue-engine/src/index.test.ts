@@ -278,4 +278,33 @@ describe("createVenueEngine", () => {
       largeParty[0]?.score.partyServiceMinutes ?? 0,
     );
   });
+
+  it("builds a runner-pickup group plan for larger food groups", () => {
+    const engine = createVenueEngine();
+    const rankings = engine.rankDestinations({
+      sectionId: "section-a12",
+      intent: "food",
+      eventPhase: "break",
+      partySize: 5,
+    });
+    const plan = engine.buildGroupCoordinatorPlan(
+      {
+        sectionId: "section-a12",
+        intent: "food",
+        eventPhase: "break",
+        partySize: 5,
+      },
+      rankings[0] ??
+        (() => {
+          throw new Error(
+            "Expected a ranked destination for the group plan test",
+          );
+        })(),
+      demoVenueFixture,
+    );
+
+    expect(plan?.workflowType).toBe("runner-pickup");
+    expect(plan?.splitRecommended).toBe(true);
+    expect(plan?.headline).toContain("runner");
+  });
 });

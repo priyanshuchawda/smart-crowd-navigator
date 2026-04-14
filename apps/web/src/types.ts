@@ -2,6 +2,7 @@ import type {
   AssistantRecommendation,
   ConversationMessage,
   CoreIntent,
+  GroupWorkflow,
 } from "@smart-crowd-navigator/shared";
 import type { DestinationState } from "@smart-crowd-navigator/venue-engine";
 
@@ -27,6 +28,7 @@ export interface AssistantApiResponse {
 }
 
 export interface RecommendationRequestInput {
+  groupWorkflow?: GroupWorkflow;
   section: string;
   intent: CoreIntent;
   partySize: number;

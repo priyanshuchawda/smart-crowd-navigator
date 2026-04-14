@@ -151,6 +151,28 @@ describe("assistant API", () => {
     expect(response.headers.get("cache-control")).toBe("no-cache, no-store");
   });
 
+  it("returns a group coordinator plan for larger food groups", async () => {
+    const { baseUrl } = await startServer();
+    const response = await fetch(`${baseUrl}/recommendation`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        section: "section-a12",
+        intent: "food",
+        partySize: 5,
+        eventPhase: "break",
+        mobilityMode: "standard",
+        groupWorkflow: "runner-pickup",
+      }),
+    });
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.groupPlan.workflowType).toBe("runner-pickup");
+  });
+
   it("rejects invalid recommendation requests", async () => {
     const { baseUrl } = await startServer();
     const response = await fetch(`${baseUrl}/recommendation`, {

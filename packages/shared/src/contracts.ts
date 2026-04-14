@@ -4,6 +4,7 @@ import {
   CONFIDENCE_LEVELS,
   CORE_INTENTS,
   EVENT_PHASES,
+  GROUP_WORKFLOWS,
   MOBILITY_MODES,
   TIMING_DECISIONS,
 } from "./constants.js";
@@ -14,6 +15,8 @@ export const coreIntentSchema = z.enum(CORE_INTENTS);
 export const eventPhaseSchema = z.enum(EVENT_PHASES);
 /** Allowed attendee mobility modes used for routing constraints. */
 export const mobilityModeSchema = z.enum(MOBILITY_MODES);
+/** Allowed group workflow modes used for coordinator-specific planning. */
+export const groupWorkflowSchema = z.enum(GROUP_WORKFLOWS);
 /** Allowed timing decisions emitted by recommendation responses. */
 export const timingDecisionSchema = z.enum(TIMING_DECISIONS);
 /** Confidence labels attached to generated recommendations. */
@@ -35,6 +38,16 @@ export const destinationOptionSchema = z.strictObject({
   sectionHint: z.string().min(1).optional(),
 });
 
+/** Group coordinator workflow details surfaced with a recommendation. */
+export const assistantGroupPlanSchema = z.strictObject({
+  workflowType: z.enum(["runner-pickup", "meet-up", "return-before-play"]),
+  headline: z.string().min(1),
+  regroupSpot: z.string().min(1),
+  regroupEtaMinutes: z.number().int().nonnegative(),
+  splitRecommended: z.boolean(),
+  steps: z.array(z.string().min(1)).min(2).max(4),
+});
+
 /** Input contract accepted by recommendation and assistant endpoints. */
 export const recommendationRequestSchema = z.strictObject({
   section: z.string().min(1),
@@ -43,6 +56,7 @@ export const recommendationRequestSchema = z.strictObject({
   seatRow: z.string().min(1).optional(),
   eventPhase: eventPhaseSchema,
   mobilityMode: mobilityModeSchema.default("standard"),
+  groupWorkflow: groupWorkflowSchema.optional(),
   question: z.string().min(1).max(500).optional(),
   conversationHistory: z.array(conversationMessageSchema).max(12).optional(),
 });
@@ -60,6 +74,7 @@ export const assistantRecommendationSchema = z.strictObject({
   routeSummary: z.string().min(1),
   crowdWarning: z.string().min(1).nullable(),
   fallbackOption: destinationOptionSchema.nullable(),
+  groupPlan: assistantGroupPlanSchema.nullable().optional(),
   confidence: confidenceLevelSchema,
 });
 
@@ -69,6 +84,8 @@ export type CoreIntent = z.infer<typeof coreIntentSchema>;
 export type EventPhase = z.infer<typeof eventPhaseSchema>;
 /** Mobility mode type inferred from the shared schema. */
 export type MobilityMode = z.infer<typeof mobilityModeSchema>;
+/** Group workflow type inferred from the shared schema. */
+export type GroupWorkflow = z.infer<typeof groupWorkflowSchema>;
 /** Timing decision type inferred from the shared schema. */
 export type TimingDecision = z.infer<typeof timingDecisionSchema>;
 /** Confidence level type inferred from the shared schema. */
@@ -81,6 +98,8 @@ export type ConversationMessageRole = z.infer<
 export type ConversationMessage = z.infer<typeof conversationMessageSchema>;
 /** Destination option type inferred from the shared schema. */
 export type DestinationOption = z.infer<typeof destinationOptionSchema>;
+/** Group coordinator plan type inferred from the shared schema. */
+export type AssistantGroupPlan = z.infer<typeof assistantGroupPlanSchema>;
 /** Recommendation request type inferred from the shared schema. */
 export type RecommendationRequest = z.infer<typeof recommendationRequestSchema>;
 /** Assistant recommendation type inferred from the shared schema. */

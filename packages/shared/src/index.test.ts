@@ -20,6 +20,7 @@ describe("shared exports", () => {
       partySize: 3,
       eventPhase: "break",
       mobilityMode: "standard",
+      groupWorkflow: "meet-up",
       question: "Why is food better after halftime?",
       conversationHistory: [
         {
@@ -49,6 +50,7 @@ describe("shared exports", () => {
       routeSummary: "Head left on the concourse",
       crowdWarning: null,
       fallbackOption: null,
+      groupPlan: null,
       confidence: "high",
     });
 

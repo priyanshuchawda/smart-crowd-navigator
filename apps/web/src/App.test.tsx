@@ -19,6 +19,7 @@ describe("App", () => {
     expect(markup).toContain("How It Works");
     expect(markup).toContain("Live Assistant");
     expect(markup).toContain("Ask the assistant");
+    expect(markup).toContain("Group coordination");
     expect(markup).toContain("Venue Layout");
     expect(markup).toContain("Demo Controls");
     expect(markup).toContain(
@@ -103,6 +104,18 @@ describe("App", () => {
               label: "Stall D",
               kind: "food",
             },
+            groupPlan: {
+              workflowType: "runner-pickup",
+              headline:
+                "Send one runner while the rest of the group holds position.",
+              regroupSpot: "Section A-12",
+              regroupEtaMinutes: 3,
+              splitRecommended: true,
+              steps: [
+                "Keep most of the group at Section A-12.",
+                "Send one runner to Stall B.",
+              ],
+            },
             confidence: "high",
           },
         }}
@@ -118,5 +131,7 @@ describe("App", () => {
     expect(markup).toContain("Google Maps grounding");
     expect(markup).toContain("Demo Pickup Zone");
     expect(markup).toContain("VITE_GOOGLE_MAPS_API_KEY");
+    expect(markup).toContain("Group coordinator plan");
+    expect(markup).toContain("Send one runner");
   });
 });

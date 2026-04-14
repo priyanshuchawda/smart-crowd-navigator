@@ -2,6 +2,8 @@ import { demoVenueFixture } from "./fixture.js";
 import type {
   DestinationState,
   EventPhase,
+  GroupCoordinatorPlan,
+  GroupWorkflow,
   MobilityMode,
   RankDestinationsInput,
   RankedDestination,
@@ -223,6 +225,111 @@ function getTelemetryPenalty(destinationState: DestinationState) {
   }
 
   return statusPenalty + waitTimeVariability / 2 + confidencePenalty;
+}
+
+function getNodeLabel(fixture: VenueFixture, nodeId: string) {
+  return fixture.nodes.find((node) => node.id === nodeId)?.label ?? nodeId;
+}
+
+function inferGroupWorkflow(
+  input: RankDestinationsInput,
+): Exclude<GroupWorkflow, "auto"> | null {
+  if (input.groupWorkflow && input.groupWorkflow !== "auto") {
+    return input.groupWorkflow;
+  }
+
+  if (input.intent === "food" && (input.partySize ?? 1) >= 4) {
+    return "runner-pickup";
+  }
+
+  if (
+    input.mobilityMode === "mixed" ||
+    input.groupProfile?.includesMobilityLimitedGuest
+  ) {
+    return "meet-up";
+  }
+
+  if (
+    input.eventPhase === "break" &&
+    (input.partySize ?? 1) >= 3 &&
+    (input.intent === "food" || input.intent === "washroom")
+  ) {
+    return "return-before-play";
+  }
+
+  return null;
+}
+
+export function buildGroupCoordinatorPlan(
+  input: RankDestinationsInput,
+  selectedDestination: RankedDestination,
+  fixture: VenueFixture = demoVenueFixture,
+): GroupCoordinatorPlan | null {
+  const workflowType = inferGroupWorkflow(input);
+
+  if (!workflowType || (input.partySize ?? 1) <= 1) {
+    return null;
+  }
+
+  const sectionLabel = getNodeLabel(fixture, input.sectionId);
+  const regroupSpot =
+    workflowType === "meet-up"
+      ? getNodeLabel(
+          fixture,
+          selectedDestination.route.includes("elevator-core")
+            ? "elevator-core"
+            : "concourse-center",
+        )
+      : sectionLabel;
+
+  if (workflowType === "runner-pickup") {
+    return {
+      workflowType,
+      headline: "Send one runner while the rest of the group holds position.",
+      regroupSpot,
+      regroupEtaMinutes: Math.round(selectedDestination.score.walkingMinutes),
+      splitRecommended: true,
+      steps: [
+        `Keep most of the group at ${regroupSpot}.`,
+        `Send one runner to ${selectedDestination.label}.`,
+        `Regroup at ${regroupSpot} before the whole group moves again.`,
+      ],
+    };
+  }
+
+  if (workflowType === "meet-up") {
+    return {
+      workflowType,
+      headline: "Regroup first, then move together on the step-free route.",
+      regroupSpot,
+      regroupEtaMinutes: Math.round(selectedDestination.score.walkingMinutes),
+      splitRecommended: false,
+      steps: [
+        `Bring everyone together at ${regroupSpot}.`,
+        `Take the calmer shared route to ${selectedDestination.label}.`,
+        "Keep the group together so mobility-limited guests are not forced onto a different path.",
+      ],
+    };
+  }
+
+  return {
+    workflowType,
+    headline:
+      "Use a quick regroup plan so the whole group gets back before play resumes.",
+    regroupSpot,
+    regroupEtaMinutes: Math.round(
+      selectedDestination.score.walkingMinutes +
+        selectedDestination.score.queueMinutes,
+    ),
+    splitRecommended: input.intent === "food",
+    steps: [
+      input.intent === "food"
+        ? `Send one person to ${selectedDestination.label} while the others hold at ${regroupSpot}.`
+        : `Move the full group to ${selectedDestination.label} together from ${regroupSpot}.`,
+      `Regroup at ${regroupSpot} once the stop is complete.`,
+      "Head back before the event phase shifts from the current break window.",
+    ],
+  };
 }
 
 function projectQueueMinutes(
