@@ -71,6 +71,9 @@ A production rollout should provide:
    - crowd penalties
    - short-term trend values
    - service-time assumptions
+   - destination status (`open` / `limited` / `closed`)
+   - telemetry confidence (`observed` / `estimated` / `predicted`)
+   - wait-time variability
 
 3. **source wiring at the API boundary**
    - inject a `production-config` or `live-operations` `VenueDataSource`

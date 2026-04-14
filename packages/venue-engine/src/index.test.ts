@@ -43,9 +43,9 @@ describe("createVenueEngine", () => {
     });
 
     expect(rankings[0]).toMatchObject({
-      destinationId: "washroom-west",
+      destinationId: "family-washroom",
       score: {
-        queueMinutes: 2,
+        queueMinutes: 1,
         partyServiceMinutes: 0,
       },
     });
@@ -76,7 +76,7 @@ describe("createVenueEngine", () => {
       partySize: 1,
     });
 
-    expect(fallback?.destinationId).toBe("stall-d");
+    expect(fallback?.destinationId).toBe("stall-f");
   });
 
   it("recommends waiting when a short-term queue drop creates a better outcome", () => {
@@ -105,7 +105,7 @@ describe("createVenueEngine", () => {
     });
 
     expect(advice.decision).toBe("go_now");
-    expect(advice.currentBest.destinationId).toBe("washroom-west");
+    expect(advice.currentBest.destinationId).toBe("family-washroom");
     expect(advice.recommendedWaitMinutes).toBe(0);
   });
 
@@ -208,6 +208,53 @@ describe("createVenueEngine", () => {
     expect(advice.currentBest.destinationId).toBe(
       advice.projectedBest.destinationId,
     );
+  });
+
+  it("skips closed destinations even when they would otherwise be closest", () => {
+    const engine = createVenueEngine();
+    const exitRankings = engine.rankDestinations({
+      sectionId: "section-a12",
+      intent: "exit",
+      eventPhase: "post-event",
+      partySize: 1,
+    });
+
+    expect(exitRankings.map((ranking) => ranking.destinationId)).not.toContain(
+      "exit-east",
+    );
+  });
+
+  it("prefers elevator/ramp routes for mixed-mobility groups that stay together", () => {
+    const engine = createVenueEngine();
+    const rankings = engine.rankDestinations({
+      sectionId: "section-d15",
+      intent: "washroom",
+      eventPhase: "break",
+      mobilityMode: "mixed",
+      groupProfile: {
+        includesMobilityLimitedGuest: true,
+        keepGroupTogether: true,
+      },
+      partySize: 4,
+    });
+
+    expect(rankings[0]?.destinationId).toBe("family-washroom");
+    expect(rankings[0]?.route).toContain("elevator-core");
+  });
+
+  it("accounts for telemetry penalties on limited-confidence destinations", () => {
+    const engine = createVenueEngine();
+    const foodRankings = engine.rankDestinations({
+      sectionId: "section-b08",
+      intent: "food",
+      eventPhase: "break",
+      partySize: 2,
+    });
+    const stallF = foodRankings.find(
+      (ranking) => ranking.destinationId === "stall-f",
+    );
+
+    expect(stallF?.score.telemetryPenalty).toBeGreaterThan(0);
   });
 
   it("shifts food winner for very large parties due to service penalties", () => {
