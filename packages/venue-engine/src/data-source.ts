@@ -1,23 +1,32 @@
 import {
+  DESTINATION_STATUS,
   SUPPORTED_EVENT_PHASES,
+  TELEMETRY_CONFIDENCE,
   VENUE_NODE_KINDS,
+  VENUE_PATH_TYPES,
   VENUE_SOURCE_KINDS,
 } from "./types.js";
 import type {
   DestinationState,
+  DestinationStatus,
   EventPhase,
+  TelemetryConfidence,
   VenueDataSource,
   VenueEdge,
   VenueFixture,
   VenueNode,
   VenueNodeKind,
   VenueOperationalState,
+  VenuePathType,
   VenueSourceKind,
   VenueTopology,
 } from "./types.js";
 
+const destinationStatuses = new Set<string>(DESTINATION_STATUS);
+const telemetryConfidenceLevels = new Set<string>(TELEMETRY_CONFIDENCE);
 const venueSourceKinds = new Set<string>(VENUE_SOURCE_KINDS);
 const venueNodeKinds = new Set<string>(VENUE_NODE_KINDS);
+const venuePathTypes = new Set<string>(VENUE_PATH_TYPES);
 const supportedEventPhases = new Set<string>(SUPPORTED_EVENT_PHASES);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -78,6 +87,42 @@ function parseVenueNodeKind(value: unknown, fieldName: string): VenueNodeKind {
   return kind as VenueNodeKind;
 }
 
+function parseVenuePathType(value: unknown, fieldName: string): VenuePathType {
+  const pathType = parseStringField(value, fieldName);
+
+  if (!venuePathTypes.has(pathType)) {
+    throw new Error(`${fieldName} must be a supported venue path type`);
+  }
+
+  return pathType as VenuePathType;
+}
+
+function parseDestinationStatus(
+  value: unknown,
+  fieldName: string,
+): DestinationStatus {
+  const status = parseStringField(value, fieldName);
+
+  if (!destinationStatuses.has(status)) {
+    throw new Error(`${fieldName} must be a supported destination status`);
+  }
+
+  return status as DestinationStatus;
+}
+
+function parseTelemetryConfidence(
+  value: unknown,
+  fieldName: string,
+): TelemetryConfidence {
+  const confidence = parseStringField(value, fieldName);
+
+  if (!telemetryConfidenceLevels.has(confidence)) {
+    throw new Error(`${fieldName} must be a supported telemetry confidence`);
+  }
+
+  return confidence as TelemetryConfidence;
+}
+
 function parseEventPhase(value: unknown, fieldName: string): EventPhase {
   const phase = parseStringField(value, fieldName);
 
@@ -97,6 +142,10 @@ function parseVenueNode(value: unknown, index: number): VenueNode {
     id: parseStringField(value.id, `topology.nodes[${index}].id`),
     label: parseStringField(value.label, `topology.nodes[${index}].label`),
     kind: parseVenueNodeKind(value.kind, `topology.nodes[${index}].kind`),
+    zone:
+      typeof value.zone === "string"
+        ? parseStringField(value.zone, `topology.nodes[${index}].zone`)
+        : undefined,
   };
 }
 
@@ -133,6 +182,10 @@ function parseVenueEdge(value: unknown, index: number): VenueEdge {
       `topology.edges[${index}].accessible`,
     ),
     congestionPenalty,
+    pathType: parseVenuePathType(
+      value.pathType,
+      `topology.edges[${index}].pathType`,
+    ),
   };
 }
 
@@ -160,6 +213,13 @@ function parseDestinationState(
     value.serviceMinutesPerAdditionalPerson,
     `state.destinationStates[${index}].serviceMinutesPerAdditionalPerson`,
   );
+  const waitTimeVariability =
+    value.waitTimeVariability === undefined
+      ? 0
+      : parseNumberField(
+          value.waitTimeVariability,
+          `state.destinationStates[${index}].waitTimeVariability`,
+        );
 
   if (queueMinutes < 0) {
     throw new Error(
@@ -179,15 +239,36 @@ function parseDestinationState(
     );
   }
 
+  if (waitTimeVariability < 0) {
+    throw new Error(
+      `state.destinationStates[${index}].waitTimeVariability must be non-negative`,
+    );
+  }
+
   return {
     nodeId: parseStringField(
       value.nodeId,
       `state.destinationStates[${index}].nodeId`,
     ),
+    status:
+      value.status === undefined
+        ? "open"
+        : parseDestinationStatus(
+            value.status,
+            `state.destinationStates[${index}].status`,
+          ),
     queueMinutes,
     crowdPenalty,
     queueTrendAfterFiveMinutes,
     serviceMinutesPerAdditionalPerson,
+    telemetryConfidence:
+      value.telemetryConfidence === undefined
+        ? "observed"
+        : parseTelemetryConfidence(
+            value.telemetryConfidence,
+            `state.destinationStates[${index}].telemetryConfidence`,
+          ),
+    waitTimeVariability,
   };
 }
 

@@ -1,5 +1,6 @@
 import { demoVenueFixture } from "./fixture.js";
 import type {
+  DestinationState,
   EventPhase,
   MobilityMode,
   RankDestinationsInput,
@@ -44,11 +45,21 @@ function getEventPenalty(intent: VenueIntent, eventPhase: EventPhase) {
   return eventPenaltyMatrix[intent][eventPhase];
 }
 
-function buildAdjacency(edges: VenueEdge[], mobilityMode: MobilityMode) {
+function buildAdjacency(
+  edges: VenueEdge[],
+  mobilityMode: MobilityMode,
+  groupProfile: RankDestinationsInput["groupProfile"],
+) {
   const adjacency = new Map<string, VenueEdge[]>();
 
   for (const edge of edges) {
-    if (mobilityMode === "accessible" && !edge.accessible) {
+    const requiresStepFreeRoute =
+      mobilityMode === "accessible" ||
+      (mobilityMode === "mixed" &&
+        groupProfile?.includesMobilityLimitedGuest &&
+        groupProfile.keepGroupTogether !== false);
+
+    if (requiresStepFreeRoute && !edge.accessible) {
       continue;
     }
 
@@ -71,8 +82,9 @@ function calculateShortestRoute(
   fromId: string,
   toId: string,
   mobilityMode: MobilityMode,
+  groupProfile: RankDestinationsInput["groupProfile"],
 ) {
-  const adjacency = buildAdjacency(edges, mobilityMode);
+  const adjacency = buildAdjacency(edges, mobilityMode, groupProfile);
   const distances = new Map<string, number>();
   const previous = new Map<string, string | null>();
   const unvisited = new Set(nodes.map((node) => node.id));
@@ -106,7 +118,8 @@ function calculateShortestRoute(
       const candidateDistance =
         (distances.get(current) ?? Number.POSITIVE_INFINITY) +
         edge.minutes +
-        edge.congestionPenalty;
+        edge.congestionPenalty +
+        getMixedMobilityEdgePenalty(edge, mobilityMode, groupProfile);
 
       if (
         candidateDistance < (distances.get(edge.to) ?? Number.POSITIVE_INFINITY)
@@ -141,6 +154,7 @@ function createBreakdown(
   partyServiceMinutes: number,
   crowdPenalty: number,
   eventPenalty: number,
+  telemetryPenalty: number,
 ): ScoreBreakdown {
   return {
     walkingMinutes,
@@ -148,16 +162,67 @@ function createBreakdown(
     partyServiceMinutes,
     crowdPenalty,
     eventPenalty,
+    telemetryPenalty,
     totalScore:
       Math.round(
         (walkingMinutes +
           queueMinutes +
           partyServiceMinutes +
           crowdPenalty +
-          eventPenalty) *
+          eventPenalty +
+          telemetryPenalty) *
           10,
       ) / 10,
   };
+}
+
+function getMixedMobilityEdgePenalty(
+  edge: VenueEdge,
+  mobilityMode: MobilityMode,
+  groupProfile: RankDestinationsInput["groupProfile"],
+) {
+  if (
+    mobilityMode !== "mixed" ||
+    !groupProfile?.includesMobilityLimitedGuest ||
+    !groupProfile.keepGroupTogether
+  ) {
+    return 0;
+  }
+
+  if (edge.pathType === "stairs") {
+    return 6;
+  }
+
+  if (edge.pathType === "elevator") {
+    return 1;
+  }
+
+  if (edge.pathType === "ramp") {
+    return 0.5;
+  }
+
+  return 0;
+}
+
+function getTelemetryPenalty(destinationState: DestinationState) {
+  const telemetryConfidence =
+    destinationState.telemetryConfidence ?? "observed";
+  const waitTimeVariability = destinationState.waitTimeVariability ?? 0;
+  const status = destinationState.status ?? "open";
+  const confidencePenalty =
+    telemetryConfidence === "observed"
+      ? 0
+      : telemetryConfidence === "estimated"
+        ? 0.5
+        : 1;
+  const statusPenalty =
+    status === "open" ? 0 : status === "limited" ? 2 : Number.POSITIVE_INFINITY;
+
+  if (!Number.isFinite(statusPenalty)) {
+    return statusPenalty;
+  }
+
+  return statusPenalty + waitTimeVariability / 2 + confidencePenalty;
 }
 
 function projectQueueMinutes(
@@ -181,13 +246,6 @@ function buildRankings(
 
   return candidates
     .map((candidate) => {
-      const route = calculateShortestRoute(
-        fixture.nodes,
-        fixture.edges,
-        input.sectionId,
-        candidate.id,
-        mobilityMode,
-      );
       const destinationState = fixture.destinationStates.find(
         (state) => state.nodeId === candidate.id,
       );
@@ -195,6 +253,21 @@ function buildRankings(
       if (!destinationState) {
         throw new Error(`Missing destination state for ${candidate.id}`);
       }
+
+      const telemetryPenalty = getTelemetryPenalty(destinationState);
+
+      if (!Number.isFinite(telemetryPenalty)) {
+        return null;
+      }
+
+      const route = calculateShortestRoute(
+        fixture.nodes,
+        fixture.edges,
+        input.sectionId,
+        candidate.id,
+        mobilityMode,
+        input.groupProfile,
+      );
 
       const partyServiceMinutes =
         Math.max(0, partySize - 1) *
@@ -205,6 +278,7 @@ function buildRankings(
         partyServiceMinutes,
         destinationState.crowdPenalty,
         getEventPenalty(input.intent, input.eventPhase),
+        telemetryPenalty,
       );
 
       return {
@@ -215,6 +289,7 @@ function buildRankings(
         score,
       } satisfies RankedDestination;
     })
+    .filter((candidate): candidate is RankedDestination => candidate !== null)
     .sort((left, right) => left.score.totalScore - right.score.totalScore);
 }
 
