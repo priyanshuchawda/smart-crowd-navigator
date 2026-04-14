@@ -15,6 +15,21 @@ import { buildRecommendationPayload } from "./recommendation.js";
 type GenerateContent = (
   params: GenerateContentParameters,
 ) => Promise<GenerateContentResponse>;
+type ChatHistoryEntry = {
+  role: "user" | "model";
+  parts: Array<{
+    text: string;
+  }>;
+};
+type CreateChat = (params: {
+  config: GenerateContentParameters["config"];
+  history: ChatHistoryEntry[];
+  model: string;
+}) => {
+  sendMessage: (params: {
+    message: string;
+  }) => Promise<GenerateContentResponse>;
+};
 
 const ASSISTANT_PROMPT = [
   "You are Smart Crowd Navigator, a stadium movement assistant.",
@@ -61,6 +76,26 @@ function buildAssistantPrompt(requestPayload: unknown) {
     .join("\n");
 }
 
+function buildChatHistory(
+  requestPayload: RecommendationRequest,
+): ChatHistoryEntry[] {
+  return (requestPayload.conversationHistory ?? []).map((message) => ({
+    role: message.role === "assistant" ? "model" : "user",
+    parts: [
+      {
+        text: message.text,
+      },
+    ],
+  }));
+}
+
+function buildLatestQuestion(requestPayload: RecommendationRequest) {
+  return (
+    requestPayload.question?.trim() ??
+    `Find the best ${requestPayload.intent} option for section ${requestPayload.section}.`
+  );
+}
+
 function buildFallbackNarration(recommendation: AssistantRecommendation) {
   const action =
     recommendation.timingDecision === "wait"
@@ -103,23 +138,31 @@ const recommendationTool = {
 };
 
 async function runGeminiRecommendationAssistant({
+  createChat,
   generateContent,
   model,
   requestPayload,
 }: {
+  createChat: CreateChat;
   generateContent: GenerateContent;
   model: string;
   requestPayload: unknown;
 }) {
+  const typedRequestPayload = requestPayload as RecommendationRequest;
   const toolConfig = { functionDeclarations: [recommendationTool] };
-  const prompt = buildAssistantPrompt(requestPayload);
-
-  const response1 = await generateContent({
-    model,
-    contents: prompt,
+  const latestQuestion = buildLatestQuestion(typedRequestPayload);
+  const chatHistory = buildChatHistory(typedRequestPayload);
+  const chat = createChat({
     config: {
+      systemInstruction: ASSISTANT_PROMPT,
       tools: [toolConfig],
     },
+    history: chatHistory,
+    model,
+  });
+
+  const response1 = await chat.sendMessage({
+    message: latestQuestion,
   });
 
   const functionCall = response1.functionCalls?.[0];
@@ -141,13 +184,14 @@ async function runGeminiRecommendationAssistant({
   }
 
   const history = [
+    ...chatHistory,
     {
-      role: "user",
-      parts: [{ text: prompt }],
+      role: "user" as const,
+      parts: [{ text: latestQuestion }],
     },
     response1.candidates?.[0]?.content ?? { role: "model", parts: [] },
     {
-      role: "tool",
+      role: "user" as const,
       parts: [
         {
           functionResponse: {
@@ -193,6 +237,12 @@ function createGeminiAssistantService({
   return {
     async generateAssistantResponse(requestPayload: unknown) {
       return runGeminiRecommendationAssistant({
+        createChat: ({ config, history, model: chatModel }) =>
+          ai.chats.create({
+            config,
+            history,
+            model: chatModel,
+          }),
         generateContent: (params) => ai.models.generateContent(params),
         model,
         requestPayload,
@@ -204,7 +254,9 @@ function createGeminiAssistantService({
 export {
   ASSISTANT_PROMPT,
   buildAssistantPrompt,
+  buildChatHistory,
   buildFallbackNarration,
+  buildLatestQuestion,
   createGeminiAssistantService,
   normalizeAssistantMessage,
   runGeminiRecommendationAssistant,
