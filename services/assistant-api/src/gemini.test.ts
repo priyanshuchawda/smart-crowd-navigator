@@ -5,8 +5,12 @@ import {
   buildAssistantPrompt,
   buildChatHistory,
   buildLatestQuestion,
+  buildMapsGroundedPrompt,
+  extractMapsGrounding,
   normalizeAssistantMessage,
+  runGeminiMapsGroundedAssistant,
   runGeminiRecommendationAssistant,
+  shouldUseMapsGrounding,
 } from "./gemini.js";
 
 describe("runGeminiRecommendationAssistant", () => {
@@ -183,5 +187,129 @@ describe("runGeminiRecommendationAssistant", () => {
         question: "Why is Stall B better?",
       }),
     ).toBe("Why is Stall B better?");
+  });
+
+  it("detects venue-perimeter questions that should use Google Maps grounding", () => {
+    expect(
+      shouldUseMapsGrounding({
+        section: "section-a12",
+        intent: "exit",
+        partySize: 3,
+        eventPhase: "post-event",
+        mobilityMode: "standard",
+        question: "Where is the best rideshare pickup near the south exit?",
+      }),
+    ).toBe(true);
+  });
+
+  it("extracts Google Maps grounding metadata from Gemini responses", () => {
+    expect(
+      extractMapsGrounding({
+        candidates: [
+          {
+            groundingMetadata: {
+              googleMapsWidgetContextToken: "widget-token",
+              groundingChunks: [
+                {
+                  maps: {
+                    placeId: "places/demo-place",
+                    title: "Demo Pickup Zone",
+                    uri: "https://maps.google.com/?cid=demo",
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      } as never),
+    ).toEqual({
+      places: [
+        {
+          placeId: "places/demo-place",
+          title: "Demo Pickup Zone",
+          uri: "https://maps.google.com/?cid=demo",
+        },
+      ],
+      source: "google-maps",
+      widgetContextToken: "widget-token",
+    });
+  });
+
+  it("returns a maps-grounded hybrid response for venue-adjacent questions", async () => {
+    const generateContent = vi.fn().mockResolvedValue({
+      candidates: [
+        {
+          groundingMetadata: {
+            groundingChunks: [
+              {
+                maps: {
+                  title: "Demo Pickup Zone",
+                  uri: "https://maps.google.com/?cid=demo",
+                },
+              },
+            ],
+          },
+        },
+      ],
+      text: "Use Exit South, then head to the nearby Demo Pickup Zone for the clearest rideshare pickup.",
+    });
+
+    const result = await runGeminiMapsGroundedAssistant({
+      generateContent,
+      mapsLocationContext: {
+        latitude: 37.402,
+        longitude: -122.077,
+      },
+      model: "gemini-3.1-flash-lite-preview",
+      requestPayload: {
+        section: "section-a12",
+        intent: "exit",
+        partySize: 3,
+        eventPhase: "post-event",
+        mobilityMode: "standard",
+        question: "Where is the best rideshare pickup near the south exit?",
+      },
+    });
+
+    expect(generateContent).toHaveBeenCalledTimes(1);
+    expect(result.grounding?.places[0]?.title).toBe("Demo Pickup Zone");
+    expect(result.message).toContain("Demo Pickup Zone");
+    expect(result.recommendation.intent).toBe("exit");
+  });
+
+  it("builds a hybrid maps-grounding prompt around the deterministic recommendation", () => {
+    const prompt = buildMapsGroundedPrompt(
+      {
+        section: "section-a12",
+        intent: "exit",
+        partySize: 3,
+        eventPhase: "post-event",
+        mobilityMode: "standard",
+        question: "Where is the best rideshare pickup near the south exit?",
+      },
+      {
+        intent: "exit",
+        timingDecision: "go_now",
+        waitOrGoReason:
+          "Leaving now is still the fastest option once wait time is included.",
+        primaryOption: {
+          id: "exit-south",
+          label: "Exit South",
+          kind: "exit",
+        },
+        primaryReason: "Best total score: 6 minutes.",
+        etaMinutes: 3,
+        waitMinutes: 3,
+        timeSavedMinutes: 0,
+        routeSummary: "Section A-12 → South Hall → Exit South",
+        crowdWarning: null,
+        fallbackOption: null,
+        confidence: "high",
+      },
+    );
+
+    expect(prompt).toContain("Google Maps grounding");
+    expect(prompt).toContain("Exit South");
+    expect(prompt).toContain("rideshare pickup");
   });
 });
