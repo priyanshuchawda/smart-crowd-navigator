@@ -84,11 +84,26 @@ describe("runGeminiRecommendationAssistant", () => {
       partySize: 3,
       eventPhase: "break",
       mobilityMode: "standard",
+      question: "Why is that the best food option?",
+      conversationHistory: [
+        {
+          role: "user",
+          text: "Which food option is best right now?",
+        },
+        {
+          role: "assistant",
+          text: "Use Stall B. Waiting 5 minutes reduces the predicted total trip cost by 3 minutes.",
+        },
+      ],
     });
 
     expect(ASSISTANT_PROMPT).toContain("Always call get_recommendation_data");
     expect(prompt).toContain("Example style (wait)");
     expect(prompt).toContain('"intent":"food"');
+    expect(prompt).toContain(
+      "Latest attendee question: Why is that the best food option?",
+    );
+    expect(prompt).toContain("Conversation history:");
   });
 
   it("normalizes markdown-heavy or empty model output", () => {

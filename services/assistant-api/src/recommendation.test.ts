@@ -44,4 +44,29 @@ describe("recommendation service venue data source boundary", () => {
 
     expect(payload.primaryOption.id).toBe("stall-d");
   });
+
+  it("returns a conversational deterministic follow-up for why-questions", () => {
+    const recommendationService = createRecommendationService();
+    const response = recommendationService.buildDeterministicAssistantResponse({
+      section: "section-a12",
+      intent: "food",
+      partySize: 1,
+      eventPhase: "break",
+      mobilityMode: "standard",
+      question: "Why is that the best food option?",
+      conversationHistory: [
+        {
+          role: "user",
+          text: "Which food option is best right now?",
+        },
+        {
+          role: "assistant",
+          text: "Use Stall B. Waiting 5 minutes reduces the predicted total trip cost by 3 minutes.",
+        },
+      ],
+    });
+
+    expect(response.message).toContain("Best total score");
+    expect(response.message).toContain("Stall B");
+  });
 });

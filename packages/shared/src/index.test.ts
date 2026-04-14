@@ -20,6 +20,13 @@ describe("shared exports", () => {
       partySize: 3,
       eventPhase: "break",
       mobilityMode: "standard",
+      question: "Why is food better after halftime?",
+      conversationHistory: [
+        {
+          role: "user",
+          text: "Which food stall is best right now?",
+        },
+      ],
     });
 
     expect(result.success).toBe(true);

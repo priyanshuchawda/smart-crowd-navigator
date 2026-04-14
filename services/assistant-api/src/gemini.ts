@@ -5,7 +5,10 @@ import {
   Type,
 } from "@google/genai";
 
-import type { AssistantRecommendation } from "@smart-crowd-navigator/shared";
+import type {
+  AssistantRecommendation,
+  RecommendationRequest,
+} from "@smart-crowd-navigator/shared";
 
 import { buildRecommendationPayload } from "./recommendation.js";
 
@@ -27,7 +30,35 @@ const ASSISTANT_PROMPT = [
 ].join("\n");
 
 function buildAssistantPrompt(requestPayload: unknown) {
-  return `${ASSISTANT_PROMPT}\n\nAttendee request:\n${JSON.stringify(requestPayload)}`;
+  const typedPayload = requestPayload as RecommendationRequest;
+  const conversationHistory = typedPayload.conversationHistory
+    ?.map(
+      (message) =>
+        `${message.role === "assistant" ? "Assistant" : "User"}: ${message.text}`,
+    )
+    .join("\n");
+  const question = typedPayload.question?.trim();
+  const structuredContext = {
+    section: typedPayload.section,
+    intent: typedPayload.intent,
+    partySize: typedPayload.partySize,
+    eventPhase: typedPayload.eventPhase,
+    mobilityMode: typedPayload.mobilityMode,
+  };
+
+  return [
+    ASSISTANT_PROMPT,
+    "",
+    "Structured attendee context:",
+    JSON.stringify(structuredContext),
+    question ? "" : undefined,
+    question ? `Latest attendee question: ${question}` : undefined,
+    conversationHistory ? "" : undefined,
+    conversationHistory ? "Conversation history:" : undefined,
+    conversationHistory,
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 function buildFallbackNarration(recommendation: AssistantRecommendation) {

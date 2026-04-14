@@ -98,11 +98,43 @@ function createRecommendationService({
     });
   }
 
+  function buildDeterministicAssistantMessage(
+    requestBody: unknown,
+    recommendation: AssistantRecommendation,
+  ) {
+    const input = parseRecommendationRequest(requestBody);
+    const normalizedQuestion = input.question?.trim().toLowerCase() ?? "";
+
+    if (
+      normalizedQuestion.includes("backup") ||
+      normalizedQuestion.includes("fallback")
+    ) {
+      if (!recommendation.fallbackOption) {
+        return `Use ${recommendation.primaryOption.label}. There is no separate fallback option for this request right now. ${recommendation.waitOrGoReason}`;
+      }
+
+      return `Primary choice: ${recommendation.primaryOption.label}. Backup option: ${recommendation.fallbackOption.label}. ${recommendation.waitOrGoReason}`;
+    }
+
+    if (normalizedQuestion.includes("why")) {
+      return `Use ${recommendation.primaryOption.label}. ${recommendation.primaryReason} ${recommendation.waitOrGoReason}`;
+    }
+
+    if (
+      normalizedQuestion.includes("wait") ||
+      normalizedQuestion.includes("now")
+    ) {
+      return `Timing guidance: ${recommendation.waitOrGoReason}`;
+    }
+
+    return `Use ${recommendation.primaryOption.label}. ${recommendation.waitOrGoReason}`;
+  }
+
   function buildDeterministicAssistantResponse(requestBody: unknown) {
     const recommendation = buildRecommendationPayload(requestBody);
 
     return {
-      message: `Use ${recommendation.primaryOption.label}. ${recommendation.waitOrGoReason}`,
+      message: buildDeterministicAssistantMessage(requestBody, recommendation),
       recommendation,
     };
   }

@@ -632,6 +632,7 @@ h2 {
 
 .field input,
 .field select,
+.field textarea,
 .chip,
 .intent-card {
   border: 1px solid var(--border-default);
@@ -639,7 +640,8 @@ h2 {
 }
 
 .field input,
-.field select {
+.field select,
+.field textarea {
   min-height: 50px;
   padding: 13px 14px;
   background: var(--surface-input);
@@ -650,6 +652,7 @@ h2 {
 
 .field input:focus-visible,
 .field select:focus-visible,
+.field textarea:focus-visible,
 .chip:focus-visible,
 .intent-card:focus-visible {
   outline: 2px solid var(--accent-primary);
@@ -659,9 +662,17 @@ h2 {
 }
 
 .field input:hover,
-.field select:hover {
+.field select:hover,
+.field textarea:hover {
   background: var(--surface-input-hover);
   border-color: var(--text-muted);
+}
+
+.field textarea {
+  min-height: 110px;
+  resize: vertical;
+  font: inherit;
+  line-height: 1.55;
 }
 
 /* Select dropdown styling */
@@ -847,6 +858,24 @@ h2 {
 .detail-stack {
   display: grid;
   gap: 12px;
+}
+
+.chat-composer {
+  display: grid;
+  gap: 12px;
+}
+
+.chat-composer-footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.chat-submit-button {
+  min-width: 148px;
+  justify-content: center;
 }
 
 .hint-banner {

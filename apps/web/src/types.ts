@@ -1,13 +1,11 @@
 import type {
   AssistantRecommendation,
+  ConversationMessage,
   CoreIntent,
 } from "@smart-crowd-navigator/shared";
 import type { DestinationState } from "@smart-crowd-navigator/venue-engine";
 
-export interface ChatMessage {
-  role: "user" | "assistant";
-  text: string;
-}
+export type ChatMessage = ConversationMessage;
 
 export interface AssistantApiResponse {
   message: string;
@@ -21,6 +19,8 @@ export interface RecommendationRequestInput {
   partySize: number;
   eventPhase: "pre-event" | "in-play" | "break" | "post-event";
   mobilityMode: "standard" | "accessible";
+  question?: string;
+  conversationHistory?: ChatMessage[];
 }
 
 export interface OperatorStateResponse {

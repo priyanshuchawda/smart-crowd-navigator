@@ -13,6 +13,42 @@ import { HeroSection } from "./components/HeroSection";
 import { intentLabels } from "./intent-metadata";
 import type { AssistantApiResponse, ChatMessage } from "./types";
 
+const intentKeywords: Array<{
+  intent: CoreIntent;
+  keywords: string[];
+}> = [
+  {
+    intent: "food",
+    keywords: ["food", "eat", "stall", "snack", "drink"],
+  },
+  {
+    intent: "washroom",
+    keywords: ["washroom", "restroom", "bathroom", "toilet"],
+  },
+  {
+    intent: "entry-gate",
+    keywords: ["entry", "enter", "gate", "get in"],
+  },
+  {
+    intent: "exit",
+    keywords: ["exit", "leave", "get out", "way out"],
+  },
+];
+
+function inferIntentFromQuestion(question: string): CoreIntent | null {
+  const normalizedQuestion = question.trim().toLowerCase();
+
+  if (!normalizedQuestion) {
+    return null;
+  }
+
+  const matchingIntent = intentKeywords.find(({ keywords }) =>
+    keywords.some((keyword) => normalizedQuestion.includes(keyword)),
+  );
+
+  return matchingIntent?.intent ?? null;
+}
+
 export function App() {
   const [section, setSection] = useState("section-a12");
   const [partySize, setPartySize] = useState(3);
@@ -21,6 +57,7 @@ export function App() {
   const [mobilityMode, setMobilityMode] =
     useState<(typeof MOBILITY_MODES)[number]>("standard");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [draftQuestion, setDraftQuestion] = useState("");
   const [response, setResponse] = useState<AssistantApiResponse | null>(null);
   const [activeIntent, setActiveIntent] = useState<CoreIntent | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -59,33 +96,65 @@ export function App() {
   }
 
   async function requestRecommendation(
-    intent: CoreIntent,
+    input:
+      | CoreIntent
+      | {
+          intent?: CoreIntent;
+          question?: string;
+        },
     options?: {
       announceUser?: boolean;
       assistantPrefix?: string;
+      intentOverride?: CoreIntent;
     },
   ) {
+    const resolvedInput = typeof input === "string" ? { intent: input } : input;
+    const question =
+      resolvedInput.question?.trim() ??
+      (resolvedInput.intent
+        ? `Find the best ${intentLabels[resolvedInput.intent].toLowerCase()} option for ${summary}.`
+        : "");
+    const resolvedIntent =
+      options?.intentOverride ??
+      resolvedInput.intent ??
+      activeIntent ??
+      response?.recommendation.intent ??
+      inferIntentFromQuestion(question);
+
+    if (!resolvedIntent) {
+      setErrorMessage(
+        "Mention food, washroom, entry, or exit in your question, or start with a quick action first.",
+      );
+      return;
+    }
+
     const requestVersion = ++requestVersionRef.current;
     setIsLoading(true);
     setErrorMessage(null);
-    setActiveIntent(intent);
+    setActiveIntent(resolvedIntent);
 
     if (options?.announceUser !== false) {
       const userMessage = {
         role: "user" as const,
-        text: `Find the best ${intentLabels[intent].toLowerCase()} option for ${summary}.`,
+        text: question,
       };
 
       setMessages((current) => [...current, userMessage]);
     }
 
     try {
+      const nextConversationHistory =
+        options?.announceUser === false
+          ? messages
+          : [...messages, { role: "user" as const, text: question }];
       const nextResponse = await requestAssistantResponse({
         section,
-        intent,
+        intent: resolvedIntent,
         partySize,
         eventPhase,
         mobilityMode,
+        question,
+        conversationHistory: nextConversationHistory,
       });
 
       if (requestVersion !== requestVersionRef.current) {
@@ -102,6 +171,7 @@ export function App() {
             : nextResponse.message,
         },
       ]);
+      setDraftQuestion("");
 
       scrollToRecommendation();
       recommendationHeadingRef.current?.focus();
@@ -158,14 +228,19 @@ export function App() {
             isLoading={isLoading}
             messages={messages}
             mobilityMode={mobilityMode}
+            onDraftQuestionChange={setDraftQuestion}
             onEventPhaseChange={setEventPhase}
             onMobilityModeChange={setMobilityMode}
             onPartySizeChange={setPartySize}
             onRequestRecommendation={(intent) =>
               void requestRecommendation(intent)
             }
+            onSubmitQuestion={() =>
+              void requestRecommendation({ question: draftQuestion })
+            }
             onSectionChange={setSection}
             partySize={partySize}
+            draftQuestion={draftQuestion}
             recommendationHeadingRef={recommendationHeadingRef}
             recommendationSectionRef={recommendationSectionRef}
             response={response}
