@@ -5,120 +5,154 @@ import {
 } from "@smart-crowd-navigator/shared";
 import {
   type DestinationState,
+  type VenueDataSource,
   type VenueFixture,
   createVenueEngine,
+  createVenueFixtureFromDataSource,
+  localDevelopmentVenueDataSource,
+  replaceDestinationStates,
 } from "@smart-crowd-navigator/venue-engine";
-
-const engine = createVenueEngine();
-let liveDestinationStates: DestinationState[] =
-  engine.fixture.destinationStates.map((state) => ({ ...state }));
-
-function getLiveFixture(): VenueFixture {
-  return {
-    ...engine.fixture,
-    destinationStates: liveDestinationStates.map((state) => ({ ...state })),
-  };
-}
-
-function describeRoute(nodeIds: string[]) {
-  return nodeIds
-    .map(
-      (nodeId) =>
-        engine.fixture.nodes.find((node) => node.id === nodeId)?.label ??
-        nodeId,
-    )
-    .join(" → ");
-}
 
 function parseRecommendationRequest(requestBody: unknown) {
   return recommendationRequestSchema.parse(requestBody);
 }
 
-function buildRecommendationPayload(
-  requestBody: unknown,
-): AssistantRecommendation {
-  const input = parseRecommendationRequest(requestBody);
-  const engineInput = {
-    sectionId: input.section,
-    intent: input.intent,
-    eventPhase: input.eventPhase,
-    mobilityMode: input.mobilityMode,
-    partySize: input.partySize,
-  };
-  const fixture = getLiveFixture();
-  const currentBest = engine.rankDestinations(engineInput, fixture)[0];
-  const fallback = engine.getFallbackDestination(engineInput, fixture);
-  const timingAdvice = engine.getTimingAdvice(engineInput, fixture);
-  const selectedDestination =
-    timingAdvice.decision === "wait"
-      ? timingAdvice.projectedBest
-      : timingAdvice.currentBest;
+function createRecommendationService({
+  venueDataSource = localDevelopmentVenueDataSource,
+}: {
+  venueDataSource?: VenueDataSource;
+} = {}) {
+  const engine = createVenueEngine({
+    defaultDataSource: venueDataSource,
+  });
+  let liveDestinationStates: DestinationState[] =
+    venueDataSource.state.destinationStates.map((state) => ({ ...state }));
 
-  if (!currentBest) {
-    throw new Error("No recommendation candidates available");
+  function getLiveFixture(): VenueFixture {
+    return createVenueFixtureFromDataSource(
+      replaceDestinationStates(venueDataSource, liveDestinationStates),
+    );
   }
 
-  return assistantRecommendationSchema.parse({
-    intent: input.intent,
-    timingDecision: timingAdvice.decision,
-    waitOrGoReason: timingAdvice.reason,
-    primaryOption: {
-      id: selectedDestination.destinationId,
-      label: selectedDestination.label,
-      kind: selectedDestination.kind,
-    },
-    primaryReason: `Best total score: ${selectedDestination.score.totalScore} minutes.`,
-    etaMinutes: Math.round(selectedDestination.score.walkingMinutes),
-    waitMinutes: selectedDestination.score.queueMinutes,
-    timeSavedMinutes: timingAdvice.timeSavedMinutes,
-    routeSummary: describeRoute(selectedDestination.route),
-    crowdWarning:
-      selectedDestination.score.crowdPenalty > 0
-        ? "Crowd pressure is elevated on part of this route."
-        : null,
-    fallbackOption: fallback
-      ? {
-          id: fallback.destinationId,
-          label: fallback.label,
-          kind: fallback.kind,
-        }
-      : null,
-    confidence: selectedDestination.score.totalScore <= 10 ? "high" : "medium",
-  });
-}
+  function describeRoute(nodeIds: string[]) {
+    return nodeIds
+      .map(
+        (nodeId) =>
+          engine.fixture.nodes.find((node) => node.id === nodeId)?.label ??
+          nodeId,
+      )
+      .join(" → ");
+  }
 
-function buildDeterministicAssistantResponse(requestBody: unknown) {
-  const recommendation = buildRecommendationPayload(requestBody);
+  function buildRecommendationPayload(
+    requestBody: unknown,
+  ): AssistantRecommendation {
+    const input = parseRecommendationRequest(requestBody);
+    const engineInput = {
+      sectionId: input.section,
+      intent: input.intent,
+      eventPhase: input.eventPhase,
+      mobilityMode: input.mobilityMode,
+      partySize: input.partySize,
+    };
+    const fixture = getLiveFixture();
+    const currentBest = engine.rankDestinations(engineInput, fixture)[0];
+    const fallback = engine.getFallbackDestination(engineInput, fixture);
+    const timingAdvice = engine.getTimingAdvice(engineInput, fixture);
+    const selectedDestination =
+      timingAdvice.decision === "wait"
+        ? timingAdvice.projectedBest
+        : timingAdvice.currentBest;
+
+    if (!currentBest) {
+      throw new Error("No recommendation candidates available");
+    }
+
+    return assistantRecommendationSchema.parse({
+      intent: input.intent,
+      timingDecision: timingAdvice.decision,
+      waitOrGoReason: timingAdvice.reason,
+      primaryOption: {
+        id: selectedDestination.destinationId,
+        label: selectedDestination.label,
+        kind: selectedDestination.kind,
+      },
+      primaryReason: `Best total score: ${selectedDestination.score.totalScore} minutes.`,
+      etaMinutes: Math.round(selectedDestination.score.walkingMinutes),
+      waitMinutes: selectedDestination.score.queueMinutes,
+      timeSavedMinutes: timingAdvice.timeSavedMinutes,
+      routeSummary: describeRoute(selectedDestination.route),
+      crowdWarning:
+        selectedDestination.score.crowdPenalty > 0
+          ? "Crowd pressure is elevated on part of this route."
+          : null,
+      fallbackOption: fallback
+        ? {
+            id: fallback.destinationId,
+            label: fallback.label,
+            kind: fallback.kind,
+          }
+        : null,
+      confidence:
+        selectedDestination.score.totalScore <= 10 ? "high" : "medium",
+    });
+  }
+
+  function buildDeterministicAssistantResponse(requestBody: unknown) {
+    const recommendation = buildRecommendationPayload(requestBody);
+
+    return {
+      message: `Use ${recommendation.primaryOption.label}. ${recommendation.waitOrGoReason}`,
+      recommendation,
+    };
+  }
+
+  function getOperatorState() {
+    return liveDestinationStates.map((state) => ({ ...state }));
+  }
+
+  function updateOperatorState(nextState: DestinationState) {
+    liveDestinationStates = liveDestinationStates.map((state) =>
+      state.nodeId === nextState.nodeId ? { ...nextState } : state,
+    );
+
+    return getOperatorState();
+  }
+
+  function resetOperatorState() {
+    liveDestinationStates = venueDataSource.state.destinationStates.map(
+      (state) => ({
+        ...state,
+      }),
+    );
+
+    return getOperatorState();
+  }
 
   return {
-    message: `Use ${recommendation.primaryOption.label}. ${recommendation.waitOrGoReason}`,
-    recommendation,
+    buildDeterministicAssistantResponse,
+    buildRecommendationPayload,
+    engine,
+    getOperatorState,
+    resetOperatorState,
+    updateOperatorState,
   };
 }
 
-function getOperatorState() {
-  return liveDestinationStates.map((state) => ({ ...state }));
-}
-
-function updateOperatorState(nextState: DestinationState) {
-  liveDestinationStates = liveDestinationStates.map((state) =>
-    state.nodeId === nextState.nodeId ? { ...nextState } : state,
-  );
-
-  return getOperatorState();
-}
-
-function resetOperatorState() {
-  liveDestinationStates = engine.fixture.destinationStates.map((state) => ({
-    ...state,
-  }));
-
-  return getOperatorState();
-}
+const recommendationService = createRecommendationService();
+const {
+  buildDeterministicAssistantResponse,
+  buildRecommendationPayload,
+  engine,
+  getOperatorState,
+  resetOperatorState,
+  updateOperatorState,
+} = recommendationService;
 
 export {
   buildDeterministicAssistantResponse,
   buildRecommendationPayload,
+  createRecommendationService,
   engine,
   getOperatorState,
   parseRecommendationRequest,
