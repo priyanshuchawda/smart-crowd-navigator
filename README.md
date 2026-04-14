@@ -1,12 +1,196 @@
 # Smart Crowd Navigator
 
-A Gemini-powered stadium assistant that tells attendees where to go, whether to go now or wait, and which route will be fastest with the least congestion.
+A Gemini-powered web assistant for large sporting venues that helps attendees decide **where to go, whether to move now or wait, and how to avoid the worst crowd pressure**.
 
 ![Verification](https://img.shields.io/badge/verify-local%20gate-brightgreen)
 ![Stack](https://img.shields.io/badge/stack-React%20%2B%20TypeScript%20%2B%20Node-blue)
 ![Deployment](https://img.shields.io/badge/deploy-Cloud%20Run-4285F4)
 
-## Quick Start
+## Challenge alignment
+
+**Challenge vertical:** Physical Event Experience
+
+This submission is built for the Prompt Wars brief in `problem.md` and directly targets the three challenge outcomes called out in that brief:
+- **crowd movement**
+- **waiting times**
+- **real-time coordination**
+
+## Chosen attendee persona
+
+**Group coordinator at a large sporting venue**
+
+This is the person in a family or friend group who makes movement decisions like:
+- which gate to enter from
+- where the group should go for food
+- which washroom is least painful right now
+- which exit will be smoother after the event
+- whether the group should move now or wait a few minutes
+
+## One-line pitch
+
+Smart Crowd Navigator is a live venue assistant that turns queue pressure, route friction, and event timing into one practical answer: **go here now** or **wait, then go there instead**.
+
+## Why this submission is strong
+
+Most venue experiences stop at static maps or lists of options.
+
+This product goes one level higher:
+- it makes a recommendation, not just a lookup
+- it explains **why** that option is best
+- it can recommend **waiting** when moving immediately would be worse
+- it updates when live venue conditions change
+
+That makes it more useful in the exact moments that matter most in crowded events.
+
+## What is shipped in this repository today
+
+### Attendee experience
+- mobile-first React web app
+- attendee context controls for section, party size, event phase, and mobility mode
+- one-tap decision flows for:
+  - Food
+  - Washroom
+  - Entry Gate
+  - Exit
+- live recommendation card with:
+  - primary option
+  - go-now / wait guidance
+  - ETA
+  - queue time
+  - route summary
+  - crowd warning
+  - fallback option
+- inline venue map panel highlighting the recommended destination
+
+### Decision logic
+- deterministic venue engine in TypeScript
+- route ranking based on:
+  - walking time
+  - queue delay
+  - crowd penalty
+  - event-phase penalty
+  - party-size service penalty
+  - accessibility constraints
+- explicit timing advice that can choose between:
+  - `go_now`
+  - `wait`
+
+### Assistant layer
+- Gemini-backed assistant response path using `@google/genai`
+- deterministic fallback path when Gemini is disabled or unavailable
+- validated structured request/response contracts using Zod
+
+### Live update flow
+- operator console for changing venue-state inputs
+- live attendee recommendation refresh after operator changes
+- Firebase-backed operator auth/state integration path in the repo
+- local API fallback path for development and demo flows
+
+### Production-readiness work already in the repo
+- Cloud Run deployment path
+- security headers and request validation
+- App Check verification support
+- operator auth enforcement support
+- Firestore rules for operator writes
+- QA, security, deploy, and runbook documentation under `docs/`
+
+## Current Google services usage
+
+### Active in the current implementation
+- **Gemini API** — assistant response generation with deterministic grounding from backend recommendation data
+- **Cloud Run** — deployed runtime target for the Node API + web app
+- **Firebase Auth** — operator sign-in path
+- **Firestore** — operator-state persistence path
+- **Firestore Security Rules** — operator/admin-only write protection
+- **Firebase App Check** — client + backend verification path support
+
+### Clearly not shipped yet in the current product
+These are roadmap items, not current shipped capabilities:
+- Google Maps grounding for venue-perimeter guidance
+- Firebase Hosting rollout
+- production venue telemetry ingestion beyond the current repository fixtures/operator flows
+
+## How the system works
+
+### 1. Venue-state input
+The app starts from venue state such as:
+- attendee section
+- destination queue minutes
+- crowd pressure
+- queue trend
+- event phase
+- mobility mode
+
+### 2. Deterministic venue engine
+The venue engine is the source of truth for movement decisions.
+
+It ranks candidate destinations for a given intent and computes whether waiting improves the total outcome.
+
+### 3. Gemini explanation layer
+Gemini does **not** invent routes or wait times.
+
+Instead, the backend computes the recommendation first, then Gemini turns that grounded result into a clearer attendee-facing response. If Gemini fails, the app falls back to a deterministic response path.
+
+This keeps the system both **smart** and **testable**.
+
+## Why this is practical for real events
+
+- works as a web app on mobile devices
+- helps users under time pressure make one decision quickly
+- adapts to changing venue conditions
+- gives operators a way to influence attendee guidance in real time
+- keeps routing logic deterministic so it can be tested and trusted
+
+## Accessibility posture
+
+The shipped UI is designed around:
+- keyboard-accessible controls
+- large tap targets
+- visible labels
+- screen-reader-friendly status updates and recommendation sections
+- accessible-route handling in the venue engine
+
+## Security posture
+
+The current repository keeps security in scope:
+- Gemini API key stays server-side
+- input payloads are validated
+- protected routes can require App Check
+- operator mutations can require authenticated operator access
+- Firestore writes are protected by rules
+
+See also:
+- [docs/security-review.md](./docs/security-review.md)
+- [docs/operations-runbook.md](./docs/operations-runbook.md)
+- [docs/production-secrets.md](./docs/production-secrets.md)
+
+## Testing and verification
+
+The repository includes:
+- engine unit tests
+- API integration tests
+- web rendering tests
+- Playwright end-to-end tests for the operator/live-update path
+
+Run the local quality gate with:
+
+```bash
+pnpm verify
+```
+
+Run the end-to-end suite directly with:
+
+```bash
+pnpm test:e2e
+```
+
+Run the real Gemini smoke lane with:
+
+```bash
+pnpm test:gemini-real
+```
+
+## Quick start
 
 ```bash
 pnpm install
@@ -14,415 +198,52 @@ pnpm setup:local
 pnpm dev
 ```
 
-If `key.md` contains a Gemini API key, `pnpm setup:local` will create `.env` and populate `GEMINI_API_KEY` automatically for local testing only. Production should inject secrets through environment variables or Secret Manager-backed deploy configuration.
-
 Then open:
 - web: `http://127.0.0.1:5173`
 - API: `http://127.0.0.1:8080`
 
 Live Cloud Run URL:
-- app + API: `https://smart-crowd-navigator-1051094454693.us-central1.run.app`
+- `https://smart-crowd-navigator-1051094454693.us-central1.run.app`
 
-For a single-command local quality gate:
+## Best demo flow
 
-```bash
-pnpm verify
-```
+1. Open the attendee app
+2. Keep the default section as `section-a12`
+3. Choose **Food**
+4. Show the recommendation card, route summary, and timing decision
+5. Open **Demo Controls**
+6. Increase queue pressure for `stall-b`
+7. Show the recommendation change toward a different option
 
-## Demo Snapshot
+This demonstrates crowd movement, waiting-time optimization, and real-time coordination in a short, reviewer-friendly flow.
 
-Add your latest demo screenshot or GIF at:
+## Repository structure
 
-`docs/assets/demo-snapshot.png`
+- `apps/web` — attendee UI and operator experience
+- `services/assistant-api` — API routes, Gemini boundary, request validation, static serving
+- `packages/shared` — shared contracts and constants
+- `packages/venue-engine` — deterministic route ranking and timing logic
+- `tests/e2e` — Playwright coverage
+- `docs/` — deploy, QA, security, and operations docs
+- `problem.md` — challenge brief source material
 
-Then reference it here:
+## Supporting docs
 
-```md
-![Smart Crowd Navigator Demo](./docs/assets/demo-snapshot.png)
-```
-
-## Chosen Vertical
-
-**Physical Event Experience**
-
-This solution is designed for attendees at large-scale sporting venues and focuses on three core problems from the challenge:
-- crowd movement
-- waiting times
-- real-time coordination
-
-## Chosen Persona
-
-**Group coordinator attendee**
-
-This is the person in a family or friend group who usually makes decisions like:
-- which gate to use
-- where to get food
-- which washroom is quickest
-- which exit is least chaotic
-- when the group should move now vs wait a few minutes
-
-> Note: `problem.md` mentions an official vertical/persona list, but that list is not included in this repository. This README assumes the “group coordinator attendee” persona unless the official challenge materials require a different label.
-
-## One-Line Pitch
-
-Smart Crowd Navigator is a live web assistant for stadium attendees that finds the best option right now — and can also tell you when **not** to move yet because waiting a few minutes will save time and reduce congestion.
-
-## Why This Idea Can Win
-
-Most venue apps are passive:
-- they show maps
-- they list stalls
-- they leave the decision to the user
-
-This app is different:
-- it acts like a smart assistant
-- it makes a context-aware recommendation
-- it explains *why*
-- it adapts when venue conditions change
-
-The key differentiator is that it answers two questions:
-1. **Where should I go?**
-2. **Should I go now or wait?**
-
-Example:
-
-> “Don’t go for food right now. Queue pressure near your section is peaking. Wait 7 minutes and use Stall B instead — total time saved: 9 minutes.”
-
-That makes the experience feel dynamic, useful, and realistic.
-
-## What the User Does
-
-1. Opens the web app
-2. Selects or confirms their section
-3. Taps one of four intents:
-   - Food
-   - Washroom
-   - Entry Gate
-   - Exit
-4. Gets a live recommendation with:
-   - best option
-   - go now / wait guidance
-   - ETA
-   - queue time
-   - route summary
-   - crowd warning
-   - fallback option
-
-## How the Solution Works
-
-The system combines a deterministic venue engine with a Gemini chatbot.
-
-### 1) Venue state
-Live venue data is stored for:
-- sections
-- food stalls
-- washrooms
-- entry gates
-- exits
-- queue estimates
-- blocked paths
-- crowd hotspots
-- event phase
-
-### 2) Decision engine
-A deterministic TypeScript engine calculates the best option using:
-- walking time
-- queue length
-- crowd level
-- short-term queue trend
-- event timing
-- accessibility constraints
-
-This is the source of truth for route and ranking decisions.
-
-### 3) Gemini assistant
-Gemini does **not** invent routes or wait times.
-
-Instead, Gemini:
-- calls backend tools
-- requests ranked options
-- asks for route details
-- asks for timing advice
-- converts the results into a clear, conversational answer
-
-This keeps the system both smart **and** testable.
-
-## Core Logic
-
-The main recommendation logic is:
-
-**best option = lowest overall cost**
-
-That cost is based on:
-- walking ETA
-- queue delay
-- congestion penalty
-- event-phase penalty
-- trend penalty
-- accessibility penalty
-
-The system can also recommend:
-- **go now**
-- **wait X minutes**
-
-when waiting creates a better total outcome.
-
-## Google Services Used
-
-| Service | Role | Status |
-|---|---|---|
-| Gemini API | Tool-calling assistant response orchestration | Active |
-| Cloud Run | Deployed API/service runtime | Active |
-| Firebase Auth | Operator authentication path | Implemented |
-| Firestore | Live operator-state persistence path | Implemented |
-| Firestore Security Rules | Operator write authorization and policy guardrails | Implemented |
-| Firebase App Check | Client and backend verification path | Implemented (enforcement rollout pending) |
-| Firebase Hosting | Static web deployment target | Deferred |
-| Google Maps | Perimeter context integration path | Planned |
-
-Currently implemented:
-
-- **Gemini API**
-  - chatbot orchestration
-  - tool calling
-  - structured response generation
-  - explanation of live recommendations
-
-Implemented with the current operator-hardening pass:
-
-- **Firebase Auth**
-  - operator sign-in for restricted console access
-
-- **Firestore**
-  - persistent live venue state
-  - queue updates
-  - operator-triggered changes guarded by Firestore rules
-  - session data
-
-- **Firestore Security Rules**
-  - public attendee reads for live state
-  - operator/admin-only writes through `operator-roles/{uid}`
-
-- **Firebase App Check**
-  - web initialization path for browser attestation
-  - backend verification path for protected Node API routes
-
-- **Firebase App Check enforcement**
-  - still needs Firebase console enforcement toggled for Firestore and any other protected products
-
-Still deferred:
-
-- **Firebase Hosting**
-  - web app deployment
-
-Implemented platform/services today:
-
-- **Local Node API**
-  - Cloud Run-ready backend boundary for Gemini calls and tool execution
-
-- **Firebase Web SDK**
-  - web config module
-  - Firestore-backed operator state path with local API fallback
-  - analytics bootstrap when supported
-
-- **Google Maps (planned integration path)**
-  - perimeter guidance such as parking-to-gate context
-  - nearby landmark awareness
-
-## Architecture
-
-### Frontend
-- React
-- TypeScript
-- Vite
-- Tailwind CSS
-- mobile-first PWA experience
-
-### Backend
-- Node.js
-- TypeScript
-- local Node.js API service designed for Cloud Run deployment later
-- Gemini tool orchestration using `@google/genai`
-
-### Data Model
-- venue metadata
-- nodes for sections/stalls/washrooms/gates/exits
-- edges for walkable paths
-- queue collections
-- live crowd state
-- session records
-
-## Current Implementation Status
-
-Implemented now:
-- deterministic venue engine
-- timing advice and fallback logic
-- typed recommendation API
-- Gemini assistant boundary using `@google/genai`
-- attendee chat shell
-- operator console for local live-state updates
-- Firebase web config and Firestore-backed operator state sync
-- local verification workflow
-
-Deferred for later:
-- Firebase App Check console enforcement rollout
-- Firebase Hosting production setup
-- Google Maps perimeter integration
-
-## Why We Did Not Use Google Maps for Indoor Routing
-
-Google Maps is valuable for outer-perimeter guidance, but stadium concourses, stairs, ramps, and section-specific flows require a custom indoor graph.
-
-So this solution uses:
-- **custom indoor routing** for inside the venue
-- **Google Maps** for outside-the-venue context
-
-This keeps the MVP practical and believable.
-
-## Smart Assistant Tool Design
-
-The chatbot can use backend tools such as:
-- `get_user_context`
-- `get_ranked_options`
-- `get_best_route`
-- `get_fallback_option`
-- `get_timing_advice`
-
-This makes the chatbot an actual assistant instead of a plain text interface.
-
-## Why It Is Practical
-
-This solution is practical because:
-- it works as a web app
-- it does not require installing a native app
-- it reduces decision time for attendees under pressure
-- it can be demoed with simulated live queue updates
-- it directly improves both user experience and crowd distribution
-
-## Accessibility
-
-The product is designed to support accessibility by default:
-- mobile-first large tap targets
-- keyboard-accessible interaction
-- visible text labels, not color alone
-- screen-reader-friendly recommendation cards
-- accessible-route consideration in the decision engine
-
-## Security
-
-Security is part of the design:
-- Gemini API keys stay server-side
-- Cloud Run handles model access
-- Firestore Rules protect writes
-- App Check reduces abusive traffic
-- user location/context retention should be minimized
-
-## Testing Strategy
-
-The project will include:
-- **unit tests** for ranking and timing logic
-- **integration tests** for the Gemini tool-calling loop
-- **end-to-end tests** for one core attendee journey
-
-Most important test:
-- prove the assistant can correctly choose both:
-  - **go now**
-  - **wait**
-
-under different live queue conditions.
-
-## Demo Story
-
-The strongest live demo is:
-
-1. Start with a user in one section
-2. Ask for food
-3. Show:
-   - best stall
-   - ETA
-   - queue time
-   - route
-   - fallback
-   - go now / wait decision
-4. Change live queue state from the operator console
-5. Show the recommendation change instantly
-6. Repeat once for exit or washroom
-
-This makes the intelligence obvious within minutes.
-
-## Local Demo Steps
-
-1. Start the API and web app.
-2. In the attendee shell, keep the default section as `section-a12`.
-3. Tap **Food** to get the first recommendation.
-4. Use the operator console to increase `stall-b` queue minutes and crowd penalty.
-5. Watch the recommendation update toward `stall-d`.
-6. Reset the operator state to restore the baseline recommendation.
-
-## Assumptions Made
-
-- The official persona list is not included in this repository, so the current persona is inferred from the problem statement.
-- Queue, congestion, and path-closure data may be simulated for the competition demo.
-- The system targets one venue configuration for the MVP.
-- Indoor routing is venue-graph-based rather than full map-navigation parity.
-- The single best experience is more valuable for judging than a broad multi-persona scope.
-
-## Repository Structure
-
-- `apps/web` — attendee UI and operator console
-- `services/assistant-api` — API routes, Gemini boundary, recommendation builder
-- `packages/shared` — shared constants and schemas
-- `packages/venue-engine` — deterministic ranking, fallback, and timing logic
-- `problem.md` — original challenge brief
-- `plan.md` — execution plan and product strategy
-
-## Development Workflow
-
-This project currently uses **local verification first** instead of automatic GitHub Actions checks.
-
-Before merging any issue branch, the expected gate is:
-- lint
-- typecheck
-- tests
-- build
-- manual/live verification when needed
-
-Recommended one-command local gate:
-
-```bash
-pnpm verify
-```
-
-Real Gemini integration verification:
-
-```bash
-pnpm test:gemini-real
-```
-
-Firebase handoff checklist:
-
-- [docs/firebase-handoff.md](./docs/firebase-handoff.md)
-- [firestore.rules](./firestore.rules)
-- [docs/production-secrets.md](./docs/production-secrets.md)
-- [docs/operations-runbook.md](./docs/operations-runbook.md)
 - [docs/cloud-run-deploy.md](./docs/cloud-run-deploy.md)
-- [docs/security-review.md](./docs/security-review.md)
+- [docs/firebase-handoff.md](./docs/firebase-handoff.md)
 - [docs/qa-report.md](./docs/qa-report.md)
+- [docs/security-review.md](./docs/security-review.md)
 - [docs/privacy-policy.md](./docs/privacy-policy.md)
 - [docs/terms-of-use.md](./docs/terms-of-use.md)
 - [docs/support-and-security.md](./docs/support-and-security.md)
 
-Automatic GitHub Actions runs are disabled to avoid unnecessary hosted CI usage during development.
-
 ## References
 
-- Gemini 3.1 Flash-Lite model: https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-lite-preview
+- Gemini text generation: https://ai.google.dev/gemini-api/docs/text-generation
 - Gemini function calling: https://ai.google.dev/gemini-api/docs/function-calling
 - Gemini structured output: https://ai.google.dev/gemini-api/docs/structured-output
-- Gemini tools overview: https://ai.google.dev/gemini-api/docs/tools
 - Gemini Maps grounding: https://ai.google.dev/gemini-api/docs/maps-grounding
 - Firestore realtime listeners: https://firebase.google.com/docs/firestore/query-data/listen
 - Firestore security rules: https://firebase.google.com/docs/firestore/security/get-started
 - Firebase App Check: https://firebase.google.com/docs/app-check/web/recaptcha-provider
 - Cloud Run auth: https://cloud.google.com/run/docs/authenticating/service-to-service
-- Google Maps routes: https://developers.google.com/maps/documentation/javascript/routes/routes-polylines
