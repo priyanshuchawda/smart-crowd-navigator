@@ -13,18 +13,25 @@ export const SUPPORTED_EVENT_PHASES = [
 ] as const;
 
 export const SUPPORTED_MOBILITY_MODES = ["standard", "accessible"] as const;
+export const VENUE_SOURCE_KINDS = [
+  "local-fixture",
+  "production-config",
+  "live-operations",
+] as const;
+export const VENUE_NODE_KINDS = [
+  "section",
+  "junction",
+  "food",
+  "washroom",
+  "entry-gate",
+  "exit",
+] as const;
 
 export type VenueIntent = (typeof SUPPORTED_INTENTS)[number];
 export type EventPhase = (typeof SUPPORTED_EVENT_PHASES)[number];
 export type MobilityMode = (typeof SUPPORTED_MOBILITY_MODES)[number];
-
-export type VenueNodeKind =
-  | "section"
-  | "junction"
-  | "food"
-  | "washroom"
-  | "entry-gate"
-  | "exit";
+export type VenueSourceKind = (typeof VENUE_SOURCE_KINDS)[number];
+export type VenueNodeKind = (typeof VENUE_NODE_KINDS)[number];
 
 export interface VenueNode {
   id: string;
@@ -48,8 +55,30 @@ export interface DestinationState {
   serviceMinutesPerAdditionalPerson: number;
 }
 
+export interface VenueTopology {
+  version: string;
+  venueId: string;
+  venueName: string;
+  eventPhases: EventPhase[];
+  nodes: VenueNode[];
+  edges: VenueEdge[];
+}
+
+export interface VenueOperationalState {
+  version: string;
+  destinationStates: DestinationState[];
+}
+
+export interface VenueDataSource {
+  source: VenueSourceKind;
+  topology: VenueTopology;
+  state: VenueOperationalState;
+}
+
 export interface VenueFixture {
   version: string;
+  venueId: string;
+  venueName: string;
   nodes: VenueNode[];
   edges: VenueEdge[];
   destinationStates: DestinationState[];
