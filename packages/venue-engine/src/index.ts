@@ -4,6 +4,7 @@ import {
   localDevelopmentVenueDataSource,
 } from "./fixture.js";
 import {
+  buildGroupCoordinatorPlan,
   getFallbackDestination,
   getTimingAdvice,
   rankDestinations,
@@ -29,6 +30,7 @@ export function createVenueEngine({
     supportedMobilityModes: SUPPORTED_MOBILITY_MODES,
     defaultDataSource,
     fixture,
+    buildGroupCoordinatorPlan,
     rankDestinations,
     getFallbackDestination,
     getTimingAdvice,
@@ -43,6 +45,7 @@ export {
 } from "./data-source.js";
 export {
   demoVenueFixture,
+  buildGroupCoordinatorPlan,
   localDevelopmentVenueDataSource,
   getFallbackDestination,
   getTimingAdvice,

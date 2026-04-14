@@ -42,6 +42,12 @@ export const TELEMETRY_CONFIDENCE = [
   "estimated",
   "predicted",
 ] as const;
+export const GROUP_WORKFLOWS = [
+  "auto",
+  "runner-pickup",
+  "meet-up",
+  "return-before-play",
+] as const;
 
 export type VenueIntent = (typeof SUPPORTED_INTENTS)[number];
 export type EventPhase = (typeof SUPPORTED_EVENT_PHASES)[number];
@@ -51,6 +57,7 @@ export type VenueNodeKind = (typeof VENUE_NODE_KINDS)[number];
 export type VenuePathType = (typeof VENUE_PATH_TYPES)[number];
 export type DestinationStatus = (typeof DESTINATION_STATUS)[number];
 export type TelemetryConfidence = (typeof TELEMETRY_CONFIDENCE)[number];
+export type GroupWorkflow = (typeof GROUP_WORKFLOWS)[number];
 
 export interface VenueNode {
   id: string;
@@ -114,6 +121,7 @@ export interface RankDestinationsInput {
   eventPhase: EventPhase;
   mobilityMode?: MobilityMode;
   partySize?: number;
+  groupWorkflow?: GroupWorkflow;
   groupProfile?: {
     includesMobilityLimitedGuest?: boolean;
     keepGroupTogether?: boolean;
@@ -149,4 +157,13 @@ export interface TimingAdvice {
   projectedBest: RankedDestination;
   timeSavedMinutes: number;
   reason: string;
+}
+
+export interface GroupCoordinatorPlan {
+  workflowType: Exclude<GroupWorkflow, "auto">;
+  headline: string;
+  regroupSpot: string;
+  regroupEtaMinutes: number;
+  splitRecommended: boolean;
+  steps: string[];
 }

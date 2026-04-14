@@ -305,6 +305,28 @@ export function RecommendationPanel({
           </div>
         ) : null}
 
+        {response.recommendation.groupPlan ? (
+          <section className="detail-card" aria-label="Group coordinator plan">
+            <span className="summary-label">Group coordinator plan</span>
+            <strong>{response.recommendation.groupPlan.headline}</strong>
+            <p className="field-help-text">
+              Regroup at{" "}
+              <strong>{response.recommendation.groupPlan.regroupSpot}</strong>{" "}
+              in about {response.recommendation.groupPlan.regroupEtaMinutes}{" "}
+              min.
+            </p>
+            <ul className="grounding-list">
+              {response.recommendation.groupPlan.steps.map((step) => (
+                <li key={step} className="grounding-item">
+                  <span className="grounding-link">
+                    <span className="grounding-link-title">{step}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
         <GroundingSection response={response} />
       </div>
     </section>

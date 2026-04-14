@@ -252,7 +252,9 @@ describe("runGeminiRecommendationAssistant", () => {
   });
 
   it("does not retry non-retryable Gemini errors", async () => {
-    const executeModel = vi.fn().mockRejectedValue(new Error("Invalid API key"));
+    const executeModel = vi
+      .fn()
+      .mockRejectedValue(new Error("Invalid API key"));
 
     await expect(
       runGeminiAssistantWithFallbacks({

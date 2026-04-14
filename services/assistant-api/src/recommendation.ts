@@ -7,6 +7,7 @@ import {
   type DestinationState,
   type VenueDataSource,
   type VenueFixture,
+  buildGroupCoordinatorPlan,
   createVenueEngine,
   createVenueFixtureFromDataSource,
   localDevelopmentVenueDataSource,
@@ -52,6 +53,7 @@ function createRecommendationService({
       sectionId: input.section,
       intent: input.intent,
       eventPhase: input.eventPhase,
+      groupWorkflow: input.groupWorkflow ?? "auto",
       mobilityMode: input.mobilityMode,
       partySize: input.partySize,
     };
@@ -63,6 +65,11 @@ function createRecommendationService({
       timingAdvice.decision === "wait"
         ? timingAdvice.projectedBest
         : timingAdvice.currentBest;
+    const groupPlan = buildGroupCoordinatorPlan(
+      engineInput,
+      selectedDestination,
+      fixture,
+    );
 
     if (!currentBest) {
       throw new Error("No recommendation candidates available");
@@ -93,6 +100,7 @@ function createRecommendationService({
             kind: fallback.kind,
           }
         : null,
+      groupPlan,
       confidence:
         selectedDestination.score.totalScore <= 10 ? "high" : "medium",
     });
@@ -120,11 +128,19 @@ function createRecommendationService({
       return `Use ${recommendation.primaryOption.label}. ${recommendation.primaryReason} ${recommendation.waitOrGoReason}`;
     }
 
+    if (normalizedQuestion.includes("group") && recommendation.groupPlan) {
+      return `${recommendation.groupPlan.headline} Regroup at ${recommendation.groupPlan.regroupSpot}. ${recommendation.waitOrGoReason}`;
+    }
+
     if (
       normalizedQuestion.includes("wait") ||
       normalizedQuestion.includes("now")
     ) {
       return `Timing guidance: ${recommendation.waitOrGoReason}`;
+    }
+
+    if (recommendation.groupPlan) {
+      return `Use ${recommendation.primaryOption.label}. ${recommendation.waitOrGoReason} Group plan: ${recommendation.groupPlan.headline}`;
     }
 
     return `Use ${recommendation.primaryOption.label}. ${recommendation.waitOrGoReason}`;

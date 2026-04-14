@@ -13,6 +13,12 @@ export const EVENT_PHASES = [
 ] as const;
 
 export const MOBILITY_MODES = ["standard", "accessible"] as const;
+export const GROUP_WORKFLOWS = [
+  "auto",
+  "runner-pickup",
+  "meet-up",
+  "return-before-play",
+] as const;
 
 export const TIMING_DECISIONS = ["go_now", "wait"] as const;
 

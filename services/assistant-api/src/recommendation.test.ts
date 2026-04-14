@@ -69,4 +69,19 @@ describe("recommendation service venue data source boundary", () => {
     expect(response.message).toContain("Best total score");
     expect(response.message).toContain("Stall B");
   });
+
+  it("adds a group coordinator plan for larger food groups", () => {
+    const recommendationService = createRecommendationService();
+    const payload = recommendationService.buildRecommendationPayload({
+      section: "section-a12",
+      intent: "food",
+      partySize: 5,
+      eventPhase: "break",
+      mobilityMode: "standard",
+      groupWorkflow: "runner-pickup",
+    });
+
+    expect(payload.groupPlan?.workflowType).toBe("runner-pickup");
+    expect(payload.groupPlan?.headline).toContain("runner");
+  });
 });
