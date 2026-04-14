@@ -193,6 +193,41 @@ describe("assistant API", () => {
     expect(healthPayload.status).toBe("ok");
   });
 
+  it("accepts typed follow-up requests with conversation history", async () => {
+    process.env.DISABLE_GEMINI_ASSISTANT = "true";
+
+    const { baseUrl } = await startServer();
+    const response = await fetch(`${baseUrl}/assistant-response`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        section: "section-a12",
+        intent: "food",
+        partySize: 3,
+        eventPhase: "break",
+        mobilityMode: "standard",
+        question: "Why is that the best food option?",
+        conversationHistory: [
+          {
+            role: "user",
+            text: "Which food option is best right now?",
+          },
+          {
+            role: "assistant",
+            text: "Use Stall B. Waiting 5 minutes reduces the predicted total trip cost by 3 minutes.",
+          },
+        ],
+      }),
+    });
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.source).toBe("deterministic-fallback");
+    expect(payload.message).toContain("Best total score");
+  });
+
   it("returns and updates operator state", async () => {
     const { baseUrl } = await startServer();
 

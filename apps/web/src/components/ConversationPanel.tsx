@@ -1,9 +1,12 @@
 import type { ChatMessage } from "../types";
 
 interface ConversationPanelProps {
+  draftQuestion: string;
   errorMessage: string | null;
   isLoading: boolean;
   messages: ChatMessage[];
+  onDraftQuestionChange: (value: string) => void;
+  onSubmitQuestion: () => void;
 }
 
 const messageRoleLabels: Record<ChatMessage["role"], string> = {
@@ -12,9 +15,12 @@ const messageRoleLabels: Record<ChatMessage["role"], string> = {
 };
 
 export function ConversationPanel({
+  draftQuestion,
   errorMessage,
   isLoading,
   messages,
+  onDraftQuestionChange,
+  onSubmitQuestion,
 }: ConversationPanelProps) {
   return (
     <section
@@ -36,8 +42,8 @@ export function ConversationPanel({
           <div className="empty-state-card">
             <p className="empty-state-title">Ready for the next question</p>
             <p className="empty-state">
-              Tap a quick action to get a live recommendation based on your
-              section, party size, and venue conditions.
+              Type a question or tap a quick action to get live guidance based
+              on your section, party size, and venue conditions.
             </p>
           </div>
         ) : (
@@ -52,6 +58,41 @@ export function ConversationPanel({
           ))
         )}
       </div>
+
+      <form
+        className="chat-composer"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSubmitQuestion();
+        }}
+      >
+        <label className="field" htmlFor="assistant-question">
+          <span>Ask the assistant</span>
+          <textarea
+            id="assistant-question"
+            aria-describedby="assistant-question-help"
+            disabled={isLoading}
+            name="assistantQuestion"
+            placeholder="Ask a follow-up like “Why is that better?” or mention food, washroom, entry, or exit."
+            rows={3}
+            value={draftQuestion}
+            onChange={(event) => onDraftQuestionChange(event.target.value)}
+          />
+        </label>
+        <div className="chat-composer-footer">
+          <small id="assistant-question-help" className="field-help-text">
+            Quick actions seed the same conversation. Typed follow-ups reuse the
+            current venue context.
+          </small>
+          <button
+            className="hero-action-button hero-action-primary chat-submit-button"
+            disabled={isLoading || draftQuestion.trim().length === 0}
+            type="submit"
+          >
+            {isLoading ? "Sending…" : "Send question"}
+          </button>
+        </div>
+      </form>
 
       {errorMessage ? <p className="error-banner">{errorMessage}</p> : null}
     </section>

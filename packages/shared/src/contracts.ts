@@ -18,6 +18,14 @@ export const mobilityModeSchema = z.enum(MOBILITY_MODES);
 export const timingDecisionSchema = z.enum(TIMING_DECISIONS);
 /** Confidence labels attached to generated recommendations. */
 export const confidenceLevelSchema = z.enum(CONFIDENCE_LEVELS);
+/** Allowed assistant conversation roles shared across the web app and API. */
+export const conversationMessageRoleSchema = z.enum(["user", "assistant"]);
+
+/** Multi-turn assistant message contract shared across the web app and API. */
+export const conversationMessageSchema = z.strictObject({
+  role: conversationMessageRoleSchema,
+  text: z.string().min(1).max(500),
+});
 
 /** Destination option payload used for primary and fallback recommendations. */
 export const destinationOptionSchema = z.strictObject({
@@ -35,6 +43,8 @@ export const recommendationRequestSchema = z.strictObject({
   seatRow: z.string().min(1).optional(),
   eventPhase: eventPhaseSchema,
   mobilityMode: mobilityModeSchema.default("standard"),
+  question: z.string().min(1).max(500).optional(),
+  conversationHistory: z.array(conversationMessageSchema).max(12).optional(),
 });
 
 /** Full recommendation contract returned to the web client. */
@@ -63,6 +73,12 @@ export type MobilityMode = z.infer<typeof mobilityModeSchema>;
 export type TimingDecision = z.infer<typeof timingDecisionSchema>;
 /** Confidence level type inferred from the shared schema. */
 export type ConfidenceLevel = z.infer<typeof confidenceLevelSchema>;
+/** Conversation message role type inferred from the shared schema. */
+export type ConversationMessageRole = z.infer<
+  typeof conversationMessageRoleSchema
+>;
+/** Conversation message type inferred from the shared schema. */
+export type ConversationMessage = z.infer<typeof conversationMessageSchema>;
 /** Destination option type inferred from the shared schema. */
 export type DestinationOption = z.infer<typeof destinationOptionSchema>;
 /** Recommendation request type inferred from the shared schema. */

@@ -29,16 +29,19 @@ const attendeeSteps = [
 
 interface AttendeeFlowPanelsProps {
   activeIntent: CoreIntent | null;
+  draftQuestion: string;
   errorMessage: string | null;
   eventPhase: (typeof EVENT_PHASES)[number];
   isLoading: boolean;
   messages: ChatMessage[];
   mobilityMode: (typeof MOBILITY_MODES)[number];
+  onDraftQuestionChange: (value: string) => void;
   onEventPhaseChange: (value: (typeof EVENT_PHASES)[number]) => void;
   onMobilityModeChange: (value: (typeof MOBILITY_MODES)[number]) => void;
   onPartySizeChange: (value: number) => void;
   onRequestRecommendation: (intent: CoreIntent) => void;
   onSectionChange: (value: string) => void;
+  onSubmitQuestion: () => void;
   partySize: number;
   recommendationHeadingRef: RefObject<HTMLHeadingElement | null>;
   recommendationSectionRef: RefObject<HTMLDivElement | null>;
@@ -49,16 +52,19 @@ interface AttendeeFlowPanelsProps {
 
 export function AttendeeFlowPanels({
   activeIntent,
+  draftQuestion,
   errorMessage,
   eventPhase,
   isLoading,
   messages,
   mobilityMode,
+  onDraftQuestionChange,
   onEventPhaseChange,
   onMobilityModeChange,
   onPartySizeChange,
   onRequestRecommendation,
   onSectionChange,
+  onSubmitQuestion,
   partySize,
   recommendationHeadingRef,
   recommendationSectionRef,
@@ -238,9 +244,12 @@ export function AttendeeFlowPanels({
       </section>
 
       <ConversationPanel
+        draftQuestion={draftQuestion}
         errorMessage={errorMessage}
         isLoading={isLoading}
         messages={messages}
+        onDraftQuestionChange={onDraftQuestionChange}
+        onSubmitQuestion={onSubmitQuestion}
       />
       <div ref={recommendationSectionRef}>
         <RecommendationPanel

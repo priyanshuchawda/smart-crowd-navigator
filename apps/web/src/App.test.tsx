@@ -18,6 +18,7 @@ describe("App", () => {
     expect(markup).toContain("Try the Food Demo");
     expect(markup).toContain("How It Works");
     expect(markup).toContain("Live Assistant");
+    expect(markup).toContain("Ask the assistant");
     expect(markup).toContain("Venue Layout");
     expect(markup).toContain("Demo Controls");
     expect(markup).toContain(
@@ -27,25 +28,37 @@ describe("App", () => {
 
   it("renders the conversation empty state", () => {
     const markup = renderToStaticMarkup(
-      <ConversationPanel errorMessage={null} isLoading={false} messages={[]} />,
+      <ConversationPanel
+        draftQuestion=""
+        errorMessage={null}
+        isLoading={false}
+        messages={[]}
+        onDraftQuestionChange={() => {}}
+        onSubmitQuestion={() => {}}
+      />,
     );
 
-    expect(markup).toContain("Tap a quick action");
+    expect(markup).toContain("Type a question or tap a quick action");
     expect(markup).toContain("Ready");
     expect(markup).toContain('aria-live="polite"');
+    expect(markup).toContain("Send question");
   });
 
   it("renders conversation loading and error states", () => {
     const markup = renderToStaticMarkup(
       <ConversationPanel
+        draftQuestion="Why is that better?"
         errorMessage="Request failed with status 500"
         isLoading
         messages={[]}
+        onDraftQuestionChange={() => {}}
+        onSubmitQuestion={() => {}}
       />,
     );
 
     expect(markup).toContain("Thinking…");
     expect(markup).toContain("Request failed with status 500");
+    expect(markup).toContain("Sending…");
   });
 
   it("renders quick action buttons with aria-pressed state", () => {
