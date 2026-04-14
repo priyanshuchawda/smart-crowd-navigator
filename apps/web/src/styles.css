@@ -421,6 +421,7 @@ h2 {
 .recommendation-badge-card,
 .detail-card,
 .fallback-card,
+.grounding-panel,
 .empty-state-card {
   display: grid;
   gap: var(--space-sm);
@@ -442,6 +443,7 @@ h2 {
 .message-role,
 .status-pill,
 .fallback-note,
+.grounding-link-title,
 .recommendation-kicker,
 .empty-state-title {
   font-family: var(--font-heading);
@@ -453,6 +455,7 @@ h2 {
 
 .summary-label,
 .message-role,
+.grounding-link-copy,
 .recommendation-kicker {
   color: var(--text-muted);
 }
@@ -1018,6 +1021,62 @@ h2 {
   border-radius: var(--radius-lg);
   font-size: 0.9rem;
   line-height: 1.55;
+}
+
+.grounding-header,
+.grounding-widget-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.grounding-list {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.grounding-item {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.grounding-link {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.grounding-link:hover,
+.grounding-link:focus-visible {
+  border-color: var(--border-active);
+  outline: none;
+}
+
+.grounding-link-copy {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.widget-shell {
+  display: grid;
+  gap: 10px;
+}
+
+.grounding-widget {
+  min-height: 120px;
+  padding: 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: #fff;
+  color: #111827;
 }
 
 .warning-banner {

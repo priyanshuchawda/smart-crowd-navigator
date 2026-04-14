@@ -406,7 +406,7 @@ async function runGeminiMapsGroundedAssistant({
             },
           }
         : undefined,
-      tools: [{ googleMaps: {} }],
+      tools: [{ googleMaps: { enableWidget: true } }],
     },
   });
   const fallback = buildFallbackNarration(recommendation);

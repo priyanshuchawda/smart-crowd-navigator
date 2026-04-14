@@ -358,6 +358,13 @@ describe("runGeminiRecommendationAssistant", () => {
     });
 
     expect(generateContent).toHaveBeenCalledTimes(1);
+    expect(generateContent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        config: expect.objectContaining({
+          tools: [{ googleMaps: { enableWidget: true } }],
+        }),
+      }),
+    );
     expect(result.grounding?.places[0]?.title).toBe("Demo Pickup Zone");
     expect(result.message).toContain("Demo Pickup Zone");
     expect(result.recommendation.intent).toBe("exit");
