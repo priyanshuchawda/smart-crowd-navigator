@@ -30,6 +30,26 @@ type CreateChat = (params: {
     message: string;
   }) => Promise<GenerateContentResponse>;
 };
+type MapsLocationContext = {
+  latitude: number;
+  longitude: number;
+};
+type MapsGroundingPlace = {
+  placeId?: string;
+  title: string;
+  uri: string;
+};
+type MapsGroundingMetadata = {
+  places: MapsGroundingPlace[];
+  source: "google-maps";
+  widgetContextToken?: string;
+};
+type AssistantResponsePayload = {
+  grounding?: MapsGroundingMetadata;
+  message: string;
+  recommendation: AssistantRecommendation;
+  source: "gemini";
+};
 
 const ASSISTANT_PROMPT = [
   "You are Smart Crowd Navigator, a stadium movement assistant.",
@@ -137,6 +157,87 @@ const recommendationTool = {
   },
 };
 
+function shouldUseMapsGrounding(requestPayload: RecommendationRequest) {
+  const normalizedQuestion =
+    requestPayload.question?.trim().toLowerCase() ?? "";
+
+  if (!normalizedQuestion) {
+    return false;
+  }
+
+  return [
+    "parking",
+    "park",
+    "rideshare",
+    "pickup",
+    "pick-up",
+    "drop off",
+    "drop-off",
+    "nearby",
+    "near me",
+    "outside",
+    "around the venue",
+    "landmark",
+  ].some((keyword) => normalizedQuestion.includes(keyword));
+}
+
+function extractMapsGrounding(
+  response: GenerateContentResponse,
+): MapsGroundingMetadata | undefined {
+  const groundingMetadata = response.candidates?.[0]?.groundingMetadata;
+  const groundingChunks = groundingMetadata?.groundingChunks ?? [];
+  const places = groundingChunks.flatMap((chunk) => {
+    if (!chunk.maps?.title || !chunk.maps.uri) {
+      return [];
+    }
+
+    return [
+      {
+        placeId: chunk.maps.placeId,
+        title: chunk.maps.title,
+        uri: chunk.maps.uri,
+      },
+    ];
+  });
+
+  if (
+    places.length === 0 &&
+    !groundingMetadata?.googleMapsWidgetContextToken?.length
+  ) {
+    return undefined;
+  }
+
+  return {
+    places,
+    source: "google-maps",
+    widgetContextToken: groundingMetadata?.googleMapsWidgetContextToken,
+  };
+}
+
+function buildMapsGroundedPrompt(
+  requestPayload: RecommendationRequest,
+  recommendation: AssistantRecommendation,
+) {
+  return [
+    "You are Smart Crowd Navigator, answering venue-perimeter questions with Google Maps grounding.",
+    "Use Google Maps grounding for nearby place or perimeter claims.",
+    "Do not change the deterministic indoor recommendation details provided below.",
+    "Keep the response to 2 to 4 plain sentences with calm, practical wording.",
+    "",
+    "Deterministic indoor recommendation:",
+    JSON.stringify({
+      fallbackOption: recommendation.fallbackOption?.label ?? null,
+      intent: recommendation.intent,
+      primaryOption: recommendation.primaryOption.label,
+      routeSummary: recommendation.routeSummary,
+      timingDecision: recommendation.timingDecision,
+      waitOrGoReason: recommendation.waitOrGoReason,
+    }),
+    "",
+    `Attendee question: ${buildLatestQuestion(requestPayload)}`,
+  ].join("\n");
+}
+
 async function runGeminiRecommendationAssistant({
   createChat,
   generateContent,
@@ -221,11 +322,55 @@ async function runGeminiRecommendationAssistant({
   };
 }
 
+async function runGeminiMapsGroundedAssistant({
+  generateContent,
+  mapsLocationContext,
+  model,
+  requestPayload,
+}: {
+  generateContent: GenerateContent;
+  mapsLocationContext?: MapsLocationContext;
+  model: string;
+  requestPayload: RecommendationRequest;
+}): Promise<AssistantResponsePayload> {
+  const recommendation = buildRecommendationPayload(requestPayload);
+  const response = await generateContent({
+    model,
+    contents: buildMapsGroundedPrompt(requestPayload, recommendation),
+    config: {
+      toolConfig: mapsLocationContext
+        ? {
+            retrievalConfig: {
+              latLng: mapsLocationContext,
+            },
+          }
+        : undefined,
+      tools: [{ googleMaps: {} }],
+    },
+  });
+  const fallback = buildFallbackNarration(recommendation);
+
+  return {
+    grounding: extractMapsGrounding(response),
+    message: normalizeAssistantMessage(response.text, fallback),
+    recommendation,
+    source: "gemini",
+  };
+}
+
 function createGeminiAssistantService({
   apiKey = process.env.GEMINI_API_KEY,
+  mapsLocationContext = process.env.VENUE_CONTEXT_LATITUDE &&
+  process.env.VENUE_CONTEXT_LONGITUDE
+    ? {
+        latitude: Number(process.env.VENUE_CONTEXT_LATITUDE),
+        longitude: Number(process.env.VENUE_CONTEXT_LONGITUDE),
+      }
+    : undefined,
   model = process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite-preview",
 }: {
   apiKey?: string;
+  mapsLocationContext?: MapsLocationContext;
   model?: string;
 } = {}) {
   if (!apiKey) {
@@ -236,6 +381,17 @@ function createGeminiAssistantService({
 
   return {
     async generateAssistantResponse(requestPayload: unknown) {
+      const typedRequestPayload = requestPayload as RecommendationRequest;
+
+      if (shouldUseMapsGrounding(typedRequestPayload)) {
+        return runGeminiMapsGroundedAssistant({
+          generateContent: (params) => ai.models.generateContent(params),
+          mapsLocationContext,
+          model,
+          requestPayload: typedRequestPayload,
+        });
+      }
+
       return runGeminiRecommendationAssistant({
         createChat: ({ config, history, model: chatModel }) =>
           ai.chats.create({
@@ -257,7 +413,11 @@ export {
   buildChatHistory,
   buildFallbackNarration,
   buildLatestQuestion,
+  buildMapsGroundedPrompt,
   createGeminiAssistantService,
+  extractMapsGrounding,
   normalizeAssistantMessage,
+  runGeminiMapsGroundedAssistant,
   runGeminiRecommendationAssistant,
+  shouldUseMapsGrounding,
 };

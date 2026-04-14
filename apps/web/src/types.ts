@@ -7,7 +7,20 @@ import type { DestinationState } from "@smart-crowd-navigator/venue-engine";
 
 export type ChatMessage = ConversationMessage;
 
+export interface AssistantGroundingPlace {
+  placeId?: string;
+  title: string;
+  uri: string;
+}
+
+export interface AssistantGroundingMetadata {
+  places: AssistantGroundingPlace[];
+  source: "google-maps";
+  widgetContextToken?: string;
+}
+
 export interface AssistantApiResponse {
+  grounding?: AssistantGroundingMetadata;
   message: string;
   recommendation: AssistantRecommendation;
   source?: "gemini" | "deterministic-fallback";
