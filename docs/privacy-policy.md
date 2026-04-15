@@ -1,30 +1,36 @@
-# Privacy Policy (Draft)
+# Privacy Policy
 
-> Replace bracketed placeholders before public launch.
+_Effective for the current repository/demo deployment as of 2026-04-14._
 
-## 1. Who we are
+## 1. Operator
 
-Smart Crowd Navigator is operated by [ORGANIZATION NAME] ("we", "us", "our").
+Smart Crowd Navigator is currently operated by the deployment operator of:
+- the public repository at `https://github.com/priyanshuchawda/smart-crowd-navigator`
+- the verified Cloud Run deployment at `https://smart-crowd-navigator-6onqsv3h4a-uc.a.run.app`
 
-Contact: [PRIVACY CONTACT EMAIL]
+For product/privacy questions, use the repository issue tracker:
+- `https://github.com/priyanshuchawda/smart-crowd-navigator/issues`
 
 ## 2. What the product does
 
-Smart Crowd Navigator helps venue attendees choose lower-friction routes and destinations inside an event venue. The service may process attendee request context such as section, mobility preference, event phase, and party size in order to produce recommendations.
+Smart Crowd Navigator helps attendees at large sporting venues choose lower-friction routes and destinations. It may process attendee request context such as section, mobility preference, event phase, party size, and follow-up question text to generate recommendations.
 
-## 3. Data we may process
+## 3. Data the current product may process
 
-Depending on deployment choices, we may process:
-- attendee request inputs submitted in the web app
-- operator-authentication data handled by Firebase Auth
-- operator state updates for venue conditions
-- basic request metadata such as timestamps, error codes, rate-limit events, and security verification results
-- analytics or telemetry data if enabled in the deployed environment
+Depending on deployment configuration, the product may process:
+- attendee request inputs submitted in the web UI
+- conversation history included in follow-up assistant requests
+- live venue-state telemetry used for routing decisions
+- operator authentication data handled by Firebase Auth
+- operator updates written to Firestore-backed live venue state
+- request metadata such as timestamps, error codes, rate-limit events, and security verification results
+- optional analytics/telemetry data when enabled in the deployed environment
 
-## 4. Why we process data
+## 4. Why data is processed
 
-We process data to:
-- deliver recommendation responses
+Data is processed to:
+- produce recommendation responses
+- keep live venue guidance current
 - protect the service from abuse
 - authenticate and authorize operator access
 - monitor uptime, failures, and security events
@@ -32,39 +38,35 @@ We process data to:
 
 ## 5. Third-party services
 
-The deployed product may rely on:
+The current product may rely on:
 - Google Gemini API
+- Google Maps grounding through Gemini
 - Firebase Auth
 - Firestore
 - Firebase App Check
-- Cloud Run / Google Cloud logging and monitoring
-
-Review the deployed configuration and linked vendor terms before launch.
+- Cloud Run
+- Google Cloud logging / monitoring
 
 ## 6. Data retention
 
-Retention must be finalized before launch.
-
-Recommended defaults:
-- keep application logs only as long as needed for security and debugging
+Current recommended retention posture:
+- keep logs only as long as needed for debugging, abuse review, and operational safety
 - avoid storing unnecessary personal data in Firestore documents
-- document analytics retention separately if analytics is enabled
+- keep live venue-state documents limited to operational routing inputs
+- define analytics retention explicitly before enabling production analytics at scale
 
 ## 7. Security
 
-We use reasonable technical controls such as authentication, authorization, rate limiting, App Check verification, and audit logging. No system can guarantee absolute security.
+The repository and deployment design include controls such as authentication, authorization, App Check, rate limiting, structured logging, and server-side API key handling. No online system can guarantee absolute security.
 
 ## 8. User choices
 
-Before public launch, document how users can:
-- contact support
-- request deletion if any personal data is stored
-- ask privacy questions
+The current public contact path is the repository issue tracker. Do not post secrets or sensitive personal information in a public issue. If a request requires private follow-up, open an issue asking for a private handoff first.
 
 ## 9. Children
 
-If the service is available to minors or school-age users, get legal review before launch.
+If this product is deployed for minors, school-age users, or regulated venue environments, legal review should happen before broad public rollout.
 
 ## 10. Changes
 
-We may update this policy. Public deployments should publish an effective date and changelog policy.
+This policy may be updated as the hosted product changes. Future public launches should keep the effective date current and record major policy changes in the repository history.
