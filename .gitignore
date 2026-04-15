@@ -54,3 +54,10 @@ config/
 tmp/
 test-results/
 .omx/
+.agents/
+.agent/
+.claude/
+.kiro/
+java-login-demo/
+problem.md
+skills-lock.json
