@@ -78,6 +78,10 @@ type CreateAppServerOptions = {
   operatorAuthService?: OperatorAuthService;
 };
 
+type ObservabilityRecommendationPayload =
+  | ReturnType<typeof buildRecommendationPayload>
+  | ReturnType<typeof buildDeterministicAssistantResponse>["recommendation"];
+
 function getAllowedOrigins() {
   return (
     process.env.ALLOWED_ORIGINS ??
@@ -201,6 +205,67 @@ function logRuntimeEvent(type: string, metadata: Record<string, unknown>) {
       ...metadata,
     }),
   );
+}
+
+function logRecommendationObservability({
+  channel,
+  latencyMs,
+  recommendation,
+  requestPayload,
+  source,
+}: {
+  channel: "assistant" | "recommendation";
+  latencyMs: number;
+  recommendation: ObservabilityRecommendationPayload;
+  requestPayload: ReturnType<typeof parseRecommendationRequest>;
+  source: "deterministic" | "deterministic-fallback" | "gemini";
+}) {
+  logRuntimeEvent("recommendation_observability", {
+    advisorySeverity: recommendation.operationalAdvisory?.severity ?? "none",
+    channel,
+    confidence: recommendation.confidence,
+    crowdPenalty: recommendation.crowdWarning ? 1 : 0,
+    fallbackUsed: source === "deterministic-fallback",
+    intent: requestPayload.intent,
+    latencyMs,
+    mapsGroundingUsed: false,
+    primaryOptionId: recommendation.primaryOption.id,
+    queueMinutes: recommendation.waitMinutes,
+    scoreSummary: recommendation.primaryReason,
+    source,
+    timingDecision: recommendation.timingDecision,
+  });
+}
+
+function logAssistantObservability({
+  latencyMs,
+  payload,
+  requestPayload,
+  source,
+}: {
+  latencyMs: number;
+  payload: {
+    grounding?: {
+      places?: unknown[];
+    };
+    recommendation: ObservabilityRecommendationPayload;
+  };
+  requestPayload: ReturnType<typeof parseRecommendationRequest>;
+  source: "deterministic-fallback" | "gemini";
+}) {
+  logRuntimeEvent("assistant_observability", {
+    advisorySeverity:
+      payload.recommendation.operationalAdvisory?.severity ?? "none",
+    confidence: payload.recommendation.confidence,
+    fallbackUsed: source === "deterministic-fallback",
+    intent: requestPayload.intent,
+    latencyMs,
+    mapsGroundingUsed: Boolean(payload.grounding?.places?.length),
+    primaryOptionId: payload.recommendation.primaryOption.id,
+    queueMinutes: payload.recommendation.waitMinutes,
+    source,
+    timingDecision: payload.recommendation.timingDecision,
+  });
 }
 
 function respondJson(
@@ -578,9 +643,20 @@ function createRequestHandler({
     }
 
     if (method === "POST" && url.pathname === "/recommendation") {
+      const startedAt = Date.now();
+
       try {
         const requestBody = await readJsonBody(request);
-        const payload = buildRecommendationPayload(requestBody);
+        const typedRequestBody = parseRecommendationRequest(requestBody);
+        const payload = buildRecommendationPayload(typedRequestBody);
+
+        logRecommendationObservability({
+          channel: "recommendation",
+          latencyMs: Date.now() - startedAt,
+          recommendation: payload,
+          requestPayload: typedRequestBody,
+          source: "deterministic",
+        });
 
         respondJson(request, response, 200, payload);
         return;
@@ -602,6 +678,7 @@ function createRequestHandler({
     }
 
     if (method === "POST" && url.pathname === "/assistant-response") {
+      const startedAt = Date.now();
       const appCheck = await requireAppCheck(
         request,
         response,
@@ -659,8 +736,18 @@ function createRequestHandler({
           logRuntimeEvent("assistant_fallback", {
             reason: "disabled_by_env",
           });
+          const payload =
+            buildDeterministicAssistantResponse(validatedRequestBody);
+
+          logAssistantObservability({
+            latencyMs: Date.now() - startedAt,
+            payload,
+            requestPayload: validatedRequestBody,
+            source: "deterministic-fallback",
+          });
+
           respondJson(request, response, 200, {
-            ...buildDeterministicAssistantResponse(validatedRequestBody),
+            ...payload,
             source: "deterministic-fallback",
           });
           return;
@@ -669,6 +756,13 @@ function createRequestHandler({
         const service = createGeminiAssistantService();
         const payload =
           await service.generateAssistantResponse(validatedRequestBody);
+
+        logAssistantObservability({
+          latencyMs: Date.now() - startedAt,
+          payload,
+          requestPayload: validatedRequestBody,
+          source: "gemini",
+        });
 
         respondJson(request, response, 200, payload);
         return;
@@ -680,6 +774,13 @@ function createRequestHandler({
         });
         const payload =
           buildDeterministicAssistantResponse(validatedRequestBody);
+
+        logAssistantObservability({
+          latencyMs: Date.now() - startedAt,
+          payload,
+          requestPayload: validatedRequestBody,
+          source: "deterministic-fallback",
+        });
 
         respondJson(request, response, 200, {
           ...payload,

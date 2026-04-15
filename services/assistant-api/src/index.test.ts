@@ -612,6 +612,65 @@ describe("assistant API", () => {
     infoSpy.mockRestore();
   });
 
+  it("emits a recommendation observability event for deterministic recommendations", async () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    const { baseUrl } = await startServer();
+
+    const response = await fetch(`${baseUrl}/recommendation`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        section: "section-a12",
+        intent: "food",
+        partySize: 3,
+        eventPhase: "break",
+        mobilityMode: "standard",
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(infoSpy).toHaveBeenCalledWith(
+      expect.stringContaining('"type":"recommendation_observability"'),
+    );
+    expect(infoSpy).toHaveBeenCalledWith(
+      expect.stringContaining('"channel":"recommendation"'),
+    );
+
+    infoSpy.mockRestore();
+  });
+
+  it("emits an assistant observability event for assistant responses", async () => {
+    process.env.DISABLE_GEMINI_ASSISTANT = "true";
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    const { baseUrl } = await startServer();
+
+    const response = await fetch(`${baseUrl}/assistant-response`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        section: "section-a12",
+        intent: "food",
+        partySize: 3,
+        eventPhase: "break",
+        mobilityMode: "standard",
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(infoSpy).toHaveBeenCalledWith(
+      expect.stringContaining('"type":"assistant_observability"'),
+    );
+    expect(infoSpy).toHaveBeenCalledWith(
+      expect.stringContaining('"fallbackUsed":true'),
+    );
+
+    infoSpy.mockRestore();
+  });
+
   it("sets dynamic cache headers for assistant responses", async () => {
     process.env.DISABLE_GEMINI_ASSISTANT = "true";
     const { baseUrl } = await startServer();
