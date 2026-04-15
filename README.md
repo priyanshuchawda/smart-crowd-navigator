@@ -89,6 +89,12 @@ That makes it more useful in the exact moments that matter most in crowded event
 - Firebase-backed live venue state integration path in the repo
 - local API fallback path for development and demo flows
 
+### Group coordinator workflows
+- runner pickup plans for larger food groups
+- regroup-first guidance for mixed-mobility or step-free movement
+- return-before-play guidance during break windows
+- shared plan output in the same recommendation contract as the core route/timing answer
+
 ### Production-readiness work already in the repo
 - Cloud Run deployment path
 - security headers and request validation
@@ -173,7 +179,12 @@ The repository includes:
 - engine unit tests
 - API integration tests
 - web rendering tests
-- Playwright end-to-end tests for the operator/live-update path
+- Playwright end-to-end tests for:
+  - attendee chat follow-ups
+  - Maps-grounded citation rendering
+  - group coordinator plan rendering
+  - operator/live-update flows
+  - combined attendee regression lanes
 
 Run the local quality gate with:
 
@@ -208,17 +219,16 @@ Then open:
 Live Cloud Run URL:
 - `https://smart-crowd-navigator-6onqsv3h4a-uc.a.run.app`
 
-## Best demo flow
+## Submission readiness
 
-1. Open the attendee app
-2. Keep the default section as `section-a12`
-3. Choose **Food**
-4. Show the recommendation card, route summary, and timing decision
-5. Open **Demo Controls**
-6. Increase queue pressure for `stall-b`
-7. Show the recommendation change toward a different option
-
-This demonstrates crowd movement, waiting-time optimization, and real-time coordination in a short, reviewer-friendly flow.
+Current repo state for submission:
+- challenge-aligned README
+- deployed Cloud Run URL
+- deterministic routing core with live-state updates
+- multi-turn attendee chat
+- Google Maps-grounded perimeter answers with citations
+- group coordinator workflows
+- local verification gate and regression coverage
 
 ## Repository structure
 

@@ -30,7 +30,6 @@ pnpm-debug.log*
 .zed/
 
 # local tooling
-.agents/
 .codex/
 .gemini/
 .mcp.json
@@ -50,6 +49,7 @@ config/
 .gcloud/
 
 # misc
+.omx/
 .tmp/
 tmp/
 test-results/
