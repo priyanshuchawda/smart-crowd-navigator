@@ -108,4 +108,25 @@ describe("recommendation service venue data source boundary", () => {
 
     expect(store.getMetadata().source).toBe("local-fixture");
   });
+
+  it("keeps fixture data isolated from synced live snapshots", () => {
+    const store = createLiveVenueStateStore(localDevelopmentVenueDataSource);
+    const originalQueueMinutes =
+      localDevelopmentVenueDataSource.state.destinationStates[0]?.queueMinutes;
+
+    store.replaceSnapshot(
+      localDevelopmentVenueDataSource.state.destinationStates.map((state) => ({
+        ...state,
+        queueMinutes: state.queueMinutes + 20,
+      })),
+      "snapshot-sync",
+    );
+
+    expect(store.getSnapshot()[0]?.queueMinutes).toBe(
+      (originalQueueMinutes ?? 0) + 20,
+    );
+    expect(
+      localDevelopmentVenueDataSource.state.destinationStates[0]?.queueMinutes,
+    ).toBe(originalQueueMinutes);
+  });
 });
