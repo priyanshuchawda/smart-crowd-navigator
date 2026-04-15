@@ -5,6 +5,23 @@ test("maps-grounded answers render citations and widget guidance", async ({
 }) => {
   await page.goto("/");
 
+  await page.route("https://places.googleapis.com/**", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      status: 200,
+      body: JSON.stringify({
+        displayName: {
+          text: "Demo Pickup Zone",
+        },
+        rating: 4.6,
+        regularOpeningHours: {
+          openNow: true,
+        },
+        userRatingCount: 128,
+      }),
+    });
+  });
+
   await page.route("**/assistant-response", async (route) => {
     await route.fulfill({
       contentType: "application/json",
@@ -13,6 +30,7 @@ test("maps-grounded answers render citations and widget guidance", async ({
         grounding: {
           places: [
             {
+              placeId: "demo-place-id",
               title: "Demo Pickup Zone",
               uri: "https://maps.google.com/?cid=demo",
             },
@@ -68,4 +86,7 @@ test("maps-grounded answers render citations and widget guidance", async ({
     groundingRegion.getByRole("link", { name: /Demo Pickup Zone/i }),
   ).toBeVisible();
   await expect(page.getByText(/VITE_GOOGLE_MAPS_API_KEY/)).toBeVisible();
+  await expect(page.getByText("4.6 / 5 rating")).toBeVisible();
+  await expect(page.getByText("128 reviews")).toBeVisible();
+  await expect(page.getByText("Open now")).toBeVisible();
 });

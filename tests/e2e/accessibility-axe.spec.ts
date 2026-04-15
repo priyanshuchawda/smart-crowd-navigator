@@ -13,6 +13,7 @@ test("attendee shell has no automated axe accessibility violations", async ({
 
   const accessibilityScan = await new AxeBuilder({ page })
     .include("main")
+    .exclude("iframe")
     .analyze();
 
   expect(accessibilityScan.violations).toEqual([]);

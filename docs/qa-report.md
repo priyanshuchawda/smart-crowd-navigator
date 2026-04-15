@@ -12,6 +12,7 @@ The repository is in a review-ready state with the roadmap implementation lanes 
 - Google Maps grounding + citation UI
 - inline map preview + offline attendee shell
 - official Maps Embed API path when `VITE_GOOGLE_MAPS_API_KEY` is configured
+- Places API enrichment path for ratings, reviews, and open-now status when grounding returns a place id
 - Cloud observability events for recommendation latency, fallback rate, and advisory frequency
 - richer venue engine + telemetry
 - group coordinator workflows
