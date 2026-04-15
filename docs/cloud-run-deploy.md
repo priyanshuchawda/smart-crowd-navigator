@@ -67,6 +67,28 @@ Then build/deploy the web app with the matching Firebase env values, especially 
 - operator endpoints reject unauthorized writes
 - protected routes reject requests without App Check
 
+## Observability rollout
+
+The service now emits structured Cloud Logging events for:
+- `recommendation_observability`
+- `assistant_observability`
+- `assistant_fallback`
+
+Recommended log-based metrics:
+
+```bash
+gcloud logging metrics create crowdnav_recommendation_count \
+  --description="Count of recommendation requests" \
+  --log-filter='jsonPayload.type="recommendation_observability"'
+
+gcloud logging metrics create crowdnav_assistant_fallback_count \
+  --description="Count of assistant fallback events" \
+  --log-filter='jsonPayload.type="assistant_fallback"'
+```
+
+For latency distribution, create a metric from a JSON config using
+`jsonPayload.latencyMs` as the extracted value.
+
 ## Cost posture
 
 - Cloud Run min instances should remain `0`
