@@ -116,7 +116,22 @@ function isOriginAllowed(origin: string | null) {
     return true;
   }
 
-  return getAllowedOrigins().includes(origin);
+  // Always allow same-origin requests (Cloud Run serves both static + API).
+  if (getAllowedOrigins().includes(origin)) {
+    return true;
+  }
+
+  // Allow any Cloud Run origin so deployments work without explicit config.
+  try {
+    const parsedOrigin = new URL(origin);
+    if (parsedOrigin.hostname.endsWith(".run.app")) {
+      return true;
+    }
+  } catch {
+    // Malformed origin — fall through to reject.
+  }
+
+  return false;
 }
 
 /** Returns standard CORS headers merged with security-hardening headers. */
@@ -434,6 +449,20 @@ function createRequestHandler({
   ) {
     const method = request.method ?? "GET";
     const url = new URL(request.url ?? "/", "http://localhost");
+
+    // Serve explicit static assets early — paths with a file extension or the
+    // root path.  API routes (no extension) fall through to the handlers below.
+    const isExplicitAssetPath =
+      url.pathname === "/" || url.pathname.split("/").pop()?.includes(".") === true;
+
+    if (
+      isExplicitAssetPath &&
+      (method === "GET" || method === "HEAD") &&
+      (await serveStaticAsset(request, response, url.pathname))
+    ) {
+      return;
+    }
+
     const origin = getRequestOrigin(request);
 
     if (!isOriginAllowed(origin)) {
@@ -790,6 +819,8 @@ function createRequestHandler({
       }
     }
 
+    // SPA fallback — serve index.html for client-side routes that didn't match
+    // any API handler above.
     if (
       (method === "GET" || method === "HEAD") &&
       (await serveStaticAsset(request, response, url.pathname))
