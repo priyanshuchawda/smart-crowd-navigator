@@ -37,7 +37,15 @@ export function ConversationPanel({
         <span className="status-pill">{isLoading ? "Thinking…" : "Live"}</span>
       </div>
 
-      <div className="message-list" aria-live="polite">
+      <div
+        className="message-list"
+        aria-atomic="false"
+        aria-busy={isLoading}
+        aria-label="Conversation transcript"
+        aria-live="polite"
+        aria-relevant="additions text"
+        role="log"
+      >
         {messages.length === 0 ? (
           <div className="empty-state-card">
             <p className="empty-state-title">Ready for the next question</p>
@@ -50,6 +58,7 @@ export function ConversationPanel({
           messages.map((message, index) => (
             <article
               key={`${message.role}-${index}`}
+              aria-label={`${messageRoleLabels[message.role]} message`}
               className={`message-bubble ${message.role}`}
             >
               <p className="message-role">{messageRoleLabels[message.role]}</p>

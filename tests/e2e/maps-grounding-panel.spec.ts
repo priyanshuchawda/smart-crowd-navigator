@@ -39,6 +39,14 @@ test("maps-grounded answers render citations and widget guidance", async ({
           routeSummary: "Section A-12 → South Hall → Exit South",
           crowdWarning: null,
           fallbackOption: null,
+          decisionReasons: {
+            strengths: [
+              "Lower congestion pressure than the main fallback route.",
+              "Destination is open and fully available right now.",
+            ],
+            tradeoffs: ["Queue is still meaningful even on the best route."],
+          },
+          operationalAdvisory: null,
           confidence: "high",
         },
         source: "gemini",
@@ -51,9 +59,13 @@ test("maps-grounded answers render citations and widget guidance", async ({
     .fill("Where is the best rideshare pickup near the south exit?");
   await page.getByRole("button", { name: "Send question" }).click();
 
-  await expect(page.getByText("Google Maps grounding")).toBeVisible();
+  const groundingRegion = page.getByRole("region", {
+    name: "Google Maps grounding",
+  });
+
+  await expect(groundingRegion).toBeVisible();
   await expect(
-    page.getByRole("link", { name: /Demo Pickup Zone/i }),
+    groundingRegion.getByRole("link", { name: /Demo Pickup Zone/i }),
   ).toBeVisible();
   await expect(page.getByText(/VITE_GOOGLE_MAPS_API_KEY/)).toBeVisible();
 });

@@ -22,6 +22,11 @@ const productBenefits = [
       "Operator updates can change attendee guidance live, which makes the demo feel like a real venue product instead of static mock data.",
     title: "Live operational awareness",
   },
+  {
+    description:
+      "The attendee shell can stay available in weak-connectivity concourses thanks to the cached app shell and installable manifest.",
+    title: "Offline-ready attendee shell",
+  },
 ];
 
 interface HeroSectionProps {
@@ -50,7 +55,7 @@ export function HeroSection({
     },
     {
       label: "Response model",
-      value: "Live Gemini + deterministic fallback",
+      value: "Gemini + Maps grounding + offline shell",
     },
   ];
 

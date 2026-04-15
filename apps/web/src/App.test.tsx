@@ -104,6 +104,15 @@ describe("App", () => {
               label: "Stall D",
               kind: "food",
             },
+            decisionReasons: {
+              strengths: [
+                "3 min shorter queue than the main fallback.",
+                "Backed by high-confidence live telemetry.",
+              ],
+              tradeoffs: [
+                "Crowd pressure remains elevated in part of this path.",
+              ],
+            },
             groupPlan: {
               workflowType: "runner-pickup",
               headline:
@@ -115,6 +124,13 @@ describe("App", () => {
                 "Keep most of the group at Section A-12.",
                 "Send one runner to Stall B.",
               ],
+            },
+            operationalAdvisory: {
+              detail:
+                "The live queue trend shows a better route outcome after a short delay, so staying put briefly is the smarter move.",
+              headline: "Conditions improve if you wait.",
+              recommendedAction: "Hold position and recheck before moving.",
+              severity: "info",
             },
             confidence: "high",
           },
@@ -133,5 +149,7 @@ describe("App", () => {
     expect(markup).toContain("VITE_GOOGLE_MAPS_API_KEY");
     expect(markup).toContain("Group coordinator plan");
     expect(markup).toContain("Send one runner");
+    expect(markup).toContain("Why this recommendation");
+    expect(markup).toContain("Conditions improve if you wait.");
   });
 });

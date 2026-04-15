@@ -215,4 +215,3 @@ describe("createVenueEngine", () => {
     expect(exitRanking[0]?.route[0]).toBe("section-c04");
   });
 });
-

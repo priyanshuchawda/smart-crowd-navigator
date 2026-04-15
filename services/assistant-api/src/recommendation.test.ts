@@ -86,6 +86,35 @@ describe("recommendation service venue data source boundary", () => {
 
     expect(payload.groupPlan?.workflowType).toBe("runner-pickup");
     expect(payload.groupPlan?.headline).toContain("runner");
+    expect(payload.decisionReasons.strengths.length).toBeGreaterThan(1);
+  });
+
+  it("emits a degraded-mode advisory when all exits are under load", () => {
+    const recommendationService = createRecommendationService({
+      venueDataSource: replaceDestinationStates(
+        localDevelopmentVenueDataSource,
+        localDevelopmentVenueDataSource.state.destinationStates.map((state) =>
+          state.nodeId.startsWith("exit-")
+            ? {
+                ...state,
+                crowdPenalty: 5,
+                queueMinutes: 8,
+              }
+            : state,
+        ),
+      ),
+    });
+
+    const payload = recommendationService.buildRecommendationPayload({
+      section: "section-a12",
+      intent: "exit",
+      partySize: 2,
+      eventPhase: "post-event",
+      mobilityMode: "standard",
+    });
+
+    expect(payload.operationalAdvisory?.severity).toBe("warning");
+    expect(payload.operationalAdvisory?.headline).toContain("heavy load");
   });
 
   it("tracks live venue state metadata across snapshot sync and reset", () => {

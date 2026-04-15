@@ -234,6 +234,14 @@ describe("runGeminiRecommendationAssistant", () => {
           routeSummary: "Section A-12 → Concourse East → Stall B",
           crowdWarning: null,
           fallbackOption: null,
+          decisionReasons: {
+            strengths: [
+              "Best overall score across the currently available options.",
+              "Balances walking time, queue pressure, and reliability.",
+            ],
+            tradeoffs: [],
+          },
+          operationalAdvisory: null,
           confidence: "high",
         },
         source: "gemini" as const,
@@ -399,6 +407,14 @@ describe("runGeminiRecommendationAssistant", () => {
         routeSummary: "Section A-12 → South Hall → Exit South",
         crowdWarning: null,
         fallbackOption: null,
+        decisionReasons: {
+          strengths: [
+            "Best overall score across the currently available options.",
+            "Balances walking time, queue pressure, and reliability.",
+          ],
+          tradeoffs: [],
+        },
+        operationalAdvisory: null,
         confidence: "high",
       },
     );

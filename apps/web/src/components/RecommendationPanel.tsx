@@ -1,12 +1,37 @@
+import type { RefObject } from "react";
+
 import type { AssistantApiResponse } from "../types";
 
 interface RecommendationPanelProps {
+  headingRef?: RefObject<HTMLHeadingElement | null>;
   response: AssistantApiResponse | null;
   isLoading?: boolean;
 }
 
-/** Displays the current venue recommendation with timing advice, route, and fallback. */
-export function RecommendationPanel({ response, isLoading }: RecommendationPanelProps) {
+const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY?.trim() ?? "";
+
+function buildGroundingPreviewUrl(
+  place: NonNullable<AssistantApiResponse["grounding"]>["places"][number],
+) {
+  if (googleMapsApiKey) {
+    const query = place.placeId ? `place_id:${place.placeId}` : place.title;
+
+    return `https://www.google.com/maps/embed/v1/place?key=${encodeURIComponent(
+      googleMapsApiKey,
+    )}&q=${encodeURIComponent(query)}`;
+  }
+
+  return `https://www.google.com/maps?q=${encodeURIComponent(
+    place.title,
+  )}&output=embed`;
+}
+
+/** Displays the current venue recommendation with timing advice, route, group plan, and Maps grounding. */
+export function RecommendationPanel({
+  headingRef,
+  response,
+  isLoading,
+}: RecommendationPanelProps) {
   if (isLoading) {
     return (
       <section
@@ -15,18 +40,18 @@ export function RecommendationPanel({ response, isLoading }: RecommendationPanel
       >
         <div className="panel-heading-row">
           <div>
-            <div className="skeleton-line" style={{ width: "200px", marginBottom: "8px" }} />
-            <div className="skeleton-line" style={{ width: "300px" }} />
+            <div className="skeleton-line recommendation-skeleton-heading" />
+            <div className="skeleton-line recommendation-skeleton-copy" />
           </div>
           <div className="status-pill status-pill-muted">Calculating…</div>
         </div>
-        <div style={{ display: 'grid', gap: '12px', marginTop: '12px' }}>
-          <div className="skeleton-line" style={{ height: "100px", borderRadius: "var(--radius-xl)" }} />
+        <div className="recommendation-skeleton-stack">
+          <div className="skeleton-line recommendation-skeleton-hero" />
           <div className="stat-grid">
-            <div className="skeleton-line" style={{ height: "60px" }} />
-            <div className="skeleton-line" style={{ height: "60px" }} />
-            <div className="skeleton-line" style={{ height: "60px" }} />
-            <div className="skeleton-line" style={{ height: "60px" }} />
+            <div className="skeleton-line recommendation-skeleton-stat" />
+            <div className="skeleton-line recommendation-skeleton-stat" />
+            <div className="skeleton-line recommendation-skeleton-stat" />
+            <div className="skeleton-line recommendation-skeleton-stat" />
           </div>
         </div>
       </section>
@@ -63,6 +88,11 @@ export function RecommendationPanel({ response, isLoading }: RecommendationPanel
     );
   }
 
+  const groupPlan = response.recommendation.groupPlan;
+  const groundedPlaces = response.grounding?.places ?? [];
+  const operationalAdvisory = response.recommendation.operationalAdvisory;
+  const primaryGroundedPlace = groundedPlaces[0] ?? null;
+
   return (
     <section
       className="recommendation-card panel-card"
@@ -72,21 +102,30 @@ export function RecommendationPanel({ response, isLoading }: RecommendationPanel
         <div>
           <span className="section-title">Current Recommendation</span>
           <p className="section-supporting-text">
-            A live suggestion based on current venue pressure and route timing.
+            A live suggestion based on current venue pressure, route timing, and
+            optional Google Maps grounding.
           </p>
         </div>
-        <span className={`status-pill ${response.recommendation.timingDecision === "wait" ? "status-pill-warning" : "status-pill-accent"}`}>
+        <span
+          className={`status-pill ${
+            response.recommendation.timingDecision === "wait"
+              ? "status-pill-warning"
+              : "status-pill-accent"
+          }`}
+        >
           {response.recommendation.timingDecision === "wait"
             ? "Wait"
             : "Go Now"}
         </span>
       </div>
 
-      <div aria-live="polite" aria-atomic="true">
+      <div aria-atomic="true" aria-live="polite">
         <div className="recommendation-hero">
           <div>
             <p className="recommendation-kicker">Best next move</p>
-            <h2>{response.recommendation.primaryOption.label}</h2>
+            <h2 ref={headingRef} tabIndex={-1}>
+              {response.recommendation.primaryOption.label}
+            </h2>
             <p className="recommendation-copy">
               {response.recommendation.waitOrGoReason}
             </p>
@@ -101,44 +140,26 @@ export function RecommendationPanel({ response, isLoading }: RecommendationPanel
 
         <dl className="stat-grid">
           <div className="stat-item">
-            <dt>
-              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
-                <circle cx="12" cy="12" r="10" />
-                <polyline points="12 6 12 12 16 14" />
-              </svg>
-              ETA
-            </dt>
+            <dt>ETA</dt>
             <dd>{response.recommendation.etaMinutes} min</dd>
           </div>
           <div className="stat-item">
-            <dt>
-              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
-              Queue
-            </dt>
+            <dt>Queue</dt>
             <dd>{response.recommendation.waitMinutes} min</dd>
           </div>
           <div className="stat-item">
-            <dt>
-              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
-                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-              </svg>
-              Time Saved
-            </dt>
+            <dt>Time Saved</dt>
             <dd>{response.recommendation.timeSavedMinutes} min</dd>
           </div>
           <div className="stat-item">
-            <dt>
-              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              Decision
-            </dt>
-            <dd style={{ color: response.recommendation.timingDecision === 'wait' ? 'var(--accent-warning)' : 'var(--accent-success)' }}>
+            <dt>Decision</dt>
+            <dd
+              className={
+                response.recommendation.timingDecision === "wait"
+                  ? "stat-value-warning"
+                  : "stat-value-success"
+              }
+            >
               {response.recommendation.timingDecision}
             </dd>
           </div>
@@ -155,22 +176,177 @@ export function RecommendationPanel({ response, isLoading }: RecommendationPanel
 
         {response.recommendation.crowdWarning ? (
           <p className="warning-banner" role="alert">
-            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px', verticalAlign: 'text-bottom' }}>
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-              <line x1="12" y1="9" x2="12" y2="13" />
-              <line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg>
             {response.recommendation.crowdWarning}
           </p>
         ) : null}
 
         {response.recommendation.fallbackOption ? (
-          <div className="fallback-card">
+          <div className="fallback-card detail-card">
             <span className="summary-label">Backup option</span>
             <p className="fallback-note">
               {response.recommendation.fallbackOption.label}
             </p>
           </div>
+        ) : null}
+
+        <section
+          className="detail-card rationale-card"
+          aria-label="Why this recommendation"
+        >
+          <div className="panel-heading-row">
+            <div>
+              <span className="section-title">Why this recommendation</span>
+              <p className="section-supporting-text">
+                The engine is surfacing the best tradeoff it sees right now.
+              </p>
+            </div>
+          </div>
+
+          <div className="rationale-columns">
+            <div>
+              <p className="rationale-heading">Strengths</p>
+              <ul className="rationale-list">
+                {response.recommendation.decisionReasons.strengths.map(
+                  (strength) => (
+                    <li key={strength} className="rationale-positive">
+                      {strength}
+                    </li>
+                  ),
+                )}
+              </ul>
+            </div>
+            <div>
+              <p className="rationale-heading">Tradeoffs</p>
+              <ul className="rationale-list">
+                {response.recommendation.decisionReasons.tradeoffs.length >
+                0 ? (
+                  response.recommendation.decisionReasons.tradeoffs.map(
+                    (tradeoff) => (
+                      <li key={tradeoff} className="rationale-negative">
+                        {tradeoff}
+                      </li>
+                    ),
+                  )
+                ) : (
+                  <li className="rationale-neutral">
+                    No major downside is dominating the current route.
+                  </li>
+                )}
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        {operationalAdvisory ? (
+          <section
+            className={`detail-card operational-advisory-card operational-advisory-${operationalAdvisory.severity}`}
+            aria-label="Operational advisory"
+          >
+            <div className="panel-heading-row">
+              <div>
+                <span className="section-title">
+                  {operationalAdvisory.headline}
+                </span>
+                <p className="section-supporting-text">
+                  {operationalAdvisory.detail}
+                </p>
+              </div>
+              <span className="status-pill status-pill-warning">
+                {operationalAdvisory.severity === "warning"
+                  ? "Failure mode"
+                  : "Hold guidance"}
+              </span>
+            </div>
+            <p className="operational-advisory-action">
+              {operationalAdvisory.recommendedAction}
+            </p>
+          </section>
+        ) : null}
+
+        {groupPlan ? (
+          <section
+            className="detail-card group-plan-card"
+            aria-label="Group coordinator plan"
+          >
+            <div className="panel-heading-row">
+              <div>
+                <span className="section-title">Group coordinator plan</span>
+                <p className="section-supporting-text">{groupPlan.headline}</p>
+              </div>
+              <span className="status-pill status-pill-muted">
+                {groupPlan.workflowType}
+              </span>
+            </div>
+            <div className="group-plan-meta">
+              <p>
+                <strong>Regroup at</strong> {groupPlan.regroupSpot}
+              </p>
+              <p>
+                <strong>Meet-up ETA</strong> {groupPlan.regroupEtaMinutes} min
+              </p>
+              <p>
+                <strong>Split recommended</strong>{" "}
+                {groupPlan.splitRecommended ? "Yes" : "No"}
+              </p>
+            </div>
+            <ul className="group-plan-steps">
+              {groupPlan.steps.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {groundedPlaces.length > 0 ? (
+          <section
+            className="detail-card grounding-card"
+            aria-label="Google Maps grounding"
+          >
+            <div className="panel-heading-row">
+              <div>
+                <span className="section-title">Google Maps grounding</span>
+                <p className="section-supporting-text">
+                  Nearby-place guidance grounded outside the venue perimeter.
+                </p>
+              </div>
+              <span className="status-pill status-pill-accent">
+                {groundedPlaces.length} cited place
+                {groundedPlaces.length === 1 ? "" : "s"}
+              </span>
+            </div>
+
+            <ul
+              className="grounding-place-list"
+              aria-label="Grounded nearby places"
+            >
+              {groundedPlaces.map((place) => (
+                <li key={place.uri}>
+                  <a href={place.uri} rel="noreferrer" target="_blank">
+                    {place.title}
+                  </a>
+                </li>
+              ))}
+            </ul>
+
+            {primaryGroundedPlace ? (
+              <iframe
+                className="grounding-map-preview"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                src={buildGroundingPreviewUrl(primaryGroundedPlace)}
+                title={`Map preview for ${primaryGroundedPlace.title}`}
+              />
+            ) : null}
+
+            <p className="field-help-text">
+              {googleMapsApiKey
+                ? "Official Google Maps Embed API preview is active from VITE_GOOGLE_MAPS_API_KEY for this grounded place."
+                : "Set VITE_GOOGLE_MAPS_API_KEY to upgrade this preview to the official Google Maps Embed API."}{" "}
+              {response.grounding?.widgetContextToken
+                ? "A Gemini widget context token is also available for richer handoff."
+                : null}
+            </p>
+          </section>
         ) : null}
       </div>
     </section>

@@ -33,6 +33,7 @@ Typical questions the product answers:
 - mobile-first React web app
 - free-text assistant chat plus quick-action entry points
 - attendee context controls for section, party size, event phase, group coordination mode, and mobility mode
+- installable web manifest plus cached offline shell for weak-connectivity venue areas
 - live recommendation card with:
   - primary option
   - go-now / wait guidance
@@ -43,7 +44,8 @@ Typical questions the product answers:
   - fallback option
   - group coordinator plan when relevant
 - venue map panel with recommended destination highlighting
-- Google Maps citations for venue-perimeter answers
+- Google Maps citations plus an inline map preview for venue-perimeter answers
+- official Google Maps Embed API preview when `VITE_GOOGLE_MAPS_API_KEY` is configured, with a no-key fallback for demo resilience
 
 ### Decision engine
 - deterministic venue engine in TypeScript
@@ -139,6 +141,8 @@ The shipped UI is designed around:
 - screen-reader-friendly status and recommendation regions
 - reduced-motion support
 - higher-contrast and forced-colors hardening
+- semantic conversation transcript + grounded-place regions
+- automated `axe-core` Playwright coverage for the attendee shell
 - accessible-route support in the venue engine
 
 ## Testing and verification
@@ -147,8 +151,11 @@ The repository includes:
 - engine unit tests
 - API integration tests
 - web rendering tests
+- Playwright accessibility smoke coverage for the attendee shell
+- Playwright `axe-core` accessibility audit coverage
 - Playwright end-to-end coverage for:
   - attendee chat follow-ups
+  - accessibility smoke checks
   - maps-grounded citation rendering
   - group coordinator plan rendering
   - live operator update flows
@@ -165,6 +172,7 @@ Other useful commands:
 ```bash
 pnpm test:e2e
 pnpm test:gemini-real
+pnpm coverage
 ```
 
 ## Local development

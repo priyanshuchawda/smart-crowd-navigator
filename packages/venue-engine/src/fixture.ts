@@ -381,7 +381,7 @@ export const localDevelopmentVenueDataSource: VenueDataSource = {
       {
         nodeId: "washroom-west",
         status: "open",
-        queueMinutes: 4,
+        queueMinutes: 2,
         crowdPenalty: 1,
         queueTrendAfterFiveMinutes: 1,
         serviceMinutesPerAdditionalPerson: 0,
