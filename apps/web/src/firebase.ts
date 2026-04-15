@@ -48,7 +48,10 @@ const firebaseApp: FirebaseApp | null = hasFirebaseConfig
 
 const firebaseAuth = firebaseApp ? getAuth(firebaseApp) : null;
 const firestore = firebaseApp ? getFirestore(firebaseApp) : null;
-const operatorStateDoc = firestore
+const liveVenueStateDoc = firestore
+  ? doc(firestore, "venue-live-state", "demoVenue")
+  : null;
+const legacyOperatorStateDoc = firestore
   ? doc(firestore, "operator-state", "demoVenue")
   : null;
 let appCheckHandlePromise: Promise<{
@@ -58,6 +61,13 @@ let appCheckHandlePromise: Promise<{
 type OperatorSession = {
   email: string | null;
   uid: string;
+};
+type FirebaseLiveVenueStateSnapshot = {
+  source: "firebase-live";
+  states: DestinationState[];
+  updatedAt: unknown;
+  venueId: string;
+  updatedBy?: string | null;
 };
 
 function normalizeOperatorSession(user: User | null): OperatorSession | null {
@@ -131,50 +141,112 @@ async function getAppCheckHandle() {
 void maybeEnableAnalytics();
 void getAppCheckHandle().catch(() => {});
 
-async function getFirebaseOperatorStates() {
-  if (!operatorStateDoc) {
+async function getFirebaseLiveVenueStateSnapshot() {
+  if (!liveVenueStateDoc && !legacyOperatorStateDoc) {
     return null;
   }
 
-  const snapshot = await getDoc(operatorStateDoc);
+  const snapshot = liveVenueStateDoc
+    ? await getDoc(liveVenueStateDoc)
+    : legacyOperatorStateDoc
+      ? await getDoc(legacyOperatorStateDoc)
+      : null;
+
+  if (!snapshot?.exists() && legacyOperatorStateDoc) {
+    const legacySnapshot = await getDoc(legacyOperatorStateDoc);
+    const legacyData = legacySnapshot.data();
+
+    if (!legacyData || !Array.isArray(legacyData.states)) {
+      return null;
+    }
+
+    return {
+      source: "firebase-live",
+      states: legacyData.states as DestinationState[],
+      updatedAt: legacyData.updatedAt ?? null,
+      updatedBy: legacyData.updatedBy ?? null,
+      venueId: "demoVenue",
+    } satisfies FirebaseLiveVenueStateSnapshot;
+  }
+
+  if (!snapshot) {
+    return null;
+  }
+
   const data = snapshot.data();
 
   if (!data || !Array.isArray(data.states)) {
-    return [];
+    return null;
   }
 
-  return data.states as DestinationState[];
+  return {
+    source: "firebase-live",
+    states: data.states as DestinationState[],
+    updatedAt: data.updatedAt ?? null,
+    updatedBy: data.updatedBy ?? null,
+    venueId: typeof data.venueId === "string" ? data.venueId : "demoVenue",
+  } satisfies FirebaseLiveVenueStateSnapshot;
 }
 
-async function setFirebaseOperatorStates(states: DestinationState[]) {
-  if (!operatorStateDoc) {
+async function setFirebaseLiveVenueState(
+  states: DestinationState[],
+  options?: {
+    updatedBy?: string | null;
+  },
+) {
+  if (!liveVenueStateDoc) {
     return;
   }
 
-  await setDoc(operatorStateDoc, {
+  await setDoc(liveVenueStateDoc, {
+    source: "firebase-live",
     states,
     updatedAt: serverTimestamp(),
+    updatedBy: options?.updatedBy ?? null,
+    venueId: "demoVenue",
   });
+}
+
+async function getFirebaseOperatorStates() {
+  const snapshot = await getFirebaseLiveVenueStateSnapshot();
+  return snapshot?.states ?? null;
+}
+
+function subscribeToFirebaseLiveVenueState(
+  onData: (snapshot: FirebaseLiveVenueStateSnapshot) => void,
+  onError: (error: Error) => void,
+) {
+  if (!liveVenueStateDoc) {
+    return () => {};
+  }
+
+  return onSnapshot(
+    liveVenueStateDoc,
+    (snapshot) => {
+      const data = snapshot.data();
+
+      if (data && Array.isArray(data.states)) {
+        onData({
+          source: "firebase-live",
+          states: data.states as DestinationState[],
+          updatedAt: data.updatedAt ?? null,
+          updatedBy: data.updatedBy ?? null,
+          venueId:
+            typeof data.venueId === "string" ? data.venueId : "demoVenue",
+        });
+      }
+    },
+    (error) => onError(error),
+  );
 }
 
 function subscribeToFirebaseOperatorStates(
   onData: (states: DestinationState[]) => void,
   onError: (error: Error) => void,
 ) {
-  if (!operatorStateDoc) {
-    return () => {};
-  }
-
-  return onSnapshot(
-    operatorStateDoc,
-    (snapshot) => {
-      const data = snapshot.data();
-
-      if (data && Array.isArray(data.states)) {
-        onData(data.states as DestinationState[]);
-      }
-    },
-    (error) => onError(error),
+  return subscribeToFirebaseLiveVenueState(
+    (snapshot) => onData(snapshot.states),
+    onError,
   );
 }
 
@@ -229,15 +301,21 @@ async function getAppCheckToken() {
   }
 }
 
+const setFirebaseOperatorStates = setFirebaseLiveVenueState;
+
 export {
   getAppCheckToken,
+  getFirebaseLiveVenueStateSnapshot,
   getFirebaseOperatorStates,
   getOperatorIdToken,
   hasFirebaseConfig,
+  setFirebaseLiveVenueState,
   setFirebaseOperatorStates,
+  subscribeToFirebaseLiveVenueState,
   signInOperator,
   signOutOperator,
   subscribeToFirebaseOperatorStates,
   subscribeToOperatorSession,
 };
-export type { OperatorSession };
+
+export type { FirebaseLiveVenueStateSnapshot, OperatorSession };

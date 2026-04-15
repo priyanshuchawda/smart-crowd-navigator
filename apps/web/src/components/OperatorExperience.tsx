@@ -11,13 +11,13 @@ import {
 } from "../api";
 import {
   type OperatorSession,
-  getFirebaseOperatorStates,
+  getFirebaseLiveVenueStateSnapshot,
   getOperatorIdToken,
   hasFirebaseConfig,
-  setFirebaseOperatorStates,
+  setFirebaseLiveVenueState,
   signInOperator,
   signOutOperator,
-  subscribeToFirebaseOperatorStates,
+  subscribeToFirebaseLiveVenueState,
   subscribeToOperatorSession,
 } from "../firebase";
 import { OperatorAccessPanel } from "./OperatorAccessPanel";
@@ -103,20 +103,20 @@ export function OperatorExperience({
           return;
         }
 
-        const firebaseStates = await getFirebaseOperatorStates();
+        const firebaseSnapshot = await getFirebaseLiveVenueStateSnapshot();
 
         if (!ignore) {
-          setOperatorStates(firebaseStates ?? []);
+          setOperatorStates(firebaseSnapshot?.states ?? []);
           setOperatorErrorMessage(null);
         }
 
-        unsubscribe = subscribeToFirebaseOperatorStates(
-          (states) => {
+        unsubscribe = subscribeToFirebaseLiveVenueState(
+          (snapshot) => {
             if (ignore) {
               return;
             }
 
-            setOperatorStates(states);
+            setOperatorStates(snapshot.states);
             setOperatorErrorMessage(null);
 
             if (activeIntent) {
@@ -186,7 +186,9 @@ export function OperatorExperience({
           state.nodeId === nextState.nodeId ? nextState : state,
         );
         await syncOperatorStates(nextStates, idToken);
-        await setFirebaseOperatorStates(nextStates);
+        await setFirebaseLiveVenueState(nextStates, {
+          updatedBy: operatorSession?.uid ?? null,
+        });
       } else {
         const payload = await updateOperatorState(nextState);
         setOperatorStates(payload.states);
@@ -224,7 +226,9 @@ export function OperatorExperience({
         }
 
         const payload = await resetOperatorState(idToken);
-        await setFirebaseOperatorStates(payload.states);
+        await setFirebaseLiveVenueState(payload.states, {
+          updatedBy: operatorSession?.uid ?? null,
+        });
       } else {
         const payload = await resetOperatorState();
         setOperatorStates(payload.states);

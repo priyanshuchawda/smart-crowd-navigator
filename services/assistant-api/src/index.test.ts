@@ -173,6 +173,16 @@ describe("assistant API", () => {
     expect(payload.groupPlan.workflowType).toBe("runner-pickup");
   });
 
+  it("returns live-state source metadata", async () => {
+    const { baseUrl } = await startServer();
+    const response = await fetch(`${baseUrl}/live-state/source`);
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.source).toBe("local-fixture");
+    expect(payload.venueId).toBe("smart-crowd-demo-venue");
+  });
+
   it("rejects invalid recommendation requests", async () => {
     const { baseUrl } = await startServer();
     const response = await fetch(`${baseUrl}/recommendation`, {

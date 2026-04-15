@@ -28,9 +28,11 @@ import {
   buildDeterministicAssistantResponse,
   buildRecommendationPayload,
   engine,
+  getLiveVenueStateMetadata,
   getOperatorState,
   parseRecommendationRequest,
   resetOperatorState,
+  syncLiveVenueState,
   updateOperatorState,
 } from "./recommendation.js";
 
@@ -52,10 +54,15 @@ const staticAssetTypes: Record<string, string> = {
 };
 const operatorStateSchema = z.strictObject({
   nodeId: z.string().min(1),
+  status: z.enum(["open", "limited", "closed"]).optional(),
   queueMinutes: z.number().int().nonnegative(),
   crowdPenalty: z.number().int().nonnegative(),
   queueTrendAfterFiveMinutes: z.number().int(),
   serviceMinutesPerAdditionalPerson: z.number().nonnegative(),
+  telemetryConfidence: z
+    .enum(["observed", "estimated", "predicted"])
+    .optional(),
+  waitTimeVariability: z.number().nonnegative().optional(),
 });
 const operatorBulkSchema = z.strictObject({
   states: z.array(operatorStateSchema),
@@ -457,6 +464,13 @@ function createRequestHandler({
       return;
     }
 
+    if (method === "GET" && url.pathname === "/live-state/source") {
+      respondJson(request, response, 200, getLiveVenueStateMetadata(), {
+        cacheControl: dynamicEndpointCacheControl,
+      });
+      return;
+    }
+
     if (method === "POST" && url.pathname === "/operator/state") {
       const appCheck = await requireAppCheck(
         request,
@@ -549,10 +563,6 @@ function createRequestHandler({
         const requestBody = await readJsonBody(request);
         const payload = operatorBulkSchema.parse(requestBody);
 
-        for (const state of payload.states) {
-          updateOperatorState(state);
-        }
-
         auditOperatorMutation(request, "operator.state.bulk", {
           actor: operator?.actor,
           count: payload.states.length,
@@ -561,7 +571,7 @@ function createRequestHandler({
         });
 
         respondJson(request, response, 200, {
-          states: getOperatorState(),
+          states: syncLiveVenueState(payload.states),
         });
         return;
       } catch (error) {

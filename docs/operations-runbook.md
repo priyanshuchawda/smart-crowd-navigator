@@ -27,6 +27,12 @@ This runbook covers the minimum operating procedure for a public Smart Crowd Nav
   - `GET /operator/state` in `services/assistant-api/src/index.ts`
   - `read` access on `operator-state` in `firestore.rules`
 
+### Production live-state source of truth
+
+- Local development may still boot from the fixture-backed store inside the API.
+- Production deployments should treat `venue-live-state/{venueId}` as the canonical Firestore document for venue telemetry snapshots.
+- Operator tooling is an admin/update surface for that live state, not a separate data model.
+
 ### Rate limiting
 
 - The current `rate_limited` responses come from an in-memory per-instance limiter in the Node API.
