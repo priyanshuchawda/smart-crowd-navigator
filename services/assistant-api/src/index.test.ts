@@ -449,6 +449,75 @@ describe("assistant API", () => {
     expect(payload.states[0].nodeId).toBe("stall-b");
   });
 
+  it("updates live-state source metadata after a bulk snapshot sync", async () => {
+    const { baseUrl } = await startServer();
+
+    const bulkResponse = await fetch(`${baseUrl}/operator/state/bulk`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        states: [
+          {
+            nodeId: "stall-b",
+            queueMinutes: 11,
+            crowdPenalty: 2,
+            queueTrendAfterFiveMinutes: -1,
+            serviceMinutesPerAdditionalPerson: 2,
+          },
+          {
+            nodeId: "stall-d",
+            queueMinutes: 5,
+            crowdPenalty: 0,
+            queueTrendAfterFiveMinutes: 0,
+            serviceMinutesPerAdditionalPerson: 0.5,
+          },
+        ],
+      }),
+    });
+    const metadataResponse = await fetch(`${baseUrl}/live-state/source`);
+    const metadataPayload = await metadataResponse.json();
+
+    expect(bulkResponse.status).toBe(200);
+    expect(metadataResponse.status).toBe(200);
+    expect(metadataPayload.source).toBe("snapshot-sync");
+    expect(metadataPayload.stateCount).toBe(2);
+    expect(metadataPayload.lastSyncedAt).toBeTruthy();
+  });
+
+  it("resets live-state metadata back to the local fixture source", async () => {
+    const { baseUrl } = await startServer();
+
+    await fetch(`${baseUrl}/operator/state/bulk`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        states: [
+          {
+            nodeId: "stall-b",
+            queueMinutes: 11,
+            crowdPenalty: 2,
+            queueTrendAfterFiveMinutes: -1,
+            serviceMinutesPerAdditionalPerson: 2,
+          },
+        ],
+      }),
+    });
+
+    const resetResponse = await fetch(`${baseUrl}/operator/reset`, {
+      method: "POST",
+    });
+    const metadataResponse = await fetch(`${baseUrl}/live-state/source`);
+    const metadataPayload = await metadataResponse.json();
+
+    expect(resetResponse.status).toBe(200);
+    expect(metadataPayload.source).toBe("local-fixture");
+    expect(metadataPayload.stateCount).toBeGreaterThan(1);
+  });
+
   it("rejects disallowed origins", async () => {
     const { baseUrl } = await startServer();
     const response = await fetch(`${baseUrl}/health`, {
