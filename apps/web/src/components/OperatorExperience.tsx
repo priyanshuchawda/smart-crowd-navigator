@@ -16,6 +16,7 @@ import {
   hasFirebaseConfig,
   setFirebaseLiveVenueState,
   signInOperator,
+  signInOperatorWithGoogle,
   signOutOperator,
   subscribeToFirebaseLiveVenueState,
   subscribeToOperatorSession,
@@ -165,6 +166,23 @@ export function OperatorExperience({
     }
   }
 
+  async function handleOperatorGoogleSignIn() {
+    setIsOperatorSigningIn(true);
+    setOperatorErrorMessage(null);
+
+    try {
+      await signInOperatorWithGoogle();
+    } catch (error) {
+      setOperatorErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Google sign-in failed. Try again.",
+      );
+    } finally {
+      setIsOperatorSigningIn(false);
+    }
+  }
+
   async function handleOperatorSignOut() {
     setOperatorErrorMessage(null);
     await signOutOperator();
@@ -260,6 +278,7 @@ export function OperatorExperience({
         errorMessage={operatorErrorMessage}
         isSubmitting={isOperatorSigningIn}
         onEmailChange={setOperatorEmail}
+        onGoogleSignIn={() => void handleOperatorGoogleSignIn()}
         onPasswordChange={setOperatorPassword}
         onSubmit={() => void handleOperatorSignIn()}
         password={operatorPassword}

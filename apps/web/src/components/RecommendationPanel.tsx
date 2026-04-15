@@ -1,199 +1,38 @@
-import {
-  type RefObject,
-  createElement,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-
 import type { AssistantApiResponse } from "../types";
 
 interface RecommendationPanelProps {
-  headingRef?: RefObject<HTMLHeadingElement | null>;
   response: AssistantApiResponse | null;
+  isLoading?: boolean;
 }
 
-let googleMapsScriptPromise: Promise<void> | null = null;
-
-function ensureGoogleMapsPlacesScript(apiKey: string) {
-  if (typeof window === "undefined") {
-    return Promise.resolve();
-  }
-
-  if (window.customElements.get("gmp-place-contextual")) {
-    return Promise.resolve();
-  }
-
-  if (!googleMapsScriptPromise) {
-    googleMapsScriptPromise = new Promise<void>((resolve, reject) => {
-      const existingScript = document.querySelector<HTMLScriptElement>(
-        'script[data-google-maps-contextual="true"]',
-      );
-
-      if (existingScript) {
-        existingScript.addEventListener("load", () => resolve(), {
-          once: true,
-        });
-        existingScript.addEventListener(
-          "error",
-          () => reject(new Error("Google Maps script failed to load.")),
-          {
-            once: true,
-          },
-        );
-        return;
-      }
-
-      const script = document.createElement("script");
-      script.async = true;
-      script.dataset.googleMapsContextual = "true";
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&v=beta`;
-      script.addEventListener("load", () => resolve(), { once: true });
-      script.addEventListener(
-        "error",
-        () => reject(new Error("Google Maps script failed to load.")),
-        {
-          once: true,
-        },
-      );
-      document.head.append(script);
-    }).catch((error) => {
-      googleMapsScriptPromise = null;
-      throw error;
-    });
-  }
-
-  return googleMapsScriptPromise;
-}
-
-function GroundingSection({
-  response,
-}: {
-  response: AssistantApiResponse;
-}) {
-  const mapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY?.trim();
-  const widgetToken = response.grounding?.widgetContextToken?.trim();
-  const places = response.grounding?.places ?? [];
-  const [widgetStatus, setWidgetStatus] = useState<
-    "idle" | "loading" | "ready" | "error"
-  >("idle");
-
-  const widgetMarkup = useMemo(() => {
-    if (!widgetToken || widgetStatus !== "ready") {
-      return null;
-    }
-
-    return createElement("gmp-place-contextual", {
-      "context-token": widgetToken,
-    });
-  }, [widgetStatus, widgetToken]);
-
-  useEffect(() => {
-    if (!widgetToken || !mapsApiKey) {
-      setWidgetStatus("idle");
-      return;
-    }
-
-    let ignore = false;
-    setWidgetStatus("loading");
-
-    void ensureGoogleMapsPlacesScript(mapsApiKey)
-      .then(() => {
-        if (!ignore) {
-          setWidgetStatus("ready");
-        }
-      })
-      .catch(() => {
-        if (!ignore) {
-          setWidgetStatus("error");
-        }
-      });
-
-    return () => {
-      ignore = true;
-    };
-  }, [widgetToken]);
-
-  if (places.length === 0 && !widgetToken) {
-    return null;
-  }
-
-  return (
-    <section
-      className="grounding-panel detail-card"
-      aria-label="Google Maps sources"
-    >
-      <div className="grounding-header">
-        <div>
-          <span className="summary-label">Google Maps grounding</span>
-          <p className="section-supporting-text">
-            These nearby-place details came from Google Maps, while the indoor
-            venue recommendation above still comes from the venue engine.
-          </p>
-        </div>
-        <span className="status-pill status-pill-muted">Google Maps</span>
-      </div>
-
-      {places.length > 0 ? (
-        <ul className="grounding-list">
-          {places.map((place) => (
-            <li key={`${place.uri}-${place.title}`} className="grounding-item">
-              <a
-                className="grounding-link"
-                href={place.uri}
-                rel="noreferrer"
-                target="_blank"
-              >
-                <span className="grounding-link-title">{place.title}</span>
-                <span className="grounding-link-copy">Open in Google Maps</span>
-              </a>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-
-      {widgetToken ? (
-        <div className="widget-shell">
-          <div className="grounding-widget-header">
-            <span className="summary-label">Contextual place widget</span>
-            <span className="status-pill status-pill-muted">
-              {widgetStatus === "loading"
-                ? "Loading…"
-                : widgetStatus === "ready"
-                  ? "Ready"
-                  : "Optional"}
-            </span>
+/** Displays the current venue recommendation with timing advice, route, and fallback. */
+export function RecommendationPanel({ response, isLoading }: RecommendationPanelProps) {
+  if (isLoading) {
+    return (
+      <section
+        className="recommendation-card panel-card loading-shimmer-card"
+        aria-label="Loading recommendation"
+      >
+        <div className="panel-heading-row">
+          <div>
+            <div className="skeleton-line" style={{ width: "200px", marginBottom: "8px" }} />
+            <div className="skeleton-line" style={{ width: "300px" }} />
           </div>
-          {mapsApiKey ? (
-            widgetStatus === "error" ? (
-              <p className="field-help-text">
-                Google Maps widget loading failed in this environment, but the
-                citation links above remain available.
-              </p>
-            ) : widgetMarkup ? (
-              <div className="grounding-widget">{widgetMarkup}</div>
-            ) : (
-              <p className="field-help-text">
-                Loading the contextual Google Maps widget…
-              </p>
-            )
-          ) : (
-            <p className="field-help-text">
-              Add <code>VITE_GOOGLE_MAPS_API_KEY</code> to render the optional
-              contextual Places widget. Citation links are still available
-              without it.
-            </p>
-          )}
+          <div className="status-pill status-pill-muted">Calculating…</div>
         </div>
-      ) : null}
-    </section>
-  );
-}
+        <div style={{ display: 'grid', gap: '12px', marginTop: '12px' }}>
+          <div className="skeleton-line" style={{ height: "100px", borderRadius: "var(--radius-xl)" }} />
+          <div className="stat-grid">
+            <div className="skeleton-line" style={{ height: "60px" }} />
+            <div className="skeleton-line" style={{ height: "60px" }} />
+            <div className="skeleton-line" style={{ height: "60px" }} />
+            <div className="skeleton-line" style={{ height: "60px" }} />
+          </div>
+        </div>
+      </section>
+    );
+  }
 
-export function RecommendationPanel({
-  headingRef,
-  response,
-}: RecommendationPanelProps) {
   if (!response) {
     return (
       <section
@@ -236,7 +75,7 @@ export function RecommendationPanel({
             A live suggestion based on current venue pressure and route timing.
           </p>
         </div>
-        <span className="status-pill status-pill-accent">
+        <span className={`status-pill ${response.recommendation.timingDecision === "wait" ? "status-pill-warning" : "status-pill-accent"}`}>
           {response.recommendation.timingDecision === "wait"
             ? "Wait"
             : "Go Now"}
@@ -247,9 +86,7 @@ export function RecommendationPanel({
         <div className="recommendation-hero">
           <div>
             <p className="recommendation-kicker">Best next move</p>
-            <h2 ref={headingRef} tabIndex={-1}>
-              {response.recommendation.primaryOption.label}
-            </h2>
+            <h2>{response.recommendation.primaryOption.label}</h2>
             <p className="recommendation-copy">
               {response.recommendation.waitOrGoReason}
             </p>
@@ -263,21 +100,47 @@ export function RecommendationPanel({
         </div>
 
         <dl className="stat-grid">
-          <div>
-            <dt>ETA</dt>
+          <div className="stat-item">
+            <dt>
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+              ETA
+            </dt>
             <dd>{response.recommendation.etaMinutes} min</dd>
           </div>
-          <div>
-            <dt>Queue</dt>
+          <div className="stat-item">
+            <dt>
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+              Queue
+            </dt>
             <dd>{response.recommendation.waitMinutes} min</dd>
           </div>
-          <div>
-            <dt>Time Saved</dt>
+          <div className="stat-item">
+            <dt>
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              </svg>
+              Time Saved
+            </dt>
             <dd>{response.recommendation.timeSavedMinutes} min</dd>
           </div>
-          <div>
-            <dt>Decision</dt>
-            <dd>{response.recommendation.timingDecision}</dd>
+          <div className="stat-item">
+            <dt>
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              Decision
+            </dt>
+            <dd style={{ color: response.recommendation.timingDecision === 'wait' ? 'var(--accent-warning)' : 'var(--accent-success)' }}>
+              {response.recommendation.timingDecision}
+            </dd>
           </div>
         </dl>
       </div>
@@ -292,6 +155,11 @@ export function RecommendationPanel({
 
         {response.recommendation.crowdWarning ? (
           <p className="warning-banner" role="alert">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px', verticalAlign: 'text-bottom' }}>
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
             {response.recommendation.crowdWarning}
           </p>
         ) : null}
@@ -304,30 +172,6 @@ export function RecommendationPanel({
             </p>
           </div>
         ) : null}
-
-        {response.recommendation.groupPlan ? (
-          <section className="detail-card" aria-label="Group coordinator plan">
-            <span className="summary-label">Group coordinator plan</span>
-            <strong>{response.recommendation.groupPlan.headline}</strong>
-            <p className="field-help-text">
-              Regroup at{" "}
-              <strong>{response.recommendation.groupPlan.regroupSpot}</strong>{" "}
-              in about {response.recommendation.groupPlan.regroupEtaMinutes}{" "}
-              min.
-            </p>
-            <ul className="grounding-list">
-              {response.recommendation.groupPlan.steps.map((step) => (
-                <li key={step} className="grounding-item">
-                  <span className="grounding-link">
-                    <span className="grounding-link-title">{step}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-
-        <GroundingSection response={response} />
       </div>
     </section>
   );

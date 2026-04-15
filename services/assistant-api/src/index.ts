@@ -6,7 +6,6 @@ import {
 } from "node:http";
 import { dirname, extname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { gzipSync } from "node:zlib";
 
 import { APP_NAME } from "@smart-crowd-navigator/shared";
 import { config as loadEnv } from "dotenv";
@@ -28,11 +27,9 @@ import {
   buildDeterministicAssistantResponse,
   buildRecommendationPayload,
   engine,
-  getLiveVenueStateMetadata,
   getOperatorState,
   parseRecommendationRequest,
   resetOperatorState,
-  syncLiveVenueState,
   updateOperatorState,
 } from "./recommendation.js";
 
@@ -54,30 +51,15 @@ const staticAssetTypes: Record<string, string> = {
 };
 const operatorStateSchema = z.strictObject({
   nodeId: z.string().min(1),
-  status: z.enum(["open", "limited", "closed"]).optional(),
   queueMinutes: z.number().int().nonnegative(),
   crowdPenalty: z.number().int().nonnegative(),
   queueTrendAfterFiveMinutes: z.number().int(),
   serviceMinutesPerAdditionalPerson: z.number().nonnegative(),
-  telemetryConfidence: z
-    .enum(["observed", "estimated", "predicted"])
-    .optional(),
-  waitTimeVariability: z.number().nonnegative().optional(),
 });
 const operatorBulkSchema = z.strictObject({
   states: z.array(operatorStateSchema),
 });
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
-const securityHeaders: Record<string, string> = {
-  "x-content-type-options": "nosniff",
-  "x-frame-options": "DENY",
-  "referrer-policy": "strict-origin-when-cross-origin",
-  "permissions-policy": "camera=(), microphone=(), geolocation=()",
-  "strict-transport-security": "max-age=31536000; includeSubDomains",
-  "content-security-policy":
-    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com; img-src 'self' data: https://*.googleapis.com https://*.gstatic.com; frame-src https://www.google.com https://maps.google.com;",
-};
-const dynamicEndpointCacheControl = "no-cache, no-store";
 
 function resetRateLimitStore() {
   rateLimitStore.clear();
@@ -125,6 +107,7 @@ function isOriginAllowed(origin: string | null) {
   return getAllowedOrigins().includes(origin);
 }
 
+/** Returns standard CORS headers merged with security-hardening headers. */
 function getCorsHeaders(request: IncomingMessage) {
   const allowedOrigins = getAllowedOrigins();
   const origin = getRequestOrigin(request);
@@ -136,47 +119,14 @@ function getCorsHeaders(request: IncomingMessage) {
     "access-control-allow-methods": "GET,POST,OPTIONS",
     "access-control-allow-headers":
       "authorization,content-type,x-firebase-appcheck",
-    vary: "Origin, Accept-Encoding",
-    ...securityHeaders,
+    "x-content-type-options": "nosniff",
+    "x-frame-options": "DENY",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "permissions-policy": "camera=(), microphone=(), geolocation=()",
+    "strict-transport-security": "max-age=31536000; includeSubDomains",
+    "content-security-policy":
+      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com; img-src 'self' data: https://*.googleapis.com https://*.gstatic.com; frame-src https://www.google.com https://maps.google.com;",
   };
-}
-
-function requestAcceptsGzip(request: IncomingMessage) {
-  const acceptEncodingHeader = request.headers["accept-encoding"];
-  const acceptEncoding = Array.isArray(acceptEncodingHeader)
-    ? acceptEncodingHeader.join(",")
-    : (acceptEncodingHeader ?? "");
-
-  if (!acceptEncoding) {
-    return false;
-  }
-
-  const encodings = acceptEncoding
-    .split(",")
-    .map((entry) => entry.trim().toLowerCase())
-    .filter(Boolean);
-
-  for (const encodingValue of encodings) {
-    const [encoding, ...params] = encodingValue.split(";").map((p) => p.trim());
-
-    if (encoding !== "gzip" && encoding !== "*") {
-      continue;
-    }
-
-    const qualityParam = params.find((param) => param.startsWith("q="));
-
-    if (!qualityParam) {
-      return true;
-    }
-
-    const quality = Number.parseFloat(qualityParam.slice(2));
-
-    if (!Number.isNaN(quality) && quality > 0) {
-      return true;
-    }
-  }
-
-  return false;
 }
 
 function getClientKey(request: IncomingMessage) {
@@ -250,36 +200,11 @@ function respondJson(
   response: ServerResponse,
   statusCode: number,
   payload: unknown,
-  options?: {
-    cacheControl?: string;
-  },
 ) {
-  const responseBody = statusCode === 204 ? "" : JSON.stringify(payload);
-  const shouldCompress = statusCode !== 204 && requestAcceptsGzip(request);
-
-  response.writeHead(statusCode, {
-    ...getCorsHeaders(request),
-    ...(options?.cacheControl
-      ? {
-          "cache-control": options.cacheControl,
-        }
-      : {}),
-    ...(shouldCompress
-      ? {
-          "content-encoding": "gzip",
-        }
-      : {}),
-  });
-
-  if (statusCode === 204) {
-    response.end();
-    return;
-  }
-
-  response.end(shouldCompress ? gzipSync(responseBody) : responseBody);
+  response.writeHead(statusCode, getCorsHeaders(request));
+  response.end(JSON.stringify(payload));
 }
 
-/** Serves built frontend assets from `apps/web/dist` with static cache policy. */
 async function readStaticFile(pathname: string) {
   const normalizedPath = pathname === "/" ? "/index.html" : pathname;
   const staticFilePath = resolve(webDistDir, `.${normalizedPath}`);
@@ -309,7 +234,6 @@ async function readStaticFile(pathname: string) {
   }
 }
 
-/** Resolves and streams a static asset for GET/HEAD requests when present. */
 async function serveStaticAsset(
   request: IncomingMessage,
   response: ServerResponse,
@@ -322,7 +246,6 @@ async function serveStaticAsset(
   }
 
   response.writeHead(200, {
-    ...securityHeaders,
     "cache-control": pathname.startsWith("/assets/")
       ? "public, max-age=31536000, immutable"
       : "no-cache",
@@ -340,7 +263,6 @@ async function serveStaticAsset(
   return true;
 }
 
-/** Reads and parses JSON request bodies with maximum body-size enforcement. */
 async function readJsonBody(request: IncomingMessage) {
   const chunks: Buffer[] = [];
   let totalBytes = 0;
@@ -363,7 +285,6 @@ async function readJsonBody(request: IncomingMessage) {
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
 
-/** Enforces operator auth for protected mutation routes and maps auth errors to JSON responses. */
 async function requireOperator(
   request: IncomingMessage,
   response: ServerResponse,
@@ -388,7 +309,6 @@ async function requireOperator(
   }
 }
 
-/** Enforces App Check on protected endpoints and maps verification errors to JSON responses. */
 async function requireAppCheck(
   request: IncomingMessage,
   response: ServerResponse,
@@ -413,7 +333,6 @@ async function requireAppCheck(
   }
 }
 
-/** Creates the API request router handling health, assistant, recommendation, operator, and static routes. */
 function createRequestHandler({
   appCheckService = createAppCheckService(),
   operatorAuthService = createOperatorAuthService(),
@@ -439,34 +358,20 @@ function createRequestHandler({
     }
 
     if (method === "GET" && url.pathname === "/health") {
-      respondJson(
-        request,
-        response,
-        200,
-        {
-          service: `${APP_NAME} API`,
-          status: "ok",
-          engineVersion: engine.version,
-          appCheckRequired: appCheckService.isRequired(),
-          operatorAuthRequired: operatorAuthService.isRequired(),
-        },
-        {
-          cacheControl: "public, max-age=3600",
-        },
-      );
+      response.setHeader("cache-control", "public, max-age=60");
+      respondJson(request, response, 200, {
+        service: `${APP_NAME} API`,
+        status: "ok",
+        engineVersion: engine.version,
+        appCheckRequired: appCheckService.isRequired(),
+        operatorAuthRequired: operatorAuthService.isRequired(),
+      });
       return;
     }
 
     if (method === "GET" && url.pathname === "/operator/state") {
       respondJson(request, response, 200, {
         states: getOperatorState(),
-      });
-      return;
-    }
-
-    if (method === "GET" && url.pathname === "/live-state/source") {
-      respondJson(request, response, 200, getLiveVenueStateMetadata(), {
-        cacheControl: dynamicEndpointCacheControl,
       });
       return;
     }
@@ -563,6 +468,10 @@ function createRequestHandler({
         const requestBody = await readJsonBody(request);
         const payload = operatorBulkSchema.parse(requestBody);
 
+        for (const state of payload.states) {
+          updateOperatorState(state);
+        }
+
         auditOperatorMutation(request, "operator.state.bulk", {
           actor: operator?.actor,
           count: payload.states.length,
@@ -571,7 +480,7 @@ function createRequestHandler({
         });
 
         respondJson(request, response, 200, {
-          states: syncLiveVenueState(payload.states),
+          states: getOperatorState(),
         });
         return;
       } catch (error) {
@@ -638,9 +547,7 @@ function createRequestHandler({
         const requestBody = await readJsonBody(request);
         const payload = buildRecommendationPayload(requestBody);
 
-        respondJson(request, response, 200, payload, {
-          cacheControl: dynamicEndpointCacheControl,
-        });
+        respondJson(request, response, 200, payload);
         return;
       } catch (error) {
         const message =
@@ -653,9 +560,6 @@ function createRequestHandler({
           {
             error: "bad_request",
             message,
-          },
-          {
-            cacheControl: dynamicEndpointCacheControl,
           },
         );
         return;
@@ -696,9 +600,6 @@ function createRequestHandler({
             error: "bad_request",
             message,
           },
-          {
-            cacheControl: dynamicEndpointCacheControl,
-          },
         );
         return;
       }
@@ -711,18 +612,10 @@ function createRequestHandler({
         const message =
           error instanceof Error ? error.message : "Invalid request payload";
 
-        respondJson(
-          request,
-          response,
-          400,
-          {
-            error: "bad_request",
-            message,
-          },
-          {
-            cacheControl: dynamicEndpointCacheControl,
-          },
-        );
+        respondJson(request, response, 400, {
+          error: "bad_request",
+          message,
+        });
         return;
       }
 
@@ -731,18 +624,10 @@ function createRequestHandler({
           logRuntimeEvent("assistant_fallback", {
             reason: "disabled_by_env",
           });
-          respondJson(
-            request,
-            response,
-            200,
-            {
-              ...buildDeterministicAssistantResponse(validatedRequestBody),
-              source: "deterministic-fallback",
-            },
-            {
-              cacheControl: dynamicEndpointCacheControl,
-            },
-          );
+          respondJson(request, response, 200, {
+            ...buildDeterministicAssistantResponse(validatedRequestBody),
+            source: "deterministic-fallback",
+          });
           return;
         }
 
@@ -750,9 +635,7 @@ function createRequestHandler({
         const payload =
           await service.generateAssistantResponse(validatedRequestBody);
 
-        respondJson(request, response, 200, payload, {
-          cacheControl: dynamicEndpointCacheControl,
-        });
+        respondJson(request, response, 200, payload);
         return;
       } catch (error) {
         logRuntimeEvent("assistant_fallback", {
@@ -763,18 +646,10 @@ function createRequestHandler({
         const payload =
           buildDeterministicAssistantResponse(validatedRequestBody);
 
-        respondJson(
-          request,
-          response,
-          200,
-          {
-            ...payload,
-            source: "deterministic-fallback",
-          },
-          {
-            cacheControl: dynamicEndpointCacheControl,
-          },
-        );
+        respondJson(request, response, 200, {
+          ...payload,
+          source: "deterministic-fallback",
+        });
         return;
       }
     }

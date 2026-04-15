@@ -175,6 +175,14 @@ dl {
   animation: orbPulse 10s ease-in-out infinite alternate-reverse;
 }
 
+.ambient-orb-three {
+  inset: 20% auto auto 40%;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.08), transparent 70%);
+  animation: orbPulse 12s ease-in-out infinite alternate;
+}
+
 @keyframes orbPulse {
   0% {
     opacity: 0.5;
@@ -421,7 +429,6 @@ h2 {
 .recommendation-badge-card,
 .detail-card,
 .fallback-card,
-.grounding-panel,
 .empty-state-card {
   display: grid;
   gap: var(--space-sm);
@@ -443,7 +450,6 @@ h2 {
 .message-role,
 .status-pill,
 .fallback-note,
-.grounding-link-title,
 .recommendation-kicker,
 .empty-state-title {
   font-family: var(--font-heading);
@@ -455,7 +461,6 @@ h2 {
 
 .summary-label,
 .message-role,
-.grounding-link-copy,
 .recommendation-kicker {
   color: var(--text-muted);
 }
@@ -487,6 +492,13 @@ h2 {
   transform: translateY(-2px);
   border-color: var(--accent-primary);
   box-shadow: var(--shadow-glow);
+}
+
+.benefit-card-icon,
+.step-card-icon {
+  margin-bottom: 8px;
+  color: var(--accent-primary);
+  opacity: 0.85;
 }
 
 .benefit-title {
@@ -635,7 +647,6 @@ h2 {
 
 .field input,
 .field select,
-.field textarea,
 .chip,
 .intent-card {
   border: 1px solid var(--border-default);
@@ -643,8 +654,7 @@ h2 {
 }
 
 .field input,
-.field select,
-.field textarea {
+.field select {
   min-height: 50px;
   padding: 13px 14px;
   background: var(--surface-input);
@@ -655,7 +665,6 @@ h2 {
 
 .field input:focus-visible,
 .field select:focus-visible,
-.field textarea:focus-visible,
 .chip:focus-visible,
 .intent-card:focus-visible {
   outline: 2px solid var(--accent-primary);
@@ -665,17 +674,9 @@ h2 {
 }
 
 .field input:hover,
-.field select:hover,
-.field textarea:hover {
+.field select:hover {
   background: var(--surface-input-hover);
   border-color: var(--text-muted);
-}
-
-.field textarea {
-  min-height: 110px;
-  resize: vertical;
-  font: inherit;
-  line-height: 1.55;
 }
 
 /* Select dropdown styling */
@@ -854,6 +855,11 @@ h2 {
   box-shadow: 0 0 12px var(--accent-primary-glow);
 }
 
+.status-pill-warning {
+  background: var(--accent-warning-dim);
+  color: var(--accent-warning);
+}
+
 /* ============================================================
    MESSAGE / CONVERSATION
    ============================================================ */
@@ -861,24 +867,6 @@ h2 {
 .detail-stack {
   display: grid;
   gap: 12px;
-}
-
-.chat-composer {
-  display: grid;
-  gap: 12px;
-}
-
-.chat-composer-footer {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 14px;
-  flex-wrap: wrap;
-}
-
-.chat-submit-button {
-  min-width: 148px;
-  justify-content: center;
 }
 
 .hint-banner {
@@ -1021,62 +1009,6 @@ h2 {
   border-radius: var(--radius-lg);
   font-size: 0.9rem;
   line-height: 1.55;
-}
-
-.grounding-header,
-.grounding-widget-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.grounding-list {
-  display: grid;
-  gap: 10px;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.grounding-item {
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.grounding-link {
-  display: grid;
-  gap: 6px;
-  padding: 12px 14px;
-  color: inherit;
-  text-decoration: none;
-}
-
-.grounding-link:hover,
-.grounding-link:focus-visible {
-  border-color: var(--border-active);
-  outline: none;
-}
-
-.grounding-link-copy {
-  font-size: 0.72rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.widget-shell {
-  display: grid;
-  gap: 10px;
-}
-
-.grounding-widget {
-  min-height: 120px;
-  padding: 8px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  background: #fff;
-  color: #111827;
 }
 
 .warning-banner {
@@ -1259,7 +1191,14 @@ h2 {
   }
 
   .app-grid {
-    grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+    grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.7fr);
+    gap: 24px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .app-grid {
+    grid-template-columns: minmax(0, 1.4fr) minmax(340px, 0.6fr);
   }
 }
 
@@ -1297,12 +1236,14 @@ h2 {
     grid-template-columns: 1fr;
   }
 
-  h1 {
-    font-size: 2rem;
-  }
-
   .summary-strip {
     grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  /* Make sure hero layout stacks better on mobile */
+  .hero-layout {
+    grid-template-columns: 1fr !important;
   }
 }
 
@@ -1316,49 +1257,6 @@ h2 {
     scroll-behavior: auto;
     transition-duration: 0ms !important;
     animation-duration: 0ms !important;
-  }
-}
-
-@media (prefers-contrast: more) {
-  :root {
-    --border-default: rgba(241, 245, 249, 0.48);
-    --border-subtle: rgba(241, 245, 249, 0.3);
-    --surface-card: rgba(15, 23, 42, 0.92);
-    --surface-raised: #0f172a;
-    --surface-input: rgba(15, 23, 42, 0.95);
-  }
-
-  .hero-card,
-  .panel-card,
-  .conversation,
-  .recommendation-card,
-  .summary-card,
-  .detail-card,
-  .fallback-card,
-  .grounding-panel,
-  .grounding-item {
-    box-shadow: none;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-}
-
-@media (forced-colors: active) {
-  .ambient-orb {
-    display: none;
-  }
-
-  .hero-card,
-  .panel-card,
-  .conversation,
-  .recommendation-card,
-  .summary-card,
-  .detail-card,
-  .fallback-card,
-  .grounding-panel {
-    forced-color-adjust: auto;
-    border: 1px solid CanvasText;
-    background: Canvas;
   }
 }
 
@@ -1378,6 +1276,9 @@ h2 {
   color: var(--text-primary);
 }
 
+/* ============================================================
+   VISUALLY HIDDEN — screen-reader-only content
+   ============================================================ */
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -1390,6 +1291,9 @@ h2 {
   border: 0;
 }
 
+/* ============================================================
+   VENUE MAP PANEL
+   ============================================================ */
 .venue-map-panel {
   overflow: hidden;
 }
@@ -1415,3 +1319,50 @@ h2 {
 .venue-map-route-label strong {
   color: var(--text-primary);
 }
+
+/* ============================================================
+   GOOGLE SIGN-IN BUTTON
+   ============================================================ */
+.google-signin-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 20px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: #ffffff;
+  color: #1f1f1f;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.google-signin-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.google-signin-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.operator-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.operator-divider::before,
+.operator-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border-default);
+}
+

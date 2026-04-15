@@ -1,16 +1,19 @@
 {
-  "name": "Smart Crowd Navigator",
+  "name": "Smart Crowd Navigator — Live Venue Flow Assistant",
   "short_name": "CrowdNav",
-  "description": "Live venue crowd routing assistant",
+  "description": "A Gemini-powered assistant for real-time movement decisions inside sporting venues.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0B1121",
   "theme_color": "#0B1121",
+  "orientation": "portrait-primary",
+  "categories": ["utilities", "sports", "navigation"],
   "icons": [
     {
       "src": "/favicon.svg",
       "sizes": "any",
-      "type": "image/svg+xml"
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ]
 }

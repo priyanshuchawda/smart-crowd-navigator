@@ -1,10 +1,12 @@
 import { getAnalytics, isSupported } from "firebase/analytics";
 import { type FirebaseApp, getApp, getApps, initializeApp } from "firebase/app";
 import {
+  GoogleAuthProvider,
   type User,
   getAuth,
   onAuthStateChanged,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signOut,
 } from "firebase/auth";
 import {
@@ -279,6 +281,16 @@ async function signOutOperator() {
   await signOut(firebaseAuth);
 }
 
+/** Initiates a Google-provider popup sign-in flow for operators. */
+async function signInOperatorWithGoogle() {
+  if (!firebaseAuth) {
+    throw new Error("Firebase Auth is not configured.");
+  }
+
+  const provider = new GoogleAuthProvider();
+  await signInWithPopup(firebaseAuth, provider);
+}
+
 async function getOperatorIdToken() {
   if (!firebaseAuth?.currentUser) {
     return null;
@@ -313,6 +325,7 @@ export {
   setFirebaseOperatorStates,
   subscribeToFirebaseLiveVenueState,
   signInOperator,
+  signInOperatorWithGoogle,
   signOutOperator,
   subscribeToFirebaseOperatorStates,
   subscribeToOperatorSession,

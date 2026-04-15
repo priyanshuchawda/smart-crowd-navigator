@@ -1,9 +1,6 @@
 import { demoVenueFixture } from "./fixture.js";
 import type {
-  DestinationState,
   EventPhase,
-  GroupCoordinatorPlan,
-  GroupWorkflow,
   MobilityMode,
   RankDestinationsInput,
   RankedDestination,
@@ -47,21 +44,11 @@ function getEventPenalty(intent: VenueIntent, eventPhase: EventPhase) {
   return eventPenaltyMatrix[intent][eventPhase];
 }
 
-function buildAdjacency(
-  edges: VenueEdge[],
-  mobilityMode: MobilityMode,
-  groupProfile: RankDestinationsInput["groupProfile"],
-) {
+function buildAdjacency(edges: VenueEdge[], mobilityMode: MobilityMode) {
   const adjacency = new Map<string, VenueEdge[]>();
 
   for (const edge of edges) {
-    const requiresStepFreeRoute =
-      mobilityMode === "accessible" ||
-      (mobilityMode === "mixed" &&
-        groupProfile?.includesMobilityLimitedGuest &&
-        groupProfile.keepGroupTogether !== false);
-
-    if (requiresStepFreeRoute && !edge.accessible) {
+    if (mobilityMode === "accessible" && !edge.accessible) {
       continue;
     }
 
@@ -84,9 +71,8 @@ function calculateShortestRoute(
   fromId: string,
   toId: string,
   mobilityMode: MobilityMode,
-  groupProfile: RankDestinationsInput["groupProfile"],
 ) {
-  const adjacency = buildAdjacency(edges, mobilityMode, groupProfile);
+  const adjacency = buildAdjacency(edges, mobilityMode);
   const distances = new Map<string, number>();
   const previous = new Map<string, string | null>();
   const unvisited = new Set(nodes.map((node) => node.id));
@@ -120,8 +106,7 @@ function calculateShortestRoute(
       const candidateDistance =
         (distances.get(current) ?? Number.POSITIVE_INFINITY) +
         edge.minutes +
-        edge.congestionPenalty +
-        getMixedMobilityEdgePenalty(edge, mobilityMode, groupProfile);
+        edge.congestionPenalty;
 
       if (
         candidateDistance < (distances.get(edge.to) ?? Number.POSITIVE_INFINITY)
@@ -156,7 +141,6 @@ function createBreakdown(
   partyServiceMinutes: number,
   crowdPenalty: number,
   eventPenalty: number,
-  telemetryPenalty: number,
 ): ScoreBreakdown {
   return {
     walkingMinutes,
@@ -164,171 +148,15 @@ function createBreakdown(
     partyServiceMinutes,
     crowdPenalty,
     eventPenalty,
-    telemetryPenalty,
     totalScore:
       Math.round(
         (walkingMinutes +
           queueMinutes +
           partyServiceMinutes +
           crowdPenalty +
-          eventPenalty +
-          telemetryPenalty) *
+          eventPenalty) *
           10,
       ) / 10,
-  };
-}
-
-function getMixedMobilityEdgePenalty(
-  edge: VenueEdge,
-  mobilityMode: MobilityMode,
-  groupProfile: RankDestinationsInput["groupProfile"],
-) {
-  if (
-    mobilityMode !== "mixed" ||
-    !groupProfile?.includesMobilityLimitedGuest ||
-    !groupProfile.keepGroupTogether
-  ) {
-    return 0;
-  }
-
-  if (edge.pathType === "stairs") {
-    return 6;
-  }
-
-  if (edge.pathType === "elevator") {
-    return 1;
-  }
-
-  if (edge.pathType === "ramp") {
-    return 0.5;
-  }
-
-  return 0;
-}
-
-function getTelemetryPenalty(destinationState: DestinationState) {
-  const telemetryConfidence =
-    destinationState.telemetryConfidence ?? "observed";
-  const waitTimeVariability = destinationState.waitTimeVariability ?? 0;
-  const status = destinationState.status ?? "open";
-  const confidencePenalty =
-    telemetryConfidence === "observed"
-      ? 0
-      : telemetryConfidence === "estimated"
-        ? 0.5
-        : 1;
-  const statusPenalty =
-    status === "open" ? 0 : status === "limited" ? 2 : Number.POSITIVE_INFINITY;
-
-  if (!Number.isFinite(statusPenalty)) {
-    return statusPenalty;
-  }
-
-  return statusPenalty + waitTimeVariability / 2 + confidencePenalty;
-}
-
-function getNodeLabel(fixture: VenueFixture, nodeId: string) {
-  return fixture.nodes.find((node) => node.id === nodeId)?.label ?? nodeId;
-}
-
-function inferGroupWorkflow(
-  input: RankDestinationsInput,
-): Exclude<GroupWorkflow, "auto"> | null {
-  if (input.groupWorkflow && input.groupWorkflow !== "auto") {
-    return input.groupWorkflow;
-  }
-
-  if (input.intent === "food" && (input.partySize ?? 1) >= 4) {
-    return "runner-pickup";
-  }
-
-  if (
-    input.mobilityMode === "mixed" ||
-    input.groupProfile?.includesMobilityLimitedGuest
-  ) {
-    return "meet-up";
-  }
-
-  if (
-    input.eventPhase === "break" &&
-    (input.partySize ?? 1) >= 3 &&
-    (input.intent === "food" || input.intent === "washroom")
-  ) {
-    return "return-before-play";
-  }
-
-  return null;
-}
-
-export function buildGroupCoordinatorPlan(
-  input: RankDestinationsInput,
-  selectedDestination: RankedDestination,
-  fixture: VenueFixture = demoVenueFixture,
-): GroupCoordinatorPlan | null {
-  const workflowType = inferGroupWorkflow(input);
-
-  if (!workflowType || (input.partySize ?? 1) <= 1) {
-    return null;
-  }
-
-  const sectionLabel = getNodeLabel(fixture, input.sectionId);
-  const regroupSpot =
-    workflowType === "meet-up"
-      ? getNodeLabel(
-          fixture,
-          selectedDestination.route.includes("elevator-core")
-            ? "elevator-core"
-            : "concourse-center",
-        )
-      : sectionLabel;
-
-  if (workflowType === "runner-pickup") {
-    return {
-      workflowType,
-      headline: "Send one runner while the rest of the group holds position.",
-      regroupSpot,
-      regroupEtaMinutes: Math.round(selectedDestination.score.walkingMinutes),
-      splitRecommended: true,
-      steps: [
-        `Keep most of the group at ${regroupSpot}.`,
-        `Send one runner to ${selectedDestination.label}.`,
-        `Regroup at ${regroupSpot} before the whole group moves again.`,
-      ],
-    };
-  }
-
-  if (workflowType === "meet-up") {
-    return {
-      workflowType,
-      headline: "Regroup first, then move together on the step-free route.",
-      regroupSpot,
-      regroupEtaMinutes: Math.round(selectedDestination.score.walkingMinutes),
-      splitRecommended: false,
-      steps: [
-        `Bring everyone together at ${regroupSpot}.`,
-        `Take the calmer shared route to ${selectedDestination.label}.`,
-        "Keep the group together so mobility-limited guests are not forced onto a different path.",
-      ],
-    };
-  }
-
-  return {
-    workflowType,
-    headline:
-      "Use a quick regroup plan so the whole group gets back before play resumes.",
-    regroupSpot,
-    regroupEtaMinutes: Math.round(
-      selectedDestination.score.walkingMinutes +
-        selectedDestination.score.queueMinutes,
-    ),
-    splitRecommended: input.intent === "food",
-    steps: [
-      input.intent === "food"
-        ? `Send one person to ${selectedDestination.label} while the others hold at ${regroupSpot}.`
-        : `Move the full group to ${selectedDestination.label} together from ${regroupSpot}.`,
-      `Regroup at ${regroupSpot} once the stop is complete.`,
-      "Head back before the event phase shifts from the current break window.",
-    ],
   };
 }
 
@@ -353,6 +181,13 @@ function buildRankings(
 
   return candidates
     .map((candidate) => {
+      const route = calculateShortestRoute(
+        fixture.nodes,
+        fixture.edges,
+        input.sectionId,
+        candidate.id,
+        mobilityMode,
+      );
       const destinationState = fixture.destinationStates.find(
         (state) => state.nodeId === candidate.id,
       );
@@ -360,21 +195,6 @@ function buildRankings(
       if (!destinationState) {
         throw new Error(`Missing destination state for ${candidate.id}`);
       }
-
-      const telemetryPenalty = getTelemetryPenalty(destinationState);
-
-      if (!Number.isFinite(telemetryPenalty)) {
-        return null;
-      }
-
-      const route = calculateShortestRoute(
-        fixture.nodes,
-        fixture.edges,
-        input.sectionId,
-        candidate.id,
-        mobilityMode,
-        input.groupProfile,
-      );
 
       const partyServiceMinutes =
         Math.max(0, partySize - 1) *
@@ -385,7 +205,6 @@ function buildRankings(
         partyServiceMinutes,
         destinationState.crowdPenalty,
         getEventPenalty(input.intent, input.eventPhase),
-        telemetryPenalty,
       );
 
       return {
@@ -396,10 +215,20 @@ function buildRankings(
         score,
       } satisfies RankedDestination;
     })
-    .filter((candidate): candidate is RankedDestination => candidate !== null)
     .sort((left, right) => left.score.totalScore - right.score.totalScore);
 }
 
+/**
+ * Ranks all candidate destinations for a given intent, sorted by ascending
+ * total cost (walking + queue + party service + crowd penalty + event penalty).
+ *
+ * Uses Dijkstra's shortest-path from the attendee's section to each candidate.
+ * Deterministic: identical inputs always produce identical rankings.
+ *
+ * @param input - Attendee context: section, intent, event phase, party size, mobility mode.
+ * @param fixture - Venue graph definition (defaults to the demo venue).
+ * @returns Ranked destinations sorted from lowest to highest total cost.
+ */
 export function rankDestinations(
   input: RankDestinationsInput,
   fixture: VenueFixture = demoVenueFixture,
@@ -412,11 +241,11 @@ export function rankDestinations(
 }
 
 /**
- * Returns the second-best option from the ranked destination list.
+ * Returns the second-best destination as a fallback option.
+ * Returns null if only one candidate exists.
  *
- * @param input - Request context used to produce destination rankings.
- * @param fixture - Optional venue fixture override for tests and simulations.
- * @returns The fallback destination or null if there is no second candidate.
+ * @param input - Attendee context for ranking.
+ * @param fixture - Venue graph definition.
  */
 export function getFallbackDestination(
   input: RankDestinationsInput,
@@ -428,11 +257,14 @@ export function getFallbackDestination(
 }
 
 /**
- * Compares going now vs waiting for queue trend changes, then returns timing advice.
+ * Determines whether the attendee should leave now or wait, by projecting
+ * queue changes over a wait window and comparing total trip cost.
  *
- * @param input - Ranking context plus optional wait window in minutes.
- * @param fixture - Optional venue fixture override for tests and simulations.
- * @returns Timing decision details with current/projected best options.
+ * Decision rule: if waiting saves ≥ 2 minutes of total trip time, recommend "wait".
+ *
+ * @param input - Attendee context plus waitWindowMinutes (default 5).
+ * @param fixture - Venue graph definition.
+ * @returns Timing advice with decision, projected best, and time saved.
  */
 export function getTimingAdvice(
   input: TimingAdviceInput,

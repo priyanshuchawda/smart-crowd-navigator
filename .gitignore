@@ -53,3 +53,4 @@ config/
 .tmp/
 tmp/
 test-results/
+.omx/
