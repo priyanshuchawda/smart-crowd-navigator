@@ -19,7 +19,7 @@
   /* Text palette */
   --text-primary: #f1f5f9;
   --text-secondary: #94a3b8;
-  --text-muted: #9aaec4;
+  --text-muted: #8896ad;
   --text-inverse: #0f172a;
 
   /* Accent palette */
@@ -1099,6 +1099,31 @@ h2 {
   border: 1px solid var(--border-default);
   border-radius: var(--radius-xl);
   background: var(--surface-base);
+}
+
+.places-enrichment-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid rgba(96, 165, 250, 0.22);
+  border-radius: var(--radius-xl);
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.places-enrichment-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.places-enrichment-pill {
+  padding: 8px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  background: rgba(96, 165, 250, 0.12);
+  color: var(--text-primary);
+  font-size: 0.84rem;
+  font-weight: 600;
 }
 
 .recommendation-skeleton-stack {

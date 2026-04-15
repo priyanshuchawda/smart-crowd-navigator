@@ -46,6 +46,7 @@ Typical questions the product answers:
 - venue map panel with recommended destination highlighting
 - Google Maps citations plus an inline map preview for venue-perimeter answers
 - official Google Maps Embed API preview when `VITE_GOOGLE_MAPS_API_KEY` is configured, with a no-key fallback for demo resilience
+- Places API enrichment for grounded nearby locations when Gemini returns a `placeId`
 
 ### Decision engine
 - deterministic venue engine in TypeScript

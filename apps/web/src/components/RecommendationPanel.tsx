@@ -1,4 +1,4 @@
-import type { RefObject } from "react";
+import { type RefObject, useEffect, useState } from "react";
 
 import type { AssistantApiResponse } from "../types";
 
@@ -6,6 +6,13 @@ interface RecommendationPanelProps {
   headingRef?: RefObject<HTMLHeadingElement | null>;
   response: AssistantApiResponse | null;
   isLoading?: boolean;
+}
+
+interface PlaceEnrichment {
+  displayName?: string;
+  openNow?: boolean | null;
+  rating?: number;
+  reviewCount?: number;
 }
 
 const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY?.trim() ?? "";
@@ -26,12 +33,128 @@ function buildGroundingPreviewUrl(
   )}&output=embed`;
 }
 
+function GroundedPlaceDetails({
+  place,
+  widgetContextToken,
+}: {
+  place: NonNullable<AssistantApiResponse["grounding"]>["places"][number];
+  widgetContextToken?: string;
+}) {
+  const [placeEnrichment, setPlaceEnrichment] =
+    useState<PlaceEnrichment | null>(null);
+
+  useEffect(() => {
+    if (!googleMapsApiKey || !place.placeId) {
+      setPlaceEnrichment(null);
+      return;
+    }
+
+    const controller = new AbortController();
+
+    async function loadPlaceEnrichment() {
+      try {
+        const detailsResponse = await fetch(
+          `https://places.googleapis.com/v1/places/${place.placeId}`,
+          {
+            headers: {
+              "X-Goog-Api-Key": googleMapsApiKey,
+              "X-Goog-FieldMask":
+                "displayName,rating,userRatingCount,regularOpeningHours.openNow",
+            },
+            signal: controller.signal,
+          },
+        );
+
+        if (!detailsResponse.ok) {
+          throw new Error(
+            `Places enrichment failed with ${detailsResponse.status}`,
+          );
+        }
+
+        const details = (await detailsResponse.json()) as {
+          displayName?: { text?: string };
+          rating?: number;
+          regularOpeningHours?: { openNow?: boolean };
+          userRatingCount?: number;
+        };
+
+        setPlaceEnrichment({
+          displayName: details.displayName?.text,
+          openNow: details.regularOpeningHours?.openNow ?? null,
+          rating: details.rating,
+          reviewCount: details.userRatingCount,
+        });
+      } catch {
+        if (!controller.signal.aborted) {
+          setPlaceEnrichment(null);
+        }
+      }
+    }
+
+    void loadPlaceEnrichment();
+
+    return () => controller.abort();
+  }, [place.placeId]);
+
+  return (
+    <>
+      <iframe
+        className="grounding-map-preview"
+        loading="lazy"
+        referrerPolicy="no-referrer-when-downgrade"
+        src={buildGroundingPreviewUrl(place)}
+        title={`Map preview for ${place.title}`}
+      />
+
+      {placeEnrichment ? (
+        <div className="places-enrichment-card">
+          <p className="rationale-heading">Places API enrichment</p>
+          <div className="places-enrichment-grid">
+            {placeEnrichment.displayName ? (
+              <span className="places-enrichment-pill">
+                {placeEnrichment.displayName}
+              </span>
+            ) : null}
+            {typeof placeEnrichment.rating === "number" ? (
+              <span className="places-enrichment-pill">
+                {placeEnrichment.rating.toFixed(1)} / 5 rating
+              </span>
+            ) : null}
+            {typeof placeEnrichment.reviewCount === "number" ? (
+              <span className="places-enrichment-pill">
+                {placeEnrichment.reviewCount} reviews
+              </span>
+            ) : null}
+            {placeEnrichment.openNow !== null ? (
+              <span className="places-enrichment-pill">
+                {placeEnrichment.openNow ? "Open now" : "Closed now"}
+              </span>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      <p className="field-help-text">
+        {googleMapsApiKey
+          ? "Official Google Maps Embed API preview is active from VITE_GOOGLE_MAPS_API_KEY for this grounded place."
+          : "Set VITE_GOOGLE_MAPS_API_KEY to upgrade this preview to the official Google Maps Embed API."}{" "}
+        {widgetContextToken
+          ? "A Gemini widget context token is also available for richer handoff."
+          : null}
+      </p>
+    </>
+  );
+}
+
 /** Displays the current venue recommendation with timing advice, route, group plan, and Maps grounding. */
 export function RecommendationPanel({
   headingRef,
   response,
   isLoading,
 }: RecommendationPanelProps) {
+  const groundedPlaces = response?.grounding?.places ?? [];
+  const primaryGroundedPlace = groundedPlaces[0] ?? null;
+
   if (isLoading) {
     return (
       <section
@@ -89,9 +212,7 @@ export function RecommendationPanel({
   }
 
   const groupPlan = response.recommendation.groupPlan;
-  const groundedPlaces = response.grounding?.places ?? [];
   const operationalAdvisory = response.recommendation.operationalAdvisory;
-  const primaryGroundedPlace = groundedPlaces[0] ?? null;
 
   return (
     <section
@@ -329,23 +450,11 @@ export function RecommendationPanel({
             </ul>
 
             {primaryGroundedPlace ? (
-              <iframe
-                className="grounding-map-preview"
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                src={buildGroundingPreviewUrl(primaryGroundedPlace)}
-                title={`Map preview for ${primaryGroundedPlace.title}`}
+              <GroundedPlaceDetails
+                place={primaryGroundedPlace}
+                widgetContextToken={response.grounding?.widgetContextToken}
               />
             ) : null}
-
-            <p className="field-help-text">
-              {googleMapsApiKey
-                ? "Official Google Maps Embed API preview is active from VITE_GOOGLE_MAPS_API_KEY for this grounded place."
-                : "Set VITE_GOOGLE_MAPS_API_KEY to upgrade this preview to the official Google Maps Embed API."}{" "}
-              {response.grounding?.widgetContextToken
-                ? "A Gemini widget context token is also available for richer handoff."
-                : null}
-            </p>
           </section>
         ) : null}
       </div>
