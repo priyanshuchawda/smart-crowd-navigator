@@ -6,7 +6,7 @@ Deploy Smart Crowd Navigator so the web app and API are both served from one Clo
 
 Current deployed URL:
 
-`https://smart-crowd-navigator-1051094454693.us-central1.run.app`
+`https://smart-crowd-navigator-6onqsv3h4a-uc.a.run.app`
 
 ## Runtime model
 

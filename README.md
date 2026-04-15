@@ -47,6 +47,7 @@ That makes it more useful in the exact moments that matter most in crowded event
 ### Attendee experience
 - mobile-first React web app
 - attendee context controls for section, party size, event phase, and mobility mode
+- free-text chat input plus quick actions in the same conversation flow
 - one-tap decision flows for:
   - Food
   - Washroom
@@ -60,6 +61,8 @@ That makes it more useful in the exact moments that matter most in crowded event
   - route summary
   - crowd warning
   - fallback option
+- group coordinator plan when the request benefits from runner / regroup guidance
+- Google Maps citations for venue-perimeter answers when nearby-place grounding is used
 - inline venue map panel highlighting the recommended destination
 
 ### Decision logic
@@ -83,7 +86,7 @@ That makes it more useful in the exact moments that matter most in crowded event
 ### Live update flow
 - operator console for changing venue-state inputs
 - live attendee recommendation refresh after operator changes
-- Firebase-backed operator auth/state integration path in the repo
+- Firebase-backed live venue state integration path in the repo
 - local API fallback path for development and demo flows
 
 ### Production-readiness work already in the repo
@@ -98,15 +101,15 @@ That makes it more useful in the exact moments that matter most in crowded event
 
 ### Active in the current implementation
 - **Gemini API** — assistant response generation with deterministic grounding from backend recommendation data
+- **Google Maps grounding through Gemini** — venue-perimeter nearby-place guidance plus source citations in the UI
 - **Cloud Run** — deployed runtime target for the Node API + web app
 - **Firebase Auth** — operator sign-in path
-- **Firestore** — operator-state persistence path
+- **Firestore** — live venue state persistence path
 - **Firestore Security Rules** — operator/admin-only write protection
 - **Firebase App Check** — client + backend verification path support
 
 ### Clearly not shipped yet in the current product
 These are roadmap items, not current shipped capabilities:
-- Google Maps grounding for venue-perimeter guidance
 - Firebase Hosting rollout
 - production venue telemetry ingestion beyond the current repository fixtures/operator flows
 
@@ -203,7 +206,7 @@ Then open:
 - API: `http://127.0.0.1:8080`
 
 Live Cloud Run URL:
-- `https://smart-crowd-navigator-1051094454693.us-central1.run.app`
+- `https://smart-crowd-navigator-6onqsv3h4a-uc.a.run.app`
 
 ## Best demo flow
 
