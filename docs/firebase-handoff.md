@@ -5,7 +5,7 @@ Firebase is now partially integrated.
 Already implemented:
 - Firebase env placeholders
 - web config module
-- Firestore-backed operator state sync path with local API fallback
+- Firestore-backed live venue state sync path with local API fallback
 - Firebase email/password operator sign-in path
 - Firestore security rules for operator/admin-only writes
 - Firebase App Check web bootstrap path
@@ -54,11 +54,13 @@ OPERATOR_ROLE_COLLECTION=operator-roles
 ## Remaining Integration Order
 
 1. Provision `operator-roles/{uid}` documents with `{ role: "operator" | "admin", active: true }`
-2. Register the web app in App Check with a reCAPTCHA Enterprise site key
-3. Safelist debug tokens for localhost/CI as needed
-4. Enable Firestore App Check enforcement in the Firebase console when ready
-5. Add Hosting configuration
-6. Remove local-only fallback assumptions where appropriate
+2. Create the canonical live state document at `venue-live-state/demoVenue`
+3. Treat `venue-live-state/{venueId}` as the production source of truth for venue telemetry
+4. Register the web app in App Check with a reCAPTCHA Enterprise site key
+5. Safelist debug tokens for localhost/CI as needed
+6. Enable Firestore App Check enforcement in the Firebase console when ready
+7. Add Hosting configuration
+8. Remove local-only fallback assumptions where appropriate
 
 ## Verification Once Unblocked
 

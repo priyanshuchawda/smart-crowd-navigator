@@ -18,6 +18,76 @@ function parseRecommendationRequest(requestBody: unknown) {
   return recommendationRequestSchema.parse(requestBody);
 }
 
+type LiveVenueStateMetadata = {
+  lastSyncedAt: string | null;
+  source: "local-fixture" | "operator-sync" | "snapshot-sync";
+  stateCount: number;
+  venueId: string;
+};
+
+function createLiveVenueStateStore(venueDataSource: VenueDataSource) {
+  let liveDestinationStates: DestinationState[] =
+    venueDataSource.state.destinationStates.map((state) => ({ ...state }));
+  let metadata: LiveVenueStateMetadata = {
+    lastSyncedAt: null,
+    source:
+      venueDataSource.source === "local-fixture"
+        ? "local-fixture"
+        : "snapshot-sync",
+    stateCount: liveDestinationStates.length,
+    venueId: venueDataSource.topology.venueId,
+  };
+
+  function getSnapshot() {
+    return liveDestinationStates.map((state) => ({ ...state }));
+  }
+
+  function getMetadata(): LiveVenueStateMetadata {
+    return { ...metadata };
+  }
+
+  function replaceSnapshot(
+    states: DestinationState[],
+    source: LiveVenueStateMetadata["source"],
+  ) {
+    liveDestinationStates = states.map((state) => ({ ...state }));
+    metadata = {
+      ...metadata,
+      lastSyncedAt: new Date().toISOString(),
+      source,
+      stateCount: liveDestinationStates.length,
+    };
+
+    return getSnapshot();
+  }
+
+  function updateDestination(nextState: DestinationState) {
+    return replaceSnapshot(
+      liveDestinationStates.map((state) =>
+        state.nodeId === nextState.nodeId ? { ...nextState } : state,
+      ),
+      "operator-sync",
+    );
+  }
+
+  function resetToFixture() {
+    return replaceSnapshot(
+      venueDataSource.state.destinationStates,
+      venueDataSource.source === "local-fixture"
+        ? "local-fixture"
+        : "snapshot-sync",
+    );
+  }
+
+  return {
+    getMetadata,
+    getSnapshot,
+    replaceSnapshot,
+    resetToFixture,
+    updateDestination,
+  };
+}
+
 function createRecommendationService({
   venueDataSource = localDevelopmentVenueDataSource,
 }: {
@@ -26,12 +96,14 @@ function createRecommendationService({
   const engine = createVenueEngine({
     defaultDataSource: venueDataSource,
   });
-  let liveDestinationStates: DestinationState[] =
-    venueDataSource.state.destinationStates.map((state) => ({ ...state }));
+  const liveVenueStateStore = createLiveVenueStateStore(venueDataSource);
 
   function getLiveFixture(): VenueFixture {
     return createVenueFixtureFromDataSource(
-      replaceDestinationStates(venueDataSource, liveDestinationStates),
+      replaceDestinationStates(
+        venueDataSource,
+        liveVenueStateStore.getSnapshot(),
+      ),
     );
   }
 
@@ -156,33 +228,33 @@ function createRecommendationService({
   }
 
   function getOperatorState() {
-    return liveDestinationStates.map((state) => ({ ...state }));
+    return liveVenueStateStore.getSnapshot();
   }
 
   function updateOperatorState(nextState: DestinationState) {
-    liveDestinationStates = liveDestinationStates.map((state) =>
-      state.nodeId === nextState.nodeId ? { ...nextState } : state,
-    );
+    return liveVenueStateStore.updateDestination(nextState);
+  }
 
-    return getOperatorState();
+  function syncLiveVenueState(states: DestinationState[]) {
+    return liveVenueStateStore.replaceSnapshot(states, "snapshot-sync");
+  }
+
+  function getLiveVenueStateMetadata() {
+    return liveVenueStateStore.getMetadata();
   }
 
   function resetOperatorState() {
-    liveDestinationStates = venueDataSource.state.destinationStates.map(
-      (state) => ({
-        ...state,
-      }),
-    );
-
-    return getOperatorState();
+    return liveVenueStateStore.resetToFixture();
   }
 
   return {
     buildDeterministicAssistantResponse,
     buildRecommendationPayload,
     engine,
+    getLiveVenueStateMetadata,
     getOperatorState,
     resetOperatorState,
+    syncLiveVenueState,
     updateOperatorState,
   };
 }
@@ -192,18 +264,23 @@ const {
   buildDeterministicAssistantResponse,
   buildRecommendationPayload,
   engine,
+  getLiveVenueStateMetadata,
   getOperatorState,
   resetOperatorState,
+  syncLiveVenueState,
   updateOperatorState,
 } = recommendationService;
 
 export {
   buildDeterministicAssistantResponse,
   buildRecommendationPayload,
+  createLiveVenueStateStore,
   createRecommendationService,
   engine,
+  getLiveVenueStateMetadata,
   getOperatorState,
   parseRecommendationRequest,
   resetOperatorState,
+  syncLiveVenueState,
   updateOperatorState,
 };

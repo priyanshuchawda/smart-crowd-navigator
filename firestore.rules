@@ -21,6 +21,11 @@ service cloud.firestore {
       allow write: if isApprovedOperator();
     }
 
+    match /venue-live-state/{documentId} {
+      allow read: if true;
+      allow write: if isApprovedOperator();
+    }
+
     match /operator-roles/{userId} {
       allow read: if signedIn() && request.auth.uid == userId;
       allow write: if false;

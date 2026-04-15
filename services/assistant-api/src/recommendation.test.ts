@@ -5,7 +5,10 @@ import {
   replaceDestinationStates,
 } from "@smart-crowd-navigator/venue-engine";
 
-import { createRecommendationService } from "./recommendation.js";
+import {
+  createLiveVenueStateStore,
+  createRecommendationService,
+} from "./recommendation.js";
 
 describe("recommendation service venue data source boundary", () => {
   it("can be constructed with an explicit venue data source", () => {
@@ -83,5 +86,26 @@ describe("recommendation service venue data source boundary", () => {
 
     expect(payload.groupPlan?.workflowType).toBe("runner-pickup");
     expect(payload.groupPlan?.headline).toContain("runner");
+  });
+
+  it("tracks live venue state metadata across snapshot sync and reset", () => {
+    const store = createLiveVenueStateStore(localDevelopmentVenueDataSource);
+
+    expect(store.getMetadata().source).toBe("local-fixture");
+
+    store.replaceSnapshot(
+      localDevelopmentVenueDataSource.state.destinationStates.map((state) => ({
+        ...state,
+        queueMinutes: state.queueMinutes + 1,
+      })),
+      "snapshot-sync",
+    );
+
+    expect(store.getMetadata().source).toBe("snapshot-sync");
+    expect(store.getMetadata().stateCount).toBeGreaterThan(0);
+
+    store.resetToFixture();
+
+    expect(store.getMetadata().source).toBe("local-fixture");
   });
 });

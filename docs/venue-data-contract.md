@@ -56,6 +56,8 @@ The API recommendation layer no longer relies on an implicitly named demo fixtur
 
 Instead, it uses an explicit `VenueDataSource` boundary and can be constructed with a different data source later through `createRecommendationService({ venueDataSource })`.
 
+The live mutable state inside the API is now tracked through a dedicated live-state store abstraction so production snapshot sync and local fixture reset are separate behaviors.
+
 ## How production data should plug in
 
 A production rollout should provide:
