@@ -1,6 +1,6 @@
 # QA Evidence Report
 
-_Last updated: 2026-04-14 (post roadmap hardening pass)_
+_Last updated: 2026-04-14 (post rubric hardening pass)_
 
 ## Current status
 
@@ -10,6 +10,8 @@ The repository is in a review-ready state with the roadmap implementation lanes 
 - multi-turn attendee chat
 - stateful Gemini chat architecture
 - Google Maps grounding + citation UI
+- inline map preview + offline attendee shell
+- official Maps Embed API path when `VITE_GOOGLE_MAPS_API_KEY` is configured
 - richer venue engine + telemetry
 - group coordinator workflows
 - explicit live-state sync boundary
@@ -25,7 +27,10 @@ The repository is in a review-ready state with the roadmap implementation lanes 
 
 ### Local command evidence
 - `pnpm verify` → pass
+- `pnpm coverage` → available for package-level Vitest coverage reporting
 - targeted Playwright regression suite → pass
+  - `tests/e2e/accessibility-axe.spec.ts`
+  - `tests/e2e/accessibility-smoke.spec.ts`
   - `tests/e2e/attendee-chat-followup.spec.ts`
   - `tests/e2e/maps-grounding-panel.spec.ts`
   - `tests/e2e/group-coordinator-plan.spec.ts`
@@ -52,10 +57,16 @@ Interpretation:
 Manual and code-level checks covered:
 - skip link present at the top of the page
 - keyboard focus styling present globally
-- conversation flow uses explicit labels and button semantics
+- conversation flow uses explicit labels, button semantics, and a live transcript region
 - recommendation sections use clear headings and alert/status regions
 - reduced-motion mode is supported in CSS
 - higher-contrast mode is now explicitly supported in CSS for stronger borders and less visual haze
+- automated axe-core coverage now runs against the attendee shell in Playwright
+- automated attendee-shell accessibility smoke now verifies:
+  - skip link focus order
+  - labeled attendee controls
+  - transcript region visibility
+  - recommendation status announcements
 - manual keyboard pass covered:
   - skip link focus
   - quick action activation
@@ -75,6 +86,8 @@ Current performance posture is acceptable for a review/demo submission because:
 - operator-heavy code remains deferred
 - Firebase code remains deferred
 - attendee flow is immediately usable without opening demo controls
+- the attendee shell is now cached by a lightweight service worker for low-connectivity concourses
+- the service worker now precaches the active hashed web bundles discovered from the built shell
 - Maps widget loading is optional and only attempted when the response includes a widget token and a browser Maps API key is configured
 
 ## Remaining non-code rollout work

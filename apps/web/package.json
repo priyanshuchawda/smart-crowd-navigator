@@ -8,6 +8,7 @@
     "build": "vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "coverage": "vitest run --coverage",
     "lint": "biome check src index.html vite.config.ts",
     "preview": "vite preview"
   },

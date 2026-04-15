@@ -6,6 +6,7 @@ import {
 } from "node:http";
 import { dirname, extname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { gzipSync } from "node:zlib";
 
 import { APP_NAME } from "@smart-crowd-navigator/shared";
 import { config as loadEnv } from "dotenv";
@@ -27,9 +28,11 @@ import {
   buildDeterministicAssistantResponse,
   buildRecommendationPayload,
   engine,
+  getLiveVenueStateMetadata,
   getOperatorState,
   parseRecommendationRequest,
   resetOperatorState,
+  syncLiveVenueState,
   updateOperatorState,
 } from "./recommendation.js";
 
@@ -51,10 +54,15 @@ const staticAssetTypes: Record<string, string> = {
 };
 const operatorStateSchema = z.strictObject({
   nodeId: z.string().min(1),
+  status: z.enum(["open", "limited", "closed"]).optional(),
   queueMinutes: z.number().int().nonnegative(),
   crowdPenalty: z.number().int().nonnegative(),
   queueTrendAfterFiveMinutes: z.number().int(),
   serviceMinutesPerAdditionalPerson: z.number().nonnegative(),
+  telemetryConfidence: z
+    .enum(["observed", "estimated", "predicted"])
+    .optional(),
+  waitTimeVariability: z.number().int().nonnegative().optional(),
 });
 const operatorBulkSchema = z.strictObject({
   states: z.array(operatorStateSchema),
@@ -200,9 +208,27 @@ function respondJson(
   response: ServerResponse,
   statusCode: number,
   payload: unknown,
+  extraHeaders: Record<string, string> = {
+    "cache-control": "no-cache, no-store",
+  },
 ) {
-  response.writeHead(statusCode, getCorsHeaders(request));
-  response.end(JSON.stringify(payload));
+  const jsonPayload = JSON.stringify(payload);
+  const acceptsGzip = request.headers["accept-encoding"]?.includes("gzip");
+  const headers: Record<string, string> = {
+    ...getCorsHeaders(request),
+    ...extraHeaders,
+  };
+
+  if (acceptsGzip) {
+    headers["content-encoding"] = "gzip";
+    headers.vary = "accept-encoding";
+    response.writeHead(statusCode, headers);
+    response.end(gzipSync(jsonPayload));
+    return;
+  }
+
+  response.writeHead(statusCode, headers);
+  response.end(jsonPayload);
 }
 
 async function readStaticFile(pathname: string) {
@@ -358,14 +384,26 @@ function createRequestHandler({
     }
 
     if (method === "GET" && url.pathname === "/health") {
-      response.setHeader("cache-control", "public, max-age=60");
-      respondJson(request, response, 200, {
-        service: `${APP_NAME} API`,
-        status: "ok",
-        engineVersion: engine.version,
-        appCheckRequired: appCheckService.isRequired(),
-        operatorAuthRequired: operatorAuthService.isRequired(),
-      });
+      respondJson(
+        request,
+        response,
+        200,
+        {
+          service: `${APP_NAME} API`,
+          status: "ok",
+          engineVersion: engine.version,
+          appCheckRequired: appCheckService.isRequired(),
+          operatorAuthRequired: operatorAuthService.isRequired(),
+        },
+        {
+          "cache-control": "public, max-age=3600",
+        },
+      );
+      return;
+    }
+
+    if (method === "GET" && url.pathname === "/live-state/source") {
+      respondJson(request, response, 200, getLiveVenueStateMetadata());
       return;
     }
 
@@ -467,10 +505,7 @@ function createRequestHandler({
       try {
         const requestBody = await readJsonBody(request);
         const payload = operatorBulkSchema.parse(requestBody);
-
-        for (const state of payload.states) {
-          updateOperatorState(state);
-        }
+        const states = syncLiveVenueState(payload.states);
 
         auditOperatorMutation(request, "operator.state.bulk", {
           actor: operator?.actor,
@@ -480,7 +515,7 @@ function createRequestHandler({
         });
 
         respondJson(request, response, 200, {
-          states: getOperatorState(),
+          states,
         });
         return;
       } catch (error) {

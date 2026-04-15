@@ -1,6 +1,8 @@
 import { demoVenueFixture } from "./fixture.js";
 import type {
   EventPhase,
+  GroupCoordinatorPlan,
+  GroupWorkflow,
   MobilityMode,
   RankDestinationsInput,
   RankedDestination,
@@ -141,6 +143,7 @@ function createBreakdown(
   partyServiceMinutes: number,
   crowdPenalty: number,
   eventPenalty: number,
+  telemetryPenalty: number,
 ): ScoreBreakdown {
   return {
     walkingMinutes,
@@ -148,16 +151,61 @@ function createBreakdown(
     partyServiceMinutes,
     crowdPenalty,
     eventPenalty,
+    telemetryPenalty,
     totalScore:
       Math.round(
         (walkingMinutes +
           queueMinutes +
           partyServiceMinutes +
           crowdPenalty +
-          eventPenalty) *
+          eventPenalty +
+          telemetryPenalty) *
           10,
       ) / 10,
   };
+}
+
+function getTelemetryPenalty(
+  telemetryConfidence?: "observed" | "estimated" | "predicted",
+  waitTimeVariability?: number,
+) {
+  const confidencePenalty =
+    telemetryConfidence === "predicted"
+      ? 1.5
+      : telemetryConfidence === "estimated"
+        ? 0.5
+        : 0;
+  const variabilityPenalty = Math.min((waitTimeVariability ?? 0) * 0.25, 2);
+
+  return Math.round((confidencePenalty + variabilityPenalty) * 10) / 10;
+}
+
+function getAvailabilityPenalty(status?: "open" | "limited" | "closed") {
+  if (status === "limited") {
+    return 4;
+  }
+
+  if (status === "closed") {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  return 0;
+}
+
+function getAmenityPenalty(
+  candidate: VenueNode,
+  input: RankDestinationsInput,
+): number {
+  if (
+    candidate.id === "family-washroom" &&
+    input.intent === "washroom" &&
+    input.mobilityMode !== "accessible" &&
+    !input.groupProfile?.includesMobilityLimitedGuest
+  ) {
+    return 2;
+  }
+
+  return 0;
 }
 
 function projectQueueMinutes(
@@ -177,7 +225,17 @@ function buildRankings(
 ) {
   const mobilityMode = input.mobilityMode ?? "standard";
   const partySize = input.partySize ?? 1;
-  const candidates = fixture.nodes.filter((node) => node.kind === input.intent);
+  const candidates = fixture.nodes.filter((node) => {
+    if (node.kind !== input.intent) {
+      return false;
+    }
+
+    const destinationState = fixture.destinationStates.find(
+      (state) => state.nodeId === node.id,
+    );
+
+    return destinationState?.status !== "closed";
+  });
 
   return candidates
     .map((candidate) => {
@@ -203,8 +261,14 @@ function buildRankings(
         route.walkingMinutes,
         queueMinutesResolver(candidate.id, destinationState.queueMinutes),
         partyServiceMinutes,
-        destinationState.crowdPenalty,
+        destinationState.crowdPenalty +
+          getAvailabilityPenalty(destinationState.status) +
+          getAmenityPenalty(candidate, input),
         getEventPenalty(input.intent, input.eventPhase),
+        getTelemetryPenalty(
+          destinationState.telemetryConfidence,
+          destinationState.waitTimeVariability,
+        ),
       );
 
       return {
@@ -315,5 +379,98 @@ export function getTimingAdvice(
     reason: shouldWait
       ? `Waiting ${waitWindowMinutes} minutes reduces the predicted total trip cost by ${timeSavedMinutes} minutes.`
       : "Leaving now is still the fastest option once wait time is included.",
+  };
+}
+
+function getNodeLabel(fixture: VenueFixture, nodeId: string) {
+  return fixture.nodes.find((node) => node.id === nodeId)?.label ?? nodeId;
+}
+
+function resolveGroupWorkflow(
+  input: RankDestinationsInput,
+  destination: RankedDestination,
+): Exclude<GroupWorkflow, "auto"> | null {
+  if (input.groupWorkflow && input.groupWorkflow !== "auto") {
+    return input.groupWorkflow;
+  }
+
+  const partySize = input.partySize ?? 1;
+
+  if (partySize < 4 && !input.groupProfile?.keepGroupTogether) {
+    return null;
+  }
+
+  if (input.intent === "food") {
+    return "runner-pickup";
+  }
+
+  if (
+    input.mobilityMode === "accessible" ||
+    input.groupProfile?.includesMobilityLimitedGuest ||
+    destination.kind === "exit"
+  ) {
+    return "meet-up";
+  }
+
+  return "return-before-play";
+}
+
+export function buildGroupCoordinatorPlan(
+  input: RankDestinationsInput,
+  destination: RankedDestination,
+  fixture: VenueFixture = demoVenueFixture,
+): GroupCoordinatorPlan | null {
+  const workflow = resolveGroupWorkflow(input, destination);
+
+  if (!workflow) {
+    return null;
+  }
+
+  const sectionLabel = getNodeLabel(fixture, input.sectionId);
+  const destinationLabel = getNodeLabel(fixture, destination.destinationId);
+  const regroupEtaMinutes = Math.max(
+    2,
+    Math.round(destination.score.walkingMinutes + 1),
+  );
+
+  if (workflow === "runner-pickup") {
+    return {
+      workflowType: workflow,
+      headline: "Send one runner while the rest of the group holds position.",
+      regroupSpot: sectionLabel,
+      regroupEtaMinutes,
+      splitRecommended: true,
+      steps: [
+        `Keep most of the group at ${sectionLabel}.`,
+        `Send one runner to ${destinationLabel}.`,
+        `Regroup at ${sectionLabel} before moving again.`,
+      ],
+    };
+  }
+
+  if (workflow === "meet-up") {
+    return {
+      workflowType: workflow,
+      headline: "Regroup first, then move together on the calmer route.",
+      regroupSpot: "Concourse Center",
+      regroupEtaMinutes,
+      splitRecommended: false,
+      steps: [
+        "Bring everyone together at Concourse Center.",
+        `Move together to ${destinationLabel} once the group is assembled.`,
+      ],
+    };
+  }
+
+  return {
+    workflowType: workflow,
+    headline: "Move as a group now, then return before play resumes.",
+    regroupSpot: sectionLabel,
+    regroupEtaMinutes,
+    splitRecommended: false,
+    steps: [
+      `Head together to ${destinationLabel}.`,
+      `Return to ${sectionLabel} before the next live sequence starts.`,
+    ],
   };
 }

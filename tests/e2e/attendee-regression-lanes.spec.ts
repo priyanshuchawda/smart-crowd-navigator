@@ -44,6 +44,13 @@ test("attendee flow keeps chat, maps, and group-plan lanes working together", as
           routeSummary: "Section A-12 → South Hall → Exit South",
           crowdWarning: null,
           fallbackOption: null,
+          decisionReasons: {
+            strengths: [
+              "Lower congestion pressure than the main fallback route.",
+              "Backed by high-confidence live telemetry.",
+            ],
+            tradeoffs: ["Queue is still meaningful even on the best route."],
+          },
           groupPlan: {
             workflowType: "meet-up",
             headline:
@@ -55,6 +62,14 @@ test("attendee flow keeps chat, maps, and group-plan lanes working together", as
               "Bring everyone together at Concourse Center.",
               "Take the calmer shared route to Exit South.",
             ],
+          },
+          operationalAdvisory: {
+            headline: "All exits are under heavy load.",
+            detail:
+              "Every exit is currently congested, so the safest move is to hold position briefly and avoid pushing into the crowd peak.",
+            recommendedAction:
+              "Hold position, regroup near Concourse Center, then retry the exit flow in a few minutes.",
+            severity: "warning",
           },
           confidence: "high",
         },
@@ -68,9 +83,13 @@ test("attendee flow keeps chat, maps, and group-plan lanes working together", as
     .fill("Where is the best rideshare pickup near the south exit?");
   await page.getByRole("button", { name: "Send question" }).click();
 
-  await expect(page.getByText("Google Maps grounding")).toBeVisible();
+  const groundingRegion = page.getByRole("region", {
+    name: "Google Maps grounding",
+  });
+
+  await expect(groundingRegion).toBeVisible();
   await expect(
-    page.getByRole("link", { name: /Demo Pickup Zone/i }),
+    groundingRegion.getByRole("link", { name: /Demo Pickup Zone/i }),
   ).toBeVisible();
   await expect(page.getByText("Group coordinator plan")).toBeVisible();
   await expect(

@@ -48,6 +48,20 @@ export const assistantGroupPlanSchema = z.strictObject({
   steps: z.array(z.string().min(1)).min(2).max(4),
 });
 
+/** Human-readable explanation of why the engine chose the current option. */
+export const assistantDecisionReasonsSchema = z.strictObject({
+  strengths: z.array(z.string().min(1)).min(2).max(4),
+  tradeoffs: z.array(z.string().min(1)).max(3),
+});
+
+/** Operational fallback/advisory shown when venue conditions are degraded. */
+export const assistantOperationalAdvisorySchema = z.strictObject({
+  detail: z.string().min(1),
+  headline: z.string().min(1),
+  recommendedAction: z.string().min(1),
+  severity: z.enum(["info", "warning"]),
+});
+
 /** Input contract accepted by recommendation and assistant endpoints. */
 export const recommendationRequestSchema = z.strictObject({
   section: z.string().min(1),
@@ -74,7 +88,9 @@ export const assistantRecommendationSchema = z.strictObject({
   routeSummary: z.string().min(1),
   crowdWarning: z.string().min(1).nullable(),
   fallbackOption: destinationOptionSchema.nullable(),
+  decisionReasons: assistantDecisionReasonsSchema,
   groupPlan: assistantGroupPlanSchema.nullable().optional(),
+  operationalAdvisory: assistantOperationalAdvisorySchema.nullable().optional(),
   confidence: confidenceLevelSchema,
 });
 
@@ -100,6 +116,14 @@ export type ConversationMessage = z.infer<typeof conversationMessageSchema>;
 export type DestinationOption = z.infer<typeof destinationOptionSchema>;
 /** Group coordinator plan type inferred from the shared schema. */
 export type AssistantGroupPlan = z.infer<typeof assistantGroupPlanSchema>;
+/** Decision explanation type inferred from the shared schema. */
+export type AssistantDecisionReasons = z.infer<
+  typeof assistantDecisionReasonsSchema
+>;
+/** Operational advisory type inferred from the shared schema. */
+export type AssistantOperationalAdvisory = z.infer<
+  typeof assistantOperationalAdvisorySchema
+>;
 /** Recommendation request type inferred from the shared schema. */
 export type RecommendationRequest = z.infer<typeof recommendationRequestSchema>;
 /** Assistant recommendation type inferred from the shared schema. */

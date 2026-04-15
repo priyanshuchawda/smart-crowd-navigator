@@ -2,7 +2,9 @@ import { expect, test } from "@playwright/test";
 
 test("operator apply change submits the edited draft values", async ({
   page,
+  request,
 }) => {
+  await request.post("http://127.0.0.1:8080/operator/reset");
   await page.goto("/");
   await page.locator("summary").filter({ hasText: "Demo Controls" }).click();
 

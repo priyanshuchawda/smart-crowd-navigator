@@ -7,6 +7,7 @@
     "build": "pnpm -r --filter './apps/**' --filter './packages/**' --filter './services/**' build",
     "typecheck": "pnpm -r --filter './apps/**' --filter './packages/**' --filter './services/**' typecheck",
     "test": "pnpm -r --filter './apps/**' --filter './packages/**' --filter './services/**' test",
+    "coverage": "pnpm --filter @smart-crowd-navigator/shared build && pnpm --filter @smart-crowd-navigator/venue-engine build && pnpm -r --filter './apps/**' --filter './packages/**' --filter './services/**' coverage",
     "lint": "pnpm -r --filter './apps/**' --filter './packages/**' --filter './services/**' lint",
     "verify": "./scripts/verify-local.sh",
     "dev:web": "pnpm --filter @smart-crowd-navigator/web dev",
@@ -17,13 +18,15 @@
     "test:gemini-real": "pnpm --filter @smart-crowd-navigator/assistant-api test:gemini-real"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.1",
     "@biomejs/biome": "1.9.4",
+    "@playwright/test": "1.59.1",
     "@types/node": "24.5.2",
     "@vitejs/plugin-react": "5.0.4",
+    "@vitest/coverage-v8": "^3.2.4",
     "tsx": "4.20.5",
     "typescript": "5.9.2",
     "vite": "7.1.5",
-    "vitest": "3.2.4",
-    "@playwright/test": "1.59.1"
+    "vitest": "3.2.4"
   }
 }
