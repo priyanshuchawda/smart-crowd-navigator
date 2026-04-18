@@ -3,6 +3,7 @@ import {
   APP_TAGLINE,
   type CoreIntent,
 } from "@smart-crowd-navigator/shared";
+import { memo } from "react";
 
 import { intentLabels } from "../intent-metadata";
 
@@ -37,7 +38,7 @@ interface HeroSectionProps {
   summary: string;
 }
 
-export function HeroSection({
+const HeroSection = memo(function HeroSection({
   activeIntent,
   onRequestFoodDemo,
   onScrollToDemo,
@@ -204,4 +205,6 @@ export function HeroSection({
       </section>
     </header>
   );
-}
+});
+
+export { HeroSection };

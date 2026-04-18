@@ -6,7 +6,7 @@ import {
   MOBILITY_MODES,
 } from "@smart-crowd-navigator/shared";
 
-import type { RefObject } from "react";
+import { memo, type RefObject } from "react";
 import { intentDescriptions, intentLabels } from "../intent-metadata";
 import type { AssistantApiResponse, ChatMessage } from "../types";
 import { ConversationPanel } from "./ConversationPanel";
@@ -53,7 +53,7 @@ interface AttendeeFlowPanelsProps {
   summary: string;
 }
 
-export function AttendeeFlowPanels({
+const AttendeeFlowPanels = memo(function AttendeeFlowPanels({
   activeIntent,
   draftQuestion,
   errorMessage,
@@ -289,4 +289,6 @@ export function AttendeeFlowPanels({
       <VenueMapPanel response={response} />
     </div>
   );
-}
+});
+
+export { AttendeeFlowPanels };

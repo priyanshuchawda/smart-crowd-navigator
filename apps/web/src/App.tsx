@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 
 import type {
+  CoreIntent,
   EventPhase,
   GroupWorkflow,
   MobilityMode,
@@ -75,6 +76,18 @@ export function App() {
     summary,
   });
 
+  const handleRequestRecommendation = useCallback(
+    (intent: CoreIntent) => {
+      void requestRecommendation(intent);
+    },
+    [requestRecommendation],
+  );
+
+  const handleRequestFoodDemo = useCallback(() => {
+    scrollToDemo();
+    void requestRecommendation("food");
+  }, [requestRecommendation, scrollToDemo]);
+
   const { handleInstallApp, installPrompt, isOffline } =
     useInstallAndConnectivity();
 
@@ -126,10 +139,7 @@ export function App() {
       <section id="main-content" className="hero-card">
         <HeroSection
           activeIntent={activeIntent}
-          onRequestFoodDemo={() => {
-            scrollToDemo();
-            void requestRecommendation("food");
-          }}
+          onRequestFoodDemo={handleRequestFoodDemo}
           onScrollToDemo={scrollToDemo}
           onScrollToDemoControls={scrollToDemoControls}
           summary={summary}
@@ -150,9 +160,7 @@ export function App() {
             onGroupWorkflowChange={setGroupWorkflow}
             onMobilityModeChange={setMobilityMode}
             onPartySizeChange={setPartySize}
-            onRequestRecommendation={(intent) => {
-              void requestRecommendation(intent);
-            }}
+            onRequestRecommendation={handleRequestRecommendation}
             onSectionChange={setSection}
             onSubmitQuestion={submitQuestion}
             partySize={partySize}
