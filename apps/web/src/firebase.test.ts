@@ -1,50 +1,64 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  getAppCheckToken,
-  getFirebaseLiveVenueStateSnapshot,
-  getOperatorIdToken,
-  hasFirebaseConfig,
-  setFirebaseLiveVenueState,
-  signInOperator,
-  signInOperatorWithGoogle,
-  signOutOperator,
-  subscribeToOperatorSession,
-} from "./firebase";
+function setFirebaseEnvDisabled() {
+  vi.stubEnv("VITE_FIREBASE_API_KEY", "");
+  vi.stubEnv("VITE_FIREBASE_AUTH_DOMAIN", "");
+  vi.stubEnv("VITE_FIREBASE_PROJECT_ID", "");
+  vi.stubEnv("VITE_FIREBASE_STORAGE_BUCKET", "");
+  vi.stubEnv("VITE_FIREBASE_MESSAGING_SENDER_ID", "");
+  vi.stubEnv("VITE_FIREBASE_APP_ID", "");
+  vi.stubEnv("VITE_FIREBASE_MEASUREMENT_ID", "");
+  vi.stubEnv("VITE_FIREBASE_APPCHECK_SITE_KEY", "");
+  vi.stubEnv("VITE_FIREBASE_APPCHECK_DEBUG_TOKEN", "");
+}
 
-const runWhenFirebaseDisabled = hasFirebaseConfig ? it.skip : it;
+async function loadFirebaseModule() {
+  return import("./firebase");
+}
+
+beforeEach(() => {
+  vi.resetModules();
+  vi.unstubAllEnvs();
+  setFirebaseEnvDisabled();
+});
 
 describe("firebase module without configured credentials", () => {
-  runWhenFirebaseDisabled(
-    "exposes firebase-disabled behavior safely",
-    async () => {
-      expect(hasFirebaseConfig).toBe(false);
-      expect(await getOperatorIdToken()).toBeNull();
-      expect(await getFirebaseLiveVenueStateSnapshot()).toBeNull();
-      expect(await getAppCheckToken()).toBeNull();
+  it("exposes firebase-disabled behavior safely", async () => {
+    const {
+      getAppCheckToken,
+      getFirebaseLiveVenueStateSnapshot,
+      getOperatorIdToken,
+      hasFirebaseConfig,
+      setFirebaseLiveVenueState,
+      signInOperator,
+      signInOperatorWithGoogle,
+      signOutOperator,
+    } = await loadFirebaseModule();
 
-      await expect(signOutOperator()).resolves.toBeUndefined();
-      await expect(setFirebaseLiveVenueState([])).resolves.toBeUndefined();
+    expect(hasFirebaseConfig).toBe(false);
+    expect(await getOperatorIdToken()).toBeNull();
+    expect(await getFirebaseLiveVenueStateSnapshot()).toBeNull();
+    expect(await getAppCheckToken()).toBeNull();
 
-      await expect(
-        signInOperator("operator@example.com", "secret"),
-      ).rejects.toThrow("Firebase Auth is not configured.");
+    await expect(signOutOperator()).resolves.toBeUndefined();
+    await expect(setFirebaseLiveVenueState([])).resolves.toBeUndefined();
 
-      await expect(signInOperatorWithGoogle()).rejects.toThrow(
-        "Firebase Auth is not configured.",
-      );
-    },
-  );
+    await expect(
+      signInOperator("operator@example.com", "secret"),
+    ).rejects.toThrow("Firebase Auth is not configured.");
 
-  runWhenFirebaseDisabled(
-    "notifies operator session subscribers with null session",
-    () => {
-      const onChange = vi.fn();
+    await expect(signInOperatorWithGoogle()).rejects.toThrow(
+      "Firebase Auth is not configured.",
+    );
+  });
 
-      const unsubscribe = subscribeToOperatorSession(onChange);
+  it("notifies operator session subscribers with null session", async () => {
+    const { subscribeToOperatorSession } = await loadFirebaseModule();
+    const onChange = vi.fn();
 
-      expect(onChange).toHaveBeenCalledWith(null);
-      expect(typeof unsubscribe).toBe("function");
-    },
-  );
+    const unsubscribe = subscribeToOperatorSession(onChange);
+
+    expect(onChange).toHaveBeenCalledWith(null);
+    expect(typeof unsubscribe).toBe("function");
+  });
 });
