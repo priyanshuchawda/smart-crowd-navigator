@@ -191,7 +191,7 @@ Then open:
 ## Repository structure
 
 - `apps/web` — attendee UI and operator experience
-- `services/assistant-api` — API routes, Gemini boundary, request validation, static serving
+- `services/assistant-api` — API routes, Gemini boundary, request validation, static serving, and shared HTTP request utilities (`src/request-utils.ts`)
 - `packages/shared` — shared contracts and constants
 - `packages/venue-engine` — deterministic route ranking, timing advice, and group workflow logic
 - `tests/e2e` — end-to-end regression coverage
