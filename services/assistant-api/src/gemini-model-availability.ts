@@ -3,6 +3,7 @@ import {
   getGeminiRetryAfterMs,
   isRetryableGeminiTransportError,
 } from "./gemini-retry.js";
+import type { GeminiModelHealthTransition } from "./gemini-model-policy.js";
 
 const DEFAULT_MODEL_COOLDOWN_MS = 45_000;
 
@@ -29,9 +30,17 @@ type SelectFirstAvailableModelOptions = {
   attemptedModels?: ReadonlySet<string>;
 };
 
+type MarkModelFailureOptions = {
+  transition?: GeminiModelHealthTransition;
+};
+
 type GeminiModelAvailabilityService = {
   getModelHealth: (model: string) => GeminiModelHealth;
-  markModelFailure: (model: string, error: unknown) => void;
+  markModelFailure: (
+    model: string,
+    error: unknown,
+    options?: MarkModelFailureOptions,
+  ) => void;
   markModelSuccess: (model: string) => void;
   reset: () => void;
   selectFirstAvailableModel: (
@@ -103,6 +112,26 @@ function defaultTransientModelError(error: unknown) {
   );
 }
 
+function inferModelHealthTransition({
+  error,
+  isTerminalModelError,
+  isTransientModelError,
+}: {
+  error: unknown;
+  isTerminalModelError: (error: unknown) => boolean;
+  isTransientModelError: (error: unknown) => boolean;
+}): GeminiModelHealthTransition {
+  if (isTerminalModelError(error)) {
+    return "terminal";
+  }
+
+  if (isTransientModelError(error)) {
+    return "cooldown";
+  }
+
+  return "healthy";
+}
+
 function createGeminiModelAvailabilityService({
   cooldownMs = DEFAULT_MODEL_COOLDOWN_MS,
   isTerminalModelError = isTerminalGeminiModelError,
@@ -157,10 +186,22 @@ function createGeminiModelAvailabilityService({
     modelStates.delete(model);
   }
 
-  function markModelFailure(model: string, error: unknown) {
+  function markModelFailure(
+    model: string,
+    error: unknown,
+    options: MarkModelFailureOptions = {},
+  ) {
     const nowMs = now();
 
-    if (isTerminalModelError(error)) {
+    const transition =
+      options.transition ??
+      inferModelHealthTransition({
+        error,
+        isTerminalModelError,
+        isTransientModelError,
+      });
+
+    if (transition === "terminal") {
       modelStates.set(model, {
         reason: readErrorMessage(error),
         status: "terminal",
@@ -169,7 +210,7 @@ function createGeminiModelAvailabilityService({
       return;
     }
 
-    if (isTransientModelError(error)) {
+    if (transition === "cooldown") {
       const retryAfterMs = getGeminiRetryAfterMs(error);
       const appliedCooldownMs = Math.max(cooldownMs, retryAfterMs ?? 0);
 

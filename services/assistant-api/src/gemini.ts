@@ -15,6 +15,14 @@ import {
   retryGeminiCall,
 } from "./gemini-retry.js";
 import {
+  buildGeminiModelPolicyChain,
+  classifyGeminiFailureKind,
+  resolveGeminiFailureAction,
+  resolveGeminiFailureTransition,
+  resolveGeminiModelPolicy,
+  type GeminiModelPolicyChain,
+} from "./gemini-model-policy.js";
+import {
   createGeminiModelAvailabilityService,
   type GeminiModelAvailabilityService,
 } from "./gemini-model-availability.js";
@@ -193,24 +201,7 @@ function isRetryableGeminiError(error: unknown) {
     return true;
   }
 
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  const status =
-    "status" in error && typeof error.status === "number" ? error.status : null;
-  const normalizedMessage = error.message.toLowerCase();
-
-  if (status !== null && [429, 500, 502, 503, 504].includes(status)) {
-    return true;
-  }
-
-  return (
-    normalizedMessage.includes("high demand") ||
-    normalizedMessage.includes("resource exhausted") ||
-    normalizedMessage.includes("unavailable") ||
-    normalizedMessage.includes("temporarily unavailable")
-  );
+  return classifyGeminiFailureKind(error) === "transient";
 }
 
 async function runGeminiAssistantWithFallbacks({
@@ -218,15 +209,19 @@ async function runGeminiAssistantWithFallbacks({
     isTransientModelError: (error) => isRetryableGeminiError(error),
   }),
   executeModel,
+  modelPolicyChain,
   primaryModel,
 }: {
   availabilityService?: GeminiModelAvailabilityService;
   executeModel: (model: string) => Promise<AssistantResponsePayload>;
+  modelPolicyChain?: GeminiModelPolicyChain;
   primaryModel: string;
 }) {
   let lastError: unknown = null;
   const attemptedModels = new Set<string>();
   const modelChain = getGeminiModelFallbackChain(primaryModel);
+  const resolvedPolicyChain =
+    modelPolicyChain ?? buildGeminiModelPolicyChain(modelChain);
 
   while (attemptedModels.size < modelChain.length) {
     const model = availabilityService.selectFirstAvailableModel(modelChain, {
@@ -246,10 +241,17 @@ async function runGeminiAssistantWithFallbacks({
     } catch (error) {
       lastError = error;
 
-      availabilityService.markModelFailure(model, error);
+      const policy = resolveGeminiModelPolicy(resolvedPolicyChain, model);
+      const failureKind = classifyGeminiFailureKind(error);
+      const fallbackAction = resolveGeminiFailureAction(policy, failureKind);
+      const transition = resolveGeminiFailureTransition(policy, failureKind);
+
+      availabilityService.markModelFailure(model, error, {
+        transition,
+      });
       const modelHealth = availabilityService.getModelHealth(model);
       const shouldTryNextModel =
-        isRetryableGeminiError(error) || modelHealth.status !== "healthy";
+        fallbackAction === "silent" || modelHealth.status !== "healthy";
 
       if (!shouldTryNextModel) {
         throw error;
