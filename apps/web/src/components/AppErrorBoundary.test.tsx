@@ -39,12 +39,8 @@ describe("AppErrorBoundary", () => {
     expect(
       screen.getByText(/The app hit an unexpected rendering error\./),
     ).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: "Try again" }),
-    ).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: "Reload app" }),
-    ).toBeVisible();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Reload app" })).toBeVisible();
 
     expect(consoleErrorSpy).toHaveBeenCalled();
   });
@@ -62,9 +58,7 @@ describe("AppErrorBoundary", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
 
-    expect(
-      screen.getByRole("button", { name: "Reload app" }),
-    ).toBeVisible();
+    expect(screen.getByRole("button", { name: "Reload app" })).toBeVisible();
     expect(consoleErrorSpy).toHaveBeenCalled();
   });
 });

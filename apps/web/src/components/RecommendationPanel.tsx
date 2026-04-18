@@ -1,4 +1,4 @@
-import { memo, type RefObject, useEffect, useState } from "react";
+import { type RefObject, memo, useEffect, useState } from "react";
 
 import type { AssistantApiResponse } from "../types";
 
