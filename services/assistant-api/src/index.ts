@@ -292,7 +292,8 @@ function createRequestHandler({
     // Serve explicit static assets early — paths with a file extension or the
     // root path.  API routes (no extension) fall through to the handlers below.
     const isExplicitAssetPath =
-      url.pathname === "/" || url.pathname.split("/").pop()?.includes(".") === true;
+      url.pathname === "/" ||
+      url.pathname.split("/").pop()?.includes(".") === true;
 
     if (
       isExplicitAssetPath &&
