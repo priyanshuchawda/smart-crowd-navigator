@@ -17,7 +17,9 @@
     "setup:local": "./scripts/setup-local-env.sh",
     "test:gemini-real": "pnpm --filter @smart-crowd-navigator/assistant-api test:gemini-real",
     "test:behavior": "pnpm --filter @smart-crowd-navigator/assistant-api test:behavior",
-    "test:behavior:update-baselines": "pnpm --filter @smart-crowd-navigator/assistant-api test:behavior:update-baselines"
+    "test:behavior:update-baselines": "pnpm --filter @smart-crowd-navigator/assistant-api test:behavior:update-baselines",
+    "test:perf": "pnpm --filter @smart-crowd-navigator/venue-engine test:perf",
+    "test:perf:update-baselines": "pnpm --filter @smart-crowd-navigator/venue-engine test:perf:update-baselines"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.1",
