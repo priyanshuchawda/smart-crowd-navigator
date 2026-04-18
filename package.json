@@ -15,7 +15,9 @@
     "test:e2e": "pnpm build && playwright test",
     "dev": "./scripts/dev-local.sh",
     "setup:local": "./scripts/setup-local-env.sh",
-    "test:gemini-real": "pnpm --filter @smart-crowd-navigator/assistant-api test:gemini-real"
+    "test:gemini-real": "pnpm --filter @smart-crowd-navigator/assistant-api test:gemini-real",
+    "test:behavior": "pnpm --filter @smart-crowd-navigator/assistant-api test:behavior",
+    "test:behavior:update-baselines": "pnpm --filter @smart-crowd-navigator/assistant-api test:behavior:update-baselines"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.1",

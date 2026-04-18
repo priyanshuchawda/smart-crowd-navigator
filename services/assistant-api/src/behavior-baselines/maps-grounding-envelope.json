@@ -1,0 +1,15 @@
+{
+  "grounding": {
+    "places": [
+      {
+        "placeId": "places/demo-place",
+        "title": "Demo Pickup Zone",
+        "uri": "https://maps.google.com/?cid=demo"
+      }
+    ],
+    "source": "google-maps",
+    "widgetContextToken": "widget-token"
+  },
+  "message": "Use Exit South, then head to Demo Pickup Zone for a smoother pickup.",
+  "source": "gemini"
+}

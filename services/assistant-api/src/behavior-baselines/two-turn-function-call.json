@@ -1,0 +1,7 @@
+{
+  "message": "Wait five minutes, then head to Stall B.",
+  "primaryOptionId": "stall-b",
+  "routeSummary": "Section A-12 → Concourse East → Stall B",
+  "source": "gemini",
+  "timingDecision": "wait"
+}
