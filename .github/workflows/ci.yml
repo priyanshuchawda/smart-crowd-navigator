@@ -15,7 +15,14 @@ concurrency:
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    name: Validate (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -31,9 +38,47 @@ jobs:
       - run: pnpm test
       - run: pnpm build
 
-  e2e:
+  smoke:
+    name: Smoke API health
     runs-on: ubuntu-latest
     needs: validate
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.6.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Start API and check /health
+        shell: bash
+        env:
+          PORT: "8080"
+          DISABLE_GEMINI_ASSISTANT: "true"
+        run: |
+          node services/assistant-api/dist/index.js &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID' EXIT
+
+          for i in {1..20}; do
+            if curl -fsS "http://127.0.0.1:${PORT}/health" > /dev/null; then
+              echo "Smoke check passed"
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "Smoke check failed"
+          exit 1
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs:
+      - validate
+      - smoke
     env:
       VITE_GOOGLE_MAPS_API_KEY: ci-e2e-maps-key
     steps:
@@ -56,3 +101,26 @@ jobs:
             playwright-report/
             test-results/
           if-no-files-found: ignore
+
+  codeql:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.6.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - uses: github/codeql-action/analyze@v3
