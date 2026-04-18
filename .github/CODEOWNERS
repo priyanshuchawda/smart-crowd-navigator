@@ -1,0 +1,9 @@
+# Default ownership for all repository paths.
+* @priyanshuchawda
+
+# Critical CI/CD and runtime surfaces.
+/.github/workflows/ @priyanshuchawda
+/services/assistant-api/ @priyanshuchawda
+/packages/shared/src/contracts.ts @priyanshuchawda
+/packages/venue-engine/ @priyanshuchawda
+/firestore.rules @priyanshuchawda
