@@ -7,6 +7,7 @@ movement decisions, but some attendee questions are better answered with
 Google Maps grounding, especially around the venue perimeter.
 
 Examples:
+
 - rideshare pickup after the event
 - parking / drop-off context
 - nearby landmarks outside the venue
@@ -15,6 +16,7 @@ Examples:
 ## Decision boundary
 
 ### Use the venue engine for
+
 - in-venue food stall choice
 - in-venue washroom choice
 - best entry gate
@@ -23,6 +25,7 @@ Examples:
 - route summaries inside the venue graph
 
 ### Use Google Maps grounding for
+
 - nearby pickup/drop-off context
 - parking-related questions
 - “nearby” / “outside the venue” place questions
@@ -31,6 +34,7 @@ Examples:
 ## Current implementation
 
 When the attendee question contains venue-perimeter keywords like:
+
 - `parking`
 - `rideshare`
 - `pickup`
@@ -38,9 +42,13 @@ When the attendee question contains venue-perimeter keywords like:
 - `outside`
 
 the backend can use Gemini Maps grounding and return:
+
 - a normal assistant message
 - the deterministic recommendation payload
 - optional Maps grounding metadata (`places`, `widgetContextToken`)
+- grounded place enrichment fetched from the backend proxy endpoint (`GET /maps/place-enrichment/:placeId`)
+
+The backend enrichment route uses a server-side Google Maps key (`GOOGLE_MAPS_API_KEY`) so key-bearing Places requests do not run in the browser.
 
 ## Source-of-truth rule
 
@@ -68,6 +76,7 @@ Example venue-adjacent question:
 > Where is the best rideshare pickup near the south exit after the event?
 
 This is the kind of question that should:
+
 1. keep the indoor recommendation deterministic
 2. use Google Maps grounding for nearby place context
 3. return grounding metadata for later citation rendering

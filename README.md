@@ -50,7 +50,7 @@ Typical questions the product answers:
 - venue map panel with recommended destination highlighting
 - Google Maps citations plus an inline map preview for venue-perimeter answers
 - official Google Maps Embed API preview when `VITE_GOOGLE_MAPS_API_KEY` is configured, with a no-key fallback for demo resilience
-- Places API enrichment for grounded nearby locations when Gemini returns a `placeId`
+- Places API enrichment for grounded nearby locations when Gemini returns a `placeId`, fetched through a backend proxy route
 
 ### Decision engine
 
@@ -206,6 +206,17 @@ Then open:
 
 - web: `http://127.0.0.1:5173`
 - API: `http://127.0.0.1:8080`
+
+## Submission compliance checklist
+
+- repository visibility: public
+- branch policy: keep only `main` on the remote for challenge submission
+- repository size guard: verify source archive size before submission (`git archive --format=zip -o crowd-head.zip HEAD`)
+- package manager consistency: use pnpm-only lockfiles and scripts
+- pre-submit checks:
+
+  - `pnpm verify`
+  - `pnpm test:e2e`
 
 ## Assumptions
 
