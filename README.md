@@ -11,7 +11,7 @@ Smart Crowd Navigator is a production-style web application for large sporting v
 
 ## Live deployment
 
-- **Cloud Run URL:** `https://smart-crowd-navigator-6onqsv3h4a-uc.a.run.app`
+- **Cloud Run URL:** `https://smart-crowd-navigator-1051094454693.us-central1.run.app`
 - **Runtime model:** one deployed URL serving both the web app and the API
 
 ## What the product does
