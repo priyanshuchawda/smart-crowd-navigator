@@ -242,6 +242,7 @@ Then open:
 
 ## Documentation
 
+- [CONTRIBUTING.md](./CONTRIBUTING.md)
 - [docs/cloud-run-deploy.md](./docs/cloud-run-deploy.md)
 - [docs/firebase-handoff.md](./docs/firebase-handoff.md)
 - [docs/qa-report.md](./docs/qa-report.md)
