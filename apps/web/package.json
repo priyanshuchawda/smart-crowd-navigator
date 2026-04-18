@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "coverage": "vitest run --coverage",
-    "lint": "biome check src index.html vite.config.ts",
+    "lint": "pnpm lint:boundaries && biome check src index.html vite.config.ts",
+    "lint:boundaries": "node ./scripts/check-import-boundaries.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
