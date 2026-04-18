@@ -2,7 +2,11 @@ import { getGeminiErrorStatus } from "./gemini-retry.js";
 
 type GeminiFailureKind = "terminal" | "transient" | "not_found" | "unknown";
 type GeminiFallbackAction = "silent" | "stop";
-type GeminiModelHealthTransition = "terminal" | "cooldown" | "healthy";
+type GeminiModelHealthTransition =
+  | "terminal"
+  | "cooldown"
+  | "sticky_retry"
+  | "healthy";
 
 type GeminiModelPolicyActionMap = Partial<
   Record<GeminiFailureKind, GeminiFallbackAction>
@@ -52,7 +56,7 @@ const DEFAULT_POLICY_TRANSITIONS: Record<
   GeminiModelHealthTransition
 > = {
   terminal: "terminal",
-  transient: "cooldown",
+  transient: "sticky_retry",
   not_found: "terminal",
   unknown: "healthy",
 };
