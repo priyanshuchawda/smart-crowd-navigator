@@ -1,78 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import type {
-  CoreIntent,
   EventPhase,
   GroupWorkflow,
   MobilityMode,
 } from "@smart-crowd-navigator/shared";
 
-import { requestAssistantResponse } from "./api";
 import { AttendeeFlowPanels } from "./components/AttendeeFlowPanels";
 import { DeferredOperatorExperience } from "./components/DeferredOperatorExperience";
 import { HeroSection } from "./components/HeroSection";
-import type { ChatMessage } from "./types";
-
-type RequestRecommendationOptions = {
-  announceUser?: boolean;
-  assistantPrefix?: string;
-};
-
-type InternalRequestOptions = RequestRecommendationOptions & {
-  question?: string;
-  userText?: string;
-};
-
-type DeferredInstallPromptEvent = Event & {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-};
-
-function buildQuickActionPrompt(intent: CoreIntent, summary: string) {
-  return `Find the best ${intent.replace("-", " ")} option for ${summary}.`;
-}
-
-function inferIntentFromQuestion(
-  question: string,
-  activeIntent: CoreIntent | null,
-): CoreIntent {
-  const normalizedQuestion = question.toLowerCase();
-
-  if (
-    normalizedQuestion.includes("washroom") ||
-    normalizedQuestion.includes("restroom") ||
-    normalizedQuestion.includes("bathroom")
-  ) {
-    return "washroom";
-  }
-
-  if (
-    normalizedQuestion.includes("entry") ||
-    normalizedQuestion.includes("gate")
-  ) {
-    return "entry-gate";
-  }
-
-  if (
-    normalizedQuestion.includes("exit") ||
-    normalizedQuestion.includes("leave") ||
-    normalizedQuestion.includes("pickup") ||
-    normalizedQuestion.includes("rideshare")
-  ) {
-    return "exit";
-  }
-
-  if (
-    normalizedQuestion.includes("food") ||
-    normalizedQuestion.includes("drink") ||
-    normalizedQuestion.includes("snack") ||
-    normalizedQuestion.includes("stall")
-  ) {
-    return "food";
-  }
-
-  return activeIntent ?? "food";
-}
+import { useAssistantSession } from "./hooks/useAssistantSession";
+import { useInstallAndConnectivity } from "./hooks/useInstallAndConnectivity";
 
 export function App() {
   const [section, setSection] = useState("section-a12");
@@ -80,20 +18,6 @@ export function App() {
   const [eventPhase, setEventPhase] = useState<EventPhase>("break");
   const [groupWorkflow, setGroupWorkflow] = useState<GroupWorkflow>("auto");
   const [mobilityMode, setMobilityMode] = useState<MobilityMode>("standard");
-  const [draftQuestion, setDraftQuestion] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [response, setResponse] = useState<Awaited<
-    ReturnType<typeof requestAssistantResponse>
-  > | null>(null);
-  const [activeIntent, setActiveIntent] = useState<CoreIntent | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [installPrompt, setInstallPrompt] =
-    useState<DeferredInstallPromptEvent | null>(null);
-  const [isOffline, setIsOffline] = useState(
-    typeof navigator !== "undefined" ? !navigator.onLine : false,
-  );
-  const requestVersionRef = useRef(0);
   const demoSectionRef = useRef<HTMLDivElement | null>(null);
   const recommendationSectionRef = useRef<HTMLDivElement | null>(null);
   const recommendationHeadingRef = useRef<HTMLHeadingElement | null>(null);
@@ -105,149 +29,54 @@ export function App() {
     [eventPhase, mobilityMode, partySize, section],
   );
 
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const handleBeforeInstallPrompt = (event: Event) => {
-      event.preventDefault();
-      setInstallPrompt(event as DeferredInstallPromptEvent);
-    };
-    const handleOnline = () => setIsOffline(false);
-    const handleOffline = () => setIsOffline(true);
-
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    return () => {
-      window.removeEventListener(
-        "beforeinstallprompt",
-        handleBeforeInstallPrompt,
-      );
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, []);
-
-  function scrollToDemo() {
+  const scrollToDemo = useCallback(() => {
     demoSectionRef.current?.scrollIntoView({
       behavior: "smooth",
       block: "start",
     });
-  }
+  }, []);
 
-  function scrollToRecommendation() {
+  const scrollToRecommendation = useCallback(() => {
     recommendationSectionRef.current?.scrollIntoView({
       behavior: "smooth",
       block: "start",
     });
-  }
+  }, []);
 
-  function scrollToDemoControls() {
+  const scrollToDemoControls = useCallback(() => {
     demoControlsRef.current?.scrollIntoView({
       behavior: "smooth",
       block: "start",
     });
-  }
+  }, []);
 
-  async function runRecommendationRequest(
-    intent: CoreIntent,
-    options?: InternalRequestOptions,
-  ) {
-    const requestVersion = ++requestVersionRef.current;
-    const question = options?.question?.trim();
-    const userText =
-      options?.userText ?? question ?? buildQuickActionPrompt(intent, summary);
-    const nextMessages =
-      options?.announceUser === false
-        ? messages
-        : [...messages, { role: "user" as const, text: userText }].slice(-12);
+  const handleRecommendationReady = useCallback(() => {
+    scrollToRecommendation();
+    recommendationHeadingRef.current?.focus();
+  }, [scrollToRecommendation]);
 
-    setIsLoading(true);
-    setErrorMessage(null);
-    setActiveIntent(intent);
+  const {
+    activeIntent,
+    draftQuestion,
+    errorMessage,
+    isLoading,
+    messages,
+    requestRecommendation,
+    response,
+    setDraftQuestion,
+    submitQuestion,
+  } = useAssistantSession({
+    eventPhase,
+    groupWorkflow,
+    mobilityMode,
+    onRecommendationReady: handleRecommendationReady,
+    partySize,
+    section,
+    summary,
+  });
 
-    if (options?.announceUser !== false) {
-      setMessages(nextMessages);
-    }
-
-    try {
-      const nextResponse = await requestAssistantResponse({
-        section,
-        intent,
-        partySize,
-        eventPhase,
-        groupWorkflow: groupWorkflow === "auto" ? undefined : groupWorkflow,
-        mobilityMode,
-        question: question ?? userText,
-        conversationHistory: nextMessages,
-      });
-
-      if (requestVersion !== requestVersionRef.current) {
-        return;
-      }
-
-      const assistantMessage = {
-        role: "assistant" as const,
-        text: options?.assistantPrefix
-          ? `${options.assistantPrefix} ${nextResponse.message}`
-          : nextResponse.message,
-      };
-
-      setResponse(nextResponse);
-      setMessages([...nextMessages, assistantMessage].slice(-12));
-      setDraftQuestion("");
-      scrollToRecommendation();
-      recommendationHeadingRef.current?.focus();
-    } catch (error) {
-      if (requestVersion !== requestVersionRef.current) {
-        return;
-      }
-
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Unable to get a recommendation.",
-      );
-    } finally {
-      if (requestVersion === requestVersionRef.current) {
-        setIsLoading(false);
-      }
-    }
-  }
-
-  async function requestRecommendation(
-    intent: CoreIntent,
-    options?: RequestRecommendationOptions,
-  ) {
-    await runRecommendationRequest(intent, options);
-  }
-
-  function submitQuestion() {
-    const question = draftQuestion.trim();
-
-    if (!question) {
-      return;
-    }
-
-    const nextIntent = inferIntentFromQuestion(question, activeIntent);
-    void runRecommendationRequest(nextIntent, {
-      question,
-      userText: question,
-    });
-  }
-
-  async function handleInstallApp() {
-    if (!installPrompt) {
-      return;
-    }
-
-    await installPrompt.prompt();
-    await installPrompt.userChoice.catch(() => null);
-    setInstallPrompt(null);
-  }
+  const { handleInstallApp, installPrompt, isOffline } =
+    useInstallAndConnectivity();
 
   return (
     <main className="app-shell">
