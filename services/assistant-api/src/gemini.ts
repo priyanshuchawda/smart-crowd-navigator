@@ -347,6 +347,24 @@ function buildMapsGroundedPrompt(
   ].join("\n");
 }
 
+function buildToolBackedRecommendation({
+  functionArgs,
+  requestPayload,
+}: {
+  functionArgs: unknown;
+  requestPayload: unknown;
+}) {
+  if (!functionArgs) {
+    return buildRecommendationPayload(requestPayload);
+  }
+
+  try {
+    return buildRecommendationPayload(functionArgs);
+  } catch {
+    return buildRecommendationPayload(requestPayload);
+  }
+}
+
 async function runGeminiRecommendationAssistant({
   createChat,
   generateContent,
@@ -383,9 +401,10 @@ async function runGeminiRecommendationAssistant({
   );
 
   const functionCall = response1.functionCalls?.[0];
-  const recommendation = buildRecommendationPayload(
-    functionCall?.args ?? requestPayload,
-  );
+  const recommendation = buildToolBackedRecommendation({
+    functionArgs: functionCall?.args,
+    requestPayload,
+  });
 
   if (!functionCall) {
     const fallback = buildFallbackNarration(recommendation);

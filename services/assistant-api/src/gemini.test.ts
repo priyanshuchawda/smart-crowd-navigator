@@ -113,6 +113,55 @@ describe("runGeminiRecommendationAssistant", () => {
     expect(result.recommendation.primaryOption.id).toBe("stall-b");
   });
 
+  it("falls back to the typed request payload when function-call args are invalid", async () => {
+    const sendMessage = vi.fn().mockResolvedValue({
+      functionCalls: [
+        {
+          name: "get_recommendation_data",
+          id: "call-1",
+          args: {
+            section: "section-a12",
+            intent: "food",
+            partySize: 3,
+            eventPhase: "halftime",
+            mobilityMode: "wheelchair",
+          },
+        },
+      ],
+      candidates: [
+        {
+          content: {
+            role: "model",
+            parts: [],
+          },
+        },
+      ],
+    });
+    const createChat = vi.fn().mockReturnValue({
+      sendMessage,
+    });
+    const generateContent = vi.fn().mockResolvedValueOnce({
+      text: "Use Stall B in a few minutes for the best overall timing.",
+    });
+
+    const result = await runGeminiRecommendationAssistant({
+      createChat,
+      generateContent,
+      model: "gemini-3.1-flash-lite-preview",
+      requestPayload: {
+        section: "section-a12",
+        intent: "food",
+        partySize: 3,
+        eventPhase: "break",
+        mobilityMode: "standard",
+      },
+    });
+
+    expect(generateContent).toHaveBeenCalledTimes(1);
+    expect(result.recommendation.intent).toBe("food");
+    expect(result.recommendation.primaryOption.id).toBe("stall-b");
+  });
+
   it("falls back to the first response text when no tool call is emitted", async () => {
     const sendMessage = vi.fn().mockResolvedValue({
       text: "Go now to Stall B.",
@@ -416,6 +465,82 @@ describe("runGeminiRecommendationAssistant", () => {
         .status,
     ).toBe("terminal");
     expect(result.message).toBe("Recovered after terminal model failure.");
+  });
+
+  it("persists cooldown and terminal health across fallback attempts", async () => {
+    let nowMs = 1_000;
+    const availabilityService = createGeminiModelAvailabilityService({
+      cooldownMs: 60_000,
+      now: () => nowMs,
+    });
+
+    const firstExecution = vi
+      .fn()
+      .mockRejectedValueOnce(
+        Object.assign(new Error("temporarily unavailable"), {
+          status: 503,
+        }),
+      )
+      .mockRejectedValueOnce(
+        Object.assign(new Error("Model not found for API version"), {
+          status: 404,
+        }),
+      )
+      .mockResolvedValueOnce(
+        buildFallbackResponse("Recovered on tertiary fallback model."),
+      );
+
+    const firstResult = await runGeminiAssistantWithFallbacks({
+      availabilityService,
+      executeModel: firstExecution,
+      primaryModel: "gemini-3.1-flash-lite-preview",
+    });
+
+    expect(firstExecution.mock.calls.map(([model]) => model)).toEqual([
+      "gemini-3.1-flash-lite-preview",
+      "gemini-3-flash-preview",
+      "gemini-2.5-flash",
+    ]);
+    expect(firstResult.message).toBe("Recovered on tertiary fallback model.");
+    expect(
+      availabilityService.getModelHealth("gemini-3.1-flash-lite-preview")
+        .status,
+    ).toBe("cooldown");
+    expect(availabilityService.getModelHealth("gemini-3-flash-preview").status).toBe(
+      "terminal",
+    );
+
+    const secondExecution = vi
+      .fn()
+      .mockResolvedValue(buildFallbackResponse("Subsequent call uses healthy model."));
+
+    const secondResult = await runGeminiAssistantWithFallbacks({
+      availabilityService,
+      executeModel: secondExecution,
+      primaryModel: "gemini-3.1-flash-lite-preview",
+    });
+
+    expect(secondExecution.mock.calls.map(([model]) => model)).toEqual([
+      "gemini-2.5-flash",
+    ]);
+    expect(secondResult.message).toBe("Subsequent call uses healthy model.");
+
+    nowMs += 61_000;
+
+    const thirdExecution = vi
+      .fn()
+      .mockResolvedValue(buildFallbackResponse("Primary model recovered."));
+
+    const thirdResult = await runGeminiAssistantWithFallbacks({
+      availabilityService,
+      executeModel: thirdExecution,
+      primaryModel: "gemini-3.1-flash-lite-preview",
+    });
+
+    expect(thirdExecution.mock.calls.map(([model]) => model)).toEqual([
+      "gemini-3.1-flash-lite-preview",
+    ]);
+    expect(thirdResult.message).toBe("Primary model recovered.");
   });
 
   it("does not retry non-retryable Gemini errors", async () => {
