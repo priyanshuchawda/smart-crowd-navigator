@@ -12,6 +12,7 @@ Current deployed URL:
 
 - Cloud Run serves the Node API
 - the same service also serves `apps/web/dist`
+- container runtime includes only `apps/web/dist` and a production `services/assistant-api` deploy bundle
 - the web app uses same-origin API requests by default in deployed environments
 
 ## Required environment variables
@@ -70,6 +71,7 @@ Then build/deploy the web app with the matching Firebase env values, especially 
 ## Observability rollout
 
 The service now emits structured Cloud Logging events for:
+
 - `recommendation_observability`
 - `assistant_observability`
 - `assistant_fallback`
