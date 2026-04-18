@@ -56,16 +56,11 @@ function getRequestProtocol(request: IncomingMessage) {
     : forwardedProto;
 
   if (typeof forwardedProtoValue === "string" && forwardedProtoValue.length) {
-    return (
-      forwardedProtoValue
-        .split(",")[0]
-        ?.trim()
-        .toLowerCase() ?? "http"
-    );
+    return forwardedProtoValue.split(",")[0]?.trim().toLowerCase() ?? "http";
   }
 
   if (request.socket && "encrypted" in request.socket) {
-    return Boolean(request.socket.encrypted) ? "https" : "http";
+    return request.socket.encrypted ? "https" : "http";
   }
 
   return "http";
