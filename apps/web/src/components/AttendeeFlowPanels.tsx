@@ -6,7 +6,7 @@ import {
   MOBILITY_MODES,
 } from "@smart-crowd-navigator/shared";
 
-import { memo, type RefObject } from "react";
+import { type RefObject, memo } from "react";
 import { intentDescriptions, intentLabels } from "../intent-metadata";
 import type { AssistantApiResponse, ChatMessage } from "../types";
 import { ConversationPanel } from "./ConversationPanel";

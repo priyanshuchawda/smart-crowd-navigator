@@ -89,8 +89,7 @@ export function useAssistantSession({
 }: UseAssistantSessionOptions) {
   const [draftQuestion, setDraftQuestion] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [response, setResponse] =
-    useState<AssistantResponse | null>(null);
+  const [response, setResponse] = useState<AssistantResponse | null>(null);
   const [activeIntent, setActiveIntent] = useState<CoreIntent | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -108,9 +107,7 @@ export function useAssistantSession({
       const nextMessages =
         options?.announceUser === false
           ? messages
-          : [...messages, { role: "user" as const, text: userText }].slice(
-              -12,
-            );
+          : [...messages, { role: "user" as const, text: userText }].slice(-12);
 
       setIsLoading(true);
       setErrorMessage(null);
