@@ -51,4 +51,68 @@ maybeDescribe("real Gemini boundary smoke", () => {
       expect(result.recommendation.intent).toBe(scenario.intent);
     }
   }, 300_000);
+
+  it("supports multi-turn follow-up requests with conversation history", async () => {
+    const service = createGeminiAssistantService();
+    const firstQuestion = "Should we go now for food from section A-12?";
+    const firstTurn = await service.generateAssistantResponse({
+      section: "section-a12",
+      intent: "food",
+      partySize: 3,
+      eventPhase: "break",
+      mobilityMode: "standard",
+      question: firstQuestion,
+    });
+
+    expect(firstTurn.source).toBe("gemini");
+    expect(firstTurn.message.length).toBeGreaterThan(20);
+
+    const secondTurn = await service.generateAssistantResponse({
+      section: "section-a12",
+      intent: "food",
+      partySize: 3,
+      eventPhase: "break",
+      mobilityMode: "standard",
+      question: "What is the backup option if that area suddenly crowds up?",
+      conversationHistory: [
+        {
+          role: "user",
+          text: firstQuestion,
+        },
+        {
+          role: "assistant",
+          text: firstTurn.message,
+        },
+      ],
+    });
+
+    expect(secondTurn.source).toBe("gemini");
+    expect(secondTurn.message.length).toBeGreaterThan(20);
+    expect(
+      assistantRecommendationSchema.safeParse(secondTurn.recommendation).success,
+    ).toBe(true);
+    expect(secondTurn.recommendation.intent).toBe("food");
+  }, 300_000);
+
+  it("handles a maps-grounded venue-perimeter question", async () => {
+    const service = createGeminiAssistantService();
+    const result = await service.generateAssistantResponse({
+      section: "section-a12",
+      intent: "exit",
+      partySize: 2,
+      eventPhase: "post-event",
+      mobilityMode: "standard",
+      question:
+        "Where is the best rideshare pickup outside the venue near the south exit?",
+    });
+
+    expect(result.source).toBe("gemini");
+    expect(result.message.length).toBeGreaterThan(20);
+    expect(result.recommendation.intent).toBe("exit");
+
+    if (result.grounding) {
+      expect(result.grounding.source).toBe("google-maps");
+      expect(Array.isArray(result.grounding.places)).toBe(true);
+    }
+  }, 300_000);
 });
