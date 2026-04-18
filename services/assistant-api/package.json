@@ -12,7 +12,7 @@
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "rm -rf dist && tsc -p tsconfig.json && cp dist/services/assistant-api/src/app-check.js dist/app-check.js && cp dist/services/assistant-api/src/app-check.d.ts dist/app-check.d.ts && cp dist/services/assistant-api/src/env.js dist/env.js && cp dist/services/assistant-api/src/env.d.ts dist/env.d.ts && cp dist/services/assistant-api/src/index.js dist/index.js && cp dist/services/assistant-api/src/index.d.ts dist/index.d.ts && cp dist/services/assistant-api/src/gemini.js dist/gemini.js && cp dist/services/assistant-api/src/gemini.d.ts dist/gemini.d.ts && cp dist/services/assistant-api/src/operator-auth.js dist/operator-auth.js && cp dist/services/assistant-api/src/operator-auth.d.ts dist/operator-auth.d.ts && cp dist/services/assistant-api/src/recommendation.js dist/recommendation.js && cp dist/services/assistant-api/src/recommendation.d.ts dist/recommendation.d.ts && cp dist/services/assistant-api/src/request-utils.js dist/request-utils.js && cp dist/services/assistant-api/src/request-utils.d.ts dist/request-utils.d.ts",
+    "build": "node ./scripts/build.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run src/app-check.test.ts src/env.test.ts src/gemini.test.ts src/operator-auth.test.ts src/recommendation.test.ts src/index.test.ts",
     "coverage": "vitest run --coverage src/app-check.test.ts src/env.test.ts src/gemini.test.ts src/operator-auth.test.ts src/recommendation.test.ts src/index.test.ts",

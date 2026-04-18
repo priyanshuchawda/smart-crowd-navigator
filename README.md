@@ -215,6 +215,11 @@ Then open:
 - Maps-grounded answers are used for venue-perimeter or nearby-place questions, while indoor routing remains deterministic
 - operator-state reads are intentionally public in the current demo posture
 
+## TypeScript compatibility notes
+
+- deprecated `baseUrl` is removed from shared compiler options; workspace aliases use explicit path mappings
+- `services/assistant-api` intentionally sets `rootDir` to `../..` to preserve its current emit layout for the build flatten step and runtime static-asset path expectations
+
 ## Repository structure
 
 - `apps/web` — attendee UI and operator experience

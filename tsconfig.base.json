@@ -3,11 +3,10 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "baseUrl": ".",
     "paths": {
-      "@smart-crowd-navigator/shared": ["packages/shared/src/index.ts"],
+      "@smart-crowd-navigator/shared": ["./packages/shared/src/index.ts"],
       "@smart-crowd-navigator/venue-engine": [
-        "packages/venue-engine/src/index.ts"
+        "./packages/venue-engine/src/index.ts"
       ]
     },
     "strict": true,
