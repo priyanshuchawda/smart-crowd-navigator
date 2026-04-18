@@ -406,6 +406,23 @@ function createRequestHandler({
     }
 
     if (method === "GET" && url.pathname === "/operator/state") {
+      const appCheck = await requireAppCheck(
+        request,
+        response,
+        appCheckService,
+      );
+
+      if (appCheckService.isRequired() && !appCheck) {
+        return;
+      }
+
+      if (!checkRateLimit(request, "operator")) {
+        respondJson(request, response, 429, {
+          error: "rate_limited",
+        });
+        return;
+      }
+
       respondJson(request, response, 200, {
         states: getOperatorState(),
       });
