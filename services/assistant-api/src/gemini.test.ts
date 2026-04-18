@@ -108,6 +108,91 @@ describe("runGeminiRecommendationAssistant", () => {
     expect(generateContent).toHaveBeenCalledTimes(0);
   });
 
+  it("retries sendMessage when Gemini chat returns a transient error", async () => {
+    const sendMessage = vi
+      .fn()
+      .mockRejectedValueOnce(
+        Object.assign(new Error("temporarily unavailable"), {
+          status: 503,
+        }),
+      )
+      .mockResolvedValueOnce({
+        text: "Go now to Stall B.",
+        functionCalls: [],
+      });
+    const createChat = vi.fn().mockReturnValue({ sendMessage });
+    const generateContent = vi.fn();
+
+    const result = await runGeminiRecommendationAssistant({
+      createChat,
+      generateContent,
+      model: "gemini-3.1-flash-lite-preview",
+      requestPayload: {
+        section: "section-a12",
+        intent: "food",
+        partySize: 3,
+        eventPhase: "break",
+        mobilityMode: "standard",
+      },
+    });
+
+    expect(sendMessage).toHaveBeenCalledTimes(2);
+    expect(result.message).toContain("Stall B");
+  });
+
+  it("retries final generateContent turn when Gemini returns a transient error", async () => {
+    const sendMessage = vi.fn().mockResolvedValue({
+      functionCalls: [
+        {
+          name: "get_recommendation_data",
+          id: "call-1",
+          args: {
+            section: "section-a12",
+            intent: "food",
+            partySize: 3,
+            eventPhase: "break",
+            mobilityMode: "standard",
+          },
+        },
+      ],
+      candidates: [
+        {
+          content: {
+            role: "model",
+            parts: [],
+          },
+        },
+      ],
+    });
+    const createChat = vi.fn().mockReturnValue({ sendMessage });
+    const generateContent = vi
+      .fn()
+      .mockRejectedValueOnce(
+        Object.assign(new Error("high demand"), {
+          status: 503,
+        }),
+      )
+      .mockResolvedValueOnce({
+        text: "Wait five minutes, then head to Stall B.",
+      });
+
+    const result = await runGeminiRecommendationAssistant({
+      createChat,
+      generateContent,
+      model: "gemini-3.1-flash-lite-preview",
+      requestPayload: {
+        section: "section-a12",
+        intent: "food",
+        partySize: 3,
+        eventPhase: "break",
+        mobilityMode: "standard",
+      },
+    });
+
+    expect(generateContent).toHaveBeenCalledTimes(2);
+    expect(result.message).toContain("Stall B");
+  });
+
   it("builds a constrained assistant prompt with style examples", () => {
     const prompt = buildAssistantPrompt({
       section: "section-a12",

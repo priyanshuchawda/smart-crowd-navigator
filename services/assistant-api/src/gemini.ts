@@ -10,6 +10,10 @@ import type {
   RecommendationRequest,
 } from "@smart-crowd-navigator/shared";
 
+import {
+  isRetryableGeminiTransportError,
+  retryGeminiCall,
+} from "./gemini-retry.js";
 import { buildRecommendationPayload } from "./recommendation.js";
 
 type GenerateContent = (
@@ -86,6 +90,12 @@ const GEMINI_MODEL_FALLBACK_ORDER = [
   "gemini-3-flash-preview",
   "gemini-2.5-flash",
 ] as const;
+const GEMINI_REQUEST_RETRY_OPTIONS = {
+  initialDelayMs: 250,
+  jitterRatio: 0.2,
+  maxAttempts: 3,
+  maxDelayMs: 4_000,
+};
 
 function buildAssistantPrompt(requestPayload: unknown) {
   const typedPayload = requestPayload as RecommendationRequest;
@@ -171,6 +181,10 @@ function getGeminiModelFallbackChain(primaryModel: string) {
 }
 
 function isRetryableGeminiError(error: unknown) {
+  if (isRetryableGeminiTransportError(error)) {
+    return true;
+  }
+
   if (!(error instanceof Error)) {
     return false;
   }
@@ -323,9 +337,16 @@ async function runGeminiRecommendationAssistant({
     model,
   });
 
-  const response1 = await chat.sendMessage({
-    message: latestQuestion,
-  });
+  const response1 = await retryGeminiCall(
+    () =>
+      chat.sendMessage({
+        message: latestQuestion,
+      }),
+    {
+      ...GEMINI_REQUEST_RETRY_OPTIONS,
+      shouldRetryError: isRetryableGeminiError,
+    },
+  );
 
   const functionCall = response1.functionCalls?.[0];
   const recommendation = buildRecommendationPayload(
@@ -366,13 +387,20 @@ async function runGeminiRecommendationAssistant({
     },
   ];
 
-  const response2 = await generateContent({
-    model,
-    contents: history,
-    config: {
-      tools: [toolConfig],
+  const response2 = await retryGeminiCall(
+    () =>
+      generateContent({
+        model,
+        contents: history,
+        config: {
+          tools: [toolConfig],
+        },
+      }),
+    {
+      ...GEMINI_REQUEST_RETRY_OPTIONS,
+      shouldRetryError: isRetryableGeminiError,
     },
-  });
+  );
 
   const fallback = buildFallbackNarration(recommendation);
 
@@ -395,20 +423,27 @@ async function runGeminiMapsGroundedAssistant({
   requestPayload: RecommendationRequest;
 }): Promise<AssistantResponsePayload> {
   const recommendation = buildRecommendationPayload(requestPayload);
-  const response = await generateContent({
-    model,
-    contents: buildMapsGroundedPrompt(requestPayload, recommendation),
-    config: {
-      toolConfig: mapsLocationContext
-        ? {
-            retrievalConfig: {
-              latLng: mapsLocationContext,
-            },
-          }
-        : undefined,
-      tools: [{ googleMaps: { enableWidget: true } }],
+  const response = await retryGeminiCall(
+    () =>
+      generateContent({
+        model,
+        contents: buildMapsGroundedPrompt(requestPayload, recommendation),
+        config: {
+          toolConfig: mapsLocationContext
+            ? {
+                retrievalConfig: {
+                  latLng: mapsLocationContext,
+                },
+              }
+            : undefined,
+          tools: [{ googleMaps: { enableWidget: true } }],
+        },
+      }),
+    {
+      ...GEMINI_REQUEST_RETRY_OPTIONS,
+      shouldRetryError: isRetryableGeminiError,
     },
-  });
+  );
   const fallback = buildFallbackNarration(recommendation);
 
   return {
