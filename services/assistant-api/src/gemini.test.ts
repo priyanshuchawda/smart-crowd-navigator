@@ -17,6 +17,7 @@ import {
   shouldUseMapsGrounding,
 } from "./gemini.js";
 import { createGeminiModelAvailabilityService } from "./gemini-model-availability.js";
+import { createGeminiModelPolicy } from "./gemini-model-policy.js";
 
 function buildFallbackResponse(message: string) {
   return {
@@ -556,6 +557,50 @@ describe("runGeminiRecommendationAssistant", () => {
     ).rejects.toThrow("Invalid API key");
 
     expect(executeModel).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses policy actions and transitions for unknown fallback failures", async () => {
+    const availabilityService = createGeminiModelAvailabilityService();
+    const executeModel = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("opaque provider glitch"))
+      .mockResolvedValueOnce(
+        buildFallbackResponse("Recovered using policy override."),
+      );
+
+    const result = await runGeminiAssistantWithFallbacks({
+      availabilityService,
+      executeModel,
+      modelPolicyChain: [
+        createGeminiModelPolicy({
+          actions: {
+            unknown: "silent",
+          },
+          model: "gemini-3.1-flash-lite-preview",
+          stateTransitions: {
+            unknown: "terminal",
+          },
+        }),
+        createGeminiModelPolicy({
+          model: "gemini-3-flash-preview",
+        }),
+        createGeminiModelPolicy({
+          isLastResort: true,
+          model: "gemini-2.5-flash",
+        }),
+      ],
+      primaryModel: "gemini-3.1-flash-lite-preview",
+    });
+
+    expect(executeModel.mock.calls.map(([model]) => model)).toEqual([
+      "gemini-3.1-flash-lite-preview",
+      "gemini-3-flash-preview",
+    ]);
+    expect(
+      availabilityService.getModelHealth("gemini-3.1-flash-lite-preview")
+        .status,
+    ).toBe("terminal");
+    expect(result.message).toBe("Recovered using policy override.");
   });
 
   it("recognizes retryable provider pressure signals", () => {
