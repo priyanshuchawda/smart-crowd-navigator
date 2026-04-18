@@ -14,10 +14,10 @@
     "dev": "tsx watch src/index.ts",
     "build": "node ./scripts/build.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "pnpm --filter @smart-crowd-navigator/shared build && pnpm --filter @smart-crowd-navigator/venue-engine build && vitest run src/app-check.test.ts src/env.test.ts src/gemini-retry.test.ts src/gemini.test.ts src/operator-auth.test.ts src/recommendation.test.ts src/index.test.ts",
+    "test": "pnpm --filter @smart-crowd-navigator/shared build && pnpm --filter @smart-crowd-navigator/venue-engine build && vitest run src/app-check.test.ts src/env.test.ts src/gemini-model-availability.test.ts src/gemini-retry.test.ts src/gemini.test.ts src/operator-auth.test.ts src/recommendation.test.ts src/index.test.ts",
     "test:behavior": "node ./scripts/run-behavior-tests.mjs",
     "test:behavior:update-baselines": "node ./scripts/run-behavior-tests.mjs --update-baselines",
-    "coverage": "pnpm --filter @smart-crowd-navigator/shared build && pnpm --filter @smart-crowd-navigator/venue-engine build && vitest run --coverage src/app-check.test.ts src/env.test.ts src/gemini-retry.test.ts src/gemini.test.ts src/operator-auth.test.ts src/recommendation.test.ts src/index.test.ts",
+    "coverage": "pnpm --filter @smart-crowd-navigator/shared build && pnpm --filter @smart-crowd-navigator/venue-engine build && vitest run --coverage src/app-check.test.ts src/env.test.ts src/gemini-model-availability.test.ts src/gemini-retry.test.ts src/gemini.test.ts src/operator-auth.test.ts src/recommendation.test.ts src/index.test.ts",
     "test:gemini-real": "pnpm --filter @smart-crowd-navigator/shared build && pnpm --filter @smart-crowd-navigator/venue-engine build && vitest run src/gemini.real.test.ts src/index.real.test.ts",
     "lint": "biome check src"
   }
