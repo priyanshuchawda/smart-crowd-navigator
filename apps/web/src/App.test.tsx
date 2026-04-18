@@ -1,155 +1,209 @@
-import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
-import { ConversationPanel } from "./components/ConversationPanel";
-import { RecommendationPanel } from "./components/RecommendationPanel";
+import { requestAssistantResponse } from "./api";
+import type { AssistantApiResponse } from "./types";
 
-describe("App", () => {
-  it("renders the quick action shell", () => {
-    const markup = renderToStaticMarkup(<App />);
+vi.mock("./api", () => ({
+  requestAssistantResponse: vi.fn(),
+}));
 
-    expect(markup).toContain("Smart Crowd Navigator");
-    expect(markup).toContain("Skip to main content");
-    expect(markup).toContain("Food");
-    expect(markup).toContain("Washroom");
-    expect(markup).toContain("Entry Gate");
-    expect(markup).toContain("Exit");
-    expect(markup).toContain("Try the Food Demo");
-    expect(markup).toContain("How It Works");
-    expect(markup).toContain("Live Assistant");
-    expect(markup).toContain("Ask the assistant");
-    expect(markup).toContain("Group coordination");
-    expect(markup).toContain("Venue Layout");
-    expect(markup).toContain("Demo Controls");
-    expect(markup).toContain(
-      "Expand only if you are operating the live venue demo.",
-    );
+const requestAssistantResponseMock = vi.mocked(requestAssistantResponse);
+
+function getFoodQuickActionButton() {
+  const quickActions = screen.getByRole("region", {
+    name: "Quick actions",
   });
+  const [foodButton] = within(quickActions).getAllByRole("button");
 
-  it("renders the conversation empty state", () => {
-    const markup = renderToStaticMarkup(
-      <ConversationPanel
-        draftQuestion=""
-        errorMessage={null}
-        isLoading={false}
-        messages={[]}
-        onDraftQuestionChange={() => {}}
-        onSubmitQuestion={() => {}}
-      />,
-    );
+  if (!foodButton) {
+    throw new Error("Expected quick actions to include the Food button");
+  }
 
-    expect(markup).toContain("Type a question or tap a quick action");
-    expect(markup).toContain("Ready");
-    expect(markup).toContain('aria-live="polite"');
-    expect(markup).toContain("Send question");
-  });
+  return foodButton;
+}
 
-  it("renders conversation loading and error states", () => {
-    const markup = renderToStaticMarkup(
-      <ConversationPanel
-        draftQuestion="Why is that better?"
-        errorMessage="Request failed with status 500"
-        isLoading
-        messages={[]}
-        onDraftQuestionChange={() => {}}
-        onSubmitQuestion={() => {}}
-      />,
-    );
+function createAssistantResponse(
+  overrides: Partial<AssistantApiResponse> = {},
+): AssistantApiResponse {
+  return {
+    message: "Use Stall B now.",
+    recommendation: {
+      confidence: "high",
+      crowdWarning: null,
+      decisionReasons: {
+        strengths: ["Fastest total route right now."],
+        tradeoffs: [],
+      },
+      etaMinutes: 4,
+      fallbackOption: {
+        id: "stall-d",
+        kind: "food",
+        label: "Stall D",
+      },
+      groupPlan: null,
+      intent: "food",
+      operationalAdvisory: null,
+      primaryOption: {
+        id: "stall-b",
+        kind: "food",
+        label: "Stall B",
+      },
+      primaryReason: "Best total score: 7 minutes.",
+      routeSummary: "Section A-12 -> Concourse East -> Stall B",
+      timeSavedMinutes: 3,
+      timingDecision: "go_now",
+      waitMinutes: 1,
+      waitOrGoReason: "Go now for the best route outcome.",
+    },
+    source: "gemini",
+    ...overrides,
+  };
+}
 
-    expect(markup).toContain("Thinking…");
-    expect(markup).toContain("Request failed with status 500");
-    expect(markup).toContain("Sending…");
-  });
+afterEach(() => {
+  requestAssistantResponseMock.mockReset();
+  cleanup();
+});
 
-  it("renders quick action buttons with aria-pressed state", () => {
-    const markup = renderToStaticMarkup(<App />);
-
-    expect(markup).toContain('aria-pressed="false"');
-  });
-
-  it("renders recommendation details when a response is available", () => {
-    const markup = renderToStaticMarkup(
-      <RecommendationPanel
-        response={{
-          grounding: {
-            places: [
-              {
-                title: "Demo Pickup Zone",
-                uri: "https://maps.google.com/?cid=demo",
-              },
-            ],
-            source: "google-maps",
-            widgetContextToken: "widget-token",
-          },
-          message: "Wait five minutes, then head to Stall B.",
-          recommendation: {
-            intent: "food",
-            timingDecision: "wait",
-            waitOrGoReason:
-              "Waiting 5 minutes reduces the predicted total trip cost by 3 minutes.",
-            primaryOption: {
-              id: "stall-b",
-              label: "Stall B",
-              kind: "food",
-            },
-            primaryReason: "Best total score: 7 minutes.",
-            etaMinutes: 4,
-            waitMinutes: 0,
-            timeSavedMinutes: 3,
-            routeSummary: "Section A-12 → Concourse East → Stall B",
-            crowdWarning: "Crowd pressure is elevated on part of this route.",
-            fallbackOption: {
-              id: "stall-d",
-              label: "Stall D",
-              kind: "food",
-            },
-            decisionReasons: {
-              strengths: [
-                "3 min shorter queue than the main fallback.",
-                "Backed by high-confidence live telemetry.",
-              ],
-              tradeoffs: [
-                "Crowd pressure remains elevated in part of this path.",
-              ],
-            },
-            groupPlan: {
-              workflowType: "runner-pickup",
-              headline:
-                "Send one runner while the rest of the group holds position.",
-              regroupSpot: "Section A-12",
-              regroupEtaMinutes: 3,
-              splitRecommended: true,
-              steps: [
-                "Keep most of the group at Section A-12.",
-                "Send one runner to Stall B.",
-              ],
-            },
-            operationalAdvisory: {
-              detail:
-                "The live queue trend shows a better route outcome after a short delay, so staying put briefly is the smarter move.",
-              headline: "Conditions improve if you wait.",
-              recommendedAction: "Hold position and recheck before moving.",
-              severity: "info",
-            },
-            confidence: "high",
-          },
-        }}
-      />,
+describe("App behavior", () => {
+  it("requests a quick action recommendation and renders it", async () => {
+    requestAssistantResponseMock.mockResolvedValueOnce(
+      createAssistantResponse(),
     );
 
-    expect(markup).toContain("Stall B");
-    expect(markup).toContain("Backup option");
-    expect(markup).toContain("Stall D");
-    expect(markup).toContain("Time Saved");
-    expect(markup).toContain("Crowd pressure is elevated");
-    expect(markup).toContain('role="alert"');
-    expect(markup).toContain("Google Maps grounding");
-    expect(markup).toContain("Demo Pickup Zone");
-    expect(markup).toContain("VITE_GOOGLE_MAPS_API_KEY");
-    expect(markup).toContain("Group coordinator plan");
-    expect(markup).toContain("Send one runner");
-    expect(markup).toContain("Why this recommendation");
-    expect(markup).toContain("Conditions improve if you wait.");
+    render(<App />);
+    await userEvent.click(getFoodQuickActionButton());
+
+    await waitFor(() => {
+      expect(requestAssistantResponseMock).toHaveBeenCalledTimes(1);
+    });
+
+    expect(requestAssistantResponseMock.mock.calls[0]?.[0]).toMatchObject({
+      eventPhase: "break",
+      intent: "food",
+      mobilityMode: "standard",
+      partySize: 3,
+      section: "section-a12",
+    });
+    expect(
+      await screen.findByRole("heading", { name: "Stall B" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Go now for the best route outcome."),
+    ).toBeVisible();
+
+    const transcript = screen.getByRole("log", {
+      name: "Conversation transcript",
+    });
+    expect(within(transcript).getByText("Use Stall B now.")).toBeVisible();
+  });
+
+  it("shows a request failure banner when recommendation lookup fails", async () => {
+    requestAssistantResponseMock.mockRejectedValueOnce(
+      new Error("Request failed with status 500"),
+    );
+
+    render(<App />);
+    await userEvent.click(getFoodQuickActionButton());
+
+    expect(
+      await screen.findByText("Request failed with status 500"),
+    ).toBeVisible();
+  });
+
+  it("reflects loading state while recommendation request is in-flight", async () => {
+    let resolveRequest: ((response: AssistantApiResponse) => void) | undefined;
+    requestAssistantResponseMock.mockReturnValueOnce(
+      new Promise<AssistantApiResponse>((resolve) => {
+        resolveRequest = (response) => {
+          resolve(response);
+        };
+      }),
+    );
+
+    render(<App />);
+    await userEvent.click(getFoodQuickActionButton());
+
+    expect(screen.getByText("Planning…")).toBeVisible();
+    expect(getFoodQuickActionButton()).toBeDisabled();
+
+    const resolvePendingRequest = resolveRequest;
+
+    if (!resolvePendingRequest) {
+      throw new Error("Expected a pending recommendation request resolver");
+    }
+
+    resolvePendingRequest(createAssistantResponse());
+
+    expect(
+      await screen.findByRole("heading", { name: "Stall B" }),
+    ).toBeVisible();
+    expect(screen.getByText("Ready for the next move")).toBeVisible();
+  });
+
+  it("submits typed follow-up questions with conversation context", async () => {
+    requestAssistantResponseMock
+      .mockResolvedValueOnce(
+        createAssistantResponse({
+          message: "Initial recommendation",
+        }),
+      )
+      .mockResolvedValueOnce(
+        createAssistantResponse({
+          message: "Follow-up guidance",
+        }),
+      );
+
+    render(<App />);
+    await userEvent.click(getFoodQuickActionButton());
+    await screen.findByText("Initial recommendation");
+
+    const followUpQuestion = "Why is this option better right now?";
+    await userEvent.type(
+      screen.getByLabelText("Ask the assistant"),
+      followUpQuestion,
+    );
+
+    const submitButton = screen.getByRole("button", { name: "Send question" });
+    expect(submitButton).toBeEnabled();
+    await userEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(requestAssistantResponseMock).toHaveBeenCalledTimes(2);
+    });
+
+    const secondPayload = requestAssistantResponseMock.mock.calls[1]?.[0];
+    expect(secondPayload).toBeDefined();
+    expect(secondPayload).toMatchObject({
+      intent: "food",
+      question: followUpQuestion,
+    });
+    expect(secondPayload?.conversationHistory?.at(-1)).toMatchObject({
+      role: "user",
+      text: followUpQuestion,
+    });
+    expect(await screen.findByText("Follow-up guidance")).toBeVisible();
+  });
+
+  it("starts with accessible transcript semantics and disabled empty submit", () => {
+    render(<App />);
+
+    const transcript = screen.getByRole("log", {
+      name: "Conversation transcript",
+    });
+    expect(transcript).toHaveAttribute("aria-live", "polite");
+    expect(transcript).toHaveAttribute("aria-relevant", "additions text");
+    expect(
+      screen.getByRole("button", { name: "Send question" }),
+    ).toBeDisabled();
   });
 });
