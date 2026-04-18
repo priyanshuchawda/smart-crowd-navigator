@@ -7,6 +7,7 @@
     "build": "pnpm -r --filter \"@smart-crowd-navigator/*\" build",
     "typecheck": "pnpm -r --filter \"@smart-crowd-navigator/*\" typecheck",
     "test": "pnpm -r --filter \"@smart-crowd-navigator/*\" test",
+    "test:ci": "pnpm --filter @smart-crowd-navigator/shared build && pnpm --filter @smart-crowd-navigator/venue-engine build && pnpm --filter @smart-crowd-navigator/shared test && pnpm --filter @smart-crowd-navigator/venue-engine test && pnpm --filter @smart-crowd-navigator/web test && pnpm --filter @smart-crowd-navigator/assistant-api test:ci",
     "coverage": "pnpm --filter @smart-crowd-navigator/shared build && pnpm --filter @smart-crowd-navigator/venue-engine build && pnpm -r --filter \"@smart-crowd-navigator/*\" coverage",
     "lint": "pnpm -r --filter \"@smart-crowd-navigator/*\" lint",
     "verify": "pnpm lint && pnpm typecheck && pnpm --filter @smart-crowd-navigator/shared build && pnpm --filter @smart-crowd-navigator/venue-engine build && pnpm test && pnpm build",
