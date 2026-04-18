@@ -122,6 +122,62 @@ Typical questions the product answers:
 - `packages/shared` — request/response contracts and constants
 - `packages/venue-engine` — venue topology, routing, ranking, timing advice, and group plan logic
 
+### Architecture diagram
+
+```mermaid
+graph TB
+    subgraph "Client (apps/web)"
+        A["React SPA (Vite)"] --> B["useAssistantSession Hook"]
+        A --> C["Attendee Controls"]
+        A --> D["Operator Experience"]
+        A --> E["Venue Map SVG"]
+        A --> F["Firebase SDK"]
+        F --> G["Auth + App Check"]
+        F --> H["Firestore Live Sync"]
+    end
+
+    subgraph "API (services/assistant-api)"
+        I["HTTP Server (Node.js)"] --> J["Request Validation (Zod)"]
+        J --> K["Rate Limiter"]
+        K --> L["App Check Verifier"]
+        K --> M["Operator Auth (JWKS)"]
+        J --> N["Recommendation Service"]
+        J --> O["Gemini Assistant Service"]
+        O --> P["Model Fallback Chain"]
+        O --> Q["Maps Grounding"]
+        O --> R["Function Calling"]
+        N --> S["Venue Engine"]
+    end
+
+    subgraph "Domain (packages)"
+        S --> T["Dijkstra Routing"]
+        S --> U["Timing Advice Engine"]
+        S --> V["Group Coordinator Planner"]
+        S --> W["Live State Store"]
+    end
+
+    subgraph "Google Cloud Services"
+        X["Gemini API (@google/genai)"]
+        Y["Google Maps Grounding"]
+        Z["Cloud Run"]
+        AA["Firebase Auth"]
+        AB["Firestore"]
+        AC["App Check"]
+        AD["Places API"]
+    end
+
+    B -->|"POST /assistant-response"| I
+    B -->|"POST /recommendation"| I
+    D -->|"POST /operator/state"| I
+    O --> X
+    Q --> Y
+    I -.->|"deployed on"| Z
+    G --> AA
+    H --> AB
+    G --> AC
+    O -->|"place enrichment"| AD
+```
+
 ## How the recommendation flow works
 
 1. The attendee provides context such as section, party size, mobility mode, and event phase.
