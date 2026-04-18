@@ -448,7 +448,7 @@ const RecommendationPanel = memo(function RecommendationPanel({
             >
               {groundedPlaces.map((place) => (
                 <li key={place.uri}>
-                  <a href={place.uri} rel="noreferrer" target="_blank">
+                  <a href={place.uri} rel="noopener noreferrer" target="_blank">
                     {place.title}
                   </a>
                 </li>
