@@ -1,0 +1,482 @@
+/* ============================================================
+   APP SHELL
+   ============================================================ */
+.app-shell {
+  position: relative;
+  min-height: 100vh;
+  padding: var(--space-xl) 20px var(--space-2xl);
+  overflow: hidden;
+}
+
+.app-alert-banner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin: 0 auto 18px;
+  max-width: 1240px;
+  padding: 16px 18px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  backdrop-filter: blur(12px);
+}
+
+.offline-banner {
+  background: rgba(251, 191, 36, 0.12);
+  color: #fde68a;
+}
+
+.install-banner {
+  background: rgba(34, 211, 238, 0.12);
+  color: var(--text-primary);
+}
+
+/* ============================================================
+   SKIP LINK
+   ============================================================ */
+.skip-link {
+  position: absolute;
+  left: 20px;
+  top: 12px;
+  z-index: 20;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background: var(--accent-primary);
+  color: var(--text-inverse);
+  font-weight: 600;
+  transform: translateY(-140%);
+  transition: transform var(--transition-fast);
+  text-decoration: none;
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+/* ============================================================
+   AMBIENT BACKGROUND
+   ============================================================ */
+.ambient-orb {
+  position: fixed;
+  border-radius: var(--radius-full);
+  filter: blur(100px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.ambient-orb-one {
+  inset: -60px auto auto -40px;
+  width: 380px;
+  height: 380px;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.18), transparent 70%);
+  animation: orbPulse 8s ease-in-out infinite alternate;
+}
+
+.ambient-orb-two {
+  inset: auto -30px 40px auto;
+  width: 420px;
+  height: 420px;
+  background: radial-gradient(
+    circle,
+    rgba(56, 189, 248, 0.14),
+    rgba(249, 115, 22, 0.06) 70%
+  );
+  animation: orbPulse 10s ease-in-out infinite alternate-reverse;
+}
+
+.ambient-orb-three {
+  inset: 20% auto auto 40%;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.08), transparent 70%);
+  animation: orbPulse 12s ease-in-out infinite alternate;
+}
+
+@keyframes orbPulse {
+  0% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0.8;
+    transform: scale(1.12);
+  }
+}
+
+/* ============================================================
+   HERO CARD - main container
+   ============================================================ */
+.hero-card {
+  position: relative;
+  z-index: 1;
+  width: min(1240px, 100%);
+  margin: 0 auto;
+  padding: var(--space-xl);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-2xl);
+  background: var(--surface-card);
+  box-shadow: var(--shadow-float);
+  backdrop-filter: blur(24px) saturate(170%);
+  -webkit-backdrop-filter: blur(24px) saturate(170%);
+}
+
+/* ============================================================
+   HERO HEADER
+   ============================================================ */
+.hero-header {
+  display: grid;
+  gap: var(--space-lg);
+}
+
+.hero-copy {
+  display: grid;
+  gap: var(--space-md);
+}
+
+.eyebrow {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent-primary);
+  font-family: var(--font-heading);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.eyebrow::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--accent-primary);
+  box-shadow: 0 0 8px var(--accent-primary-glow);
+  animation: livePulse 2s ease-in-out infinite;
+}
+
+@keyframes livePulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.85);
+  }
+}
+
+h1 {
+  font-family: var(--font-heading);
+  font-size: clamp(2.2rem, 5vw, 3.6rem);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+  background: linear-gradient(
+    135deg,
+    var(--text-primary) 0%,
+    var(--accent-secondary) 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+h2 {
+  font-family: var(--font-heading);
+  font-size: clamp(1.4rem, 2.2vw, 1.8rem);
+  font-weight: 600;
+  text-wrap: balance;
+  color: var(--text-primary);
+}
+
+.lede {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  line-height: 1.65;
+  max-width: 62ch;
+}
+
+.supporting-copy,
+.section-supporting-text,
+.empty-state,
+.route-summary,
+.fallback-note,
+.operator-meta,
+.message-bubble p,
+.recommendation-copy {
+  line-height: 1.65;
+  color: var(--text-secondary);
+}
+
+.supporting-copy {
+  max-width: 68ch;
+}
+
+.top-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+
+.top-nav-brand {
+  font-family: var(--font-heading);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.top-nav-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.top-nav-link {
+  padding: 10px 14px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), color var(--transition-fast),
+    background var(--transition-fast);
+}
+
+.top-nav-link:hover {
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+  background: var(--accent-primary-dim);
+}
+
+.hero-layout {
+  display: grid;
+  gap: 20px;
+}
+
+.hero-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.hero-action-button {
+  min-height: 48px;
+  padding: 0 18px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-weight: 700;
+  transition: transform var(--transition-fast), border-color
+    var(--transition-fast), box-shadow var(--transition-fast), background
+    var(--transition-fast);
+}
+
+.hero-action-button:hover {
+  transform: translateY(-1px);
+  border-color: var(--accent-primary);
+  box-shadow: var(--shadow-glow);
+}
+
+.hero-action-primary {
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary) 0%,
+    var(--accent-secondary) 100%
+  );
+  color: var(--text-inverse);
+  border-color: transparent;
+}
+
+.hero-action-supporting-text {
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.hero-visual-card {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-2xl);
+  background: linear-gradient(
+    180deg,
+    rgba(8, 15, 28, 0.92),
+    rgba(17, 24, 39, 0.82)
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.hero-visual-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.route-illustration {
+  width: 100%;
+  height: auto;
+}
+
+/* ============================================================
+   SUMMARY STRIP - hero highlights
+   ============================================================ */
+.summary-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+.summary-card,
+.recommendation-badge-card,
+.detail-card,
+.fallback-card,
+.empty-state-card {
+  display: grid;
+  gap: var(--space-sm);
+  padding: var(--space-md) 18px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  background: var(--surface-raised);
+  transition: border-color var(--transition-fast), box-shadow
+    var(--transition-fast);
+}
+
+.summary-card:hover {
+  border-color: var(--border-active);
+  box-shadow: var(--shadow-glow);
+}
+
+.summary-label,
+.section-title,
+.message-role,
+.status-pill,
+.fallback-note,
+.recommendation-kicker,
+.empty-state-title {
+  font-family: var(--font-heading);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.summary-label,
+.message-role,
+.recommendation-kicker {
+  color: var(--text-muted);
+}
+
+.summary-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.benefit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.benefit-card {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  background: rgba(15, 23, 42, 0.55);
+  transition: transform var(--transition-fast), border-color
+    var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.benefit-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-primary);
+  box-shadow: var(--shadow-glow);
+}
+
+.benefit-card-icon,
+.step-card-icon {
+  margin-bottom: 8px;
+  color: var(--accent-primary);
+  opacity: 0.85;
+}
+
+.benefit-title {
+  font-family: var(--font-heading);
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.benefit-description {
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* ============================================================
+   STEP GRID - how it works
+   ============================================================ */
+.step-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  counter-reset: step;
+}
+
+.step-card {
+  display: grid;
+  gap: var(--space-sm);
+  padding: var(--space-md) 18px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  position: relative;
+  transition: transform var(--transition-fast), border-color
+    var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.step-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-primary-dim);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.step-title {
+  font-family: var(--font-heading);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.step-description {
+  color: var(--text-secondary);
+  line-height: 1.55;
+  font-size: 0.9rem;
+}
+
+/* ============================================================
+   APP GRID - 2-column layout
+   ============================================================ */
+.app-grid {
+  display: grid;
+  gap: 22px;
+  margin-top: var(--space-xl);
+  align-items: start;
+}
+
+.primary-column,
+.secondary-column {
+  display: grid;
+  gap: 20px;
+}
+
