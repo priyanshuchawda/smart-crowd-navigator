@@ -6,12 +6,21 @@ import {
   MOBILITY_MODES,
 } from "@smart-crowd-navigator/shared";
 
-import { type RefObject, memo } from "react";
+import { Suspense, type RefObject, lazy, memo } from "react";
 import { intentDescriptions, intentLabels } from "../intent-metadata";
 import type { AssistantApiResponse, ChatMessage } from "../types";
 import { ConversationPanel } from "./ConversationPanel";
+import { PanelErrorBoundary } from "./PanelErrorBoundary";
 import { RecommendationPanel } from "./RecommendationPanel";
-import { VenueMapPanel } from "./VenueMapPanel";
+
+/** Lazy-loaded venue map — below the fold and SVG-heavy. */
+const LazyVenueMapPanel = lazy(async () => {
+  const module = await import("./VenueMapPanel");
+
+  return {
+    default: module.VenueMapPanel,
+  };
+});
 
 const attendeeSteps = [
   {
@@ -122,9 +131,10 @@ const AttendeeFlowPanels = memo(function AttendeeFlowPanels({
         </div>
 
         <div className="control-stack">
-          <label className="field">
+          <label className="field" htmlFor="attendee-section">
             <span>Section</span>
             <input
+              id="attendee-section"
               aria-describedby="section-help"
               autoCapitalize="characters"
               autoComplete="off"
@@ -138,9 +148,10 @@ const AttendeeFlowPanels = memo(function AttendeeFlowPanels({
             </small>
           </label>
 
-          <label className="field">
+          <label className="field" htmlFor="attendee-party-size">
             <span>Party Size</span>
             <input
+              id="attendee-party-size"
               aria-describedby="party-size-help"
               inputMode="numeric"
               max={12}
@@ -159,9 +170,10 @@ const AttendeeFlowPanels = memo(function AttendeeFlowPanels({
             </small>
           </label>
 
-          <label className="field">
+          <label className="field" htmlFor="attendee-event-phase">
             <span>Event Phase</span>
             <select
+              id="attendee-event-phase"
               aria-describedby="event-phase-help"
               name="eventPhase"
               value={eventPhase}
@@ -182,9 +194,10 @@ const AttendeeFlowPanels = memo(function AttendeeFlowPanels({
             </small>
           </label>
 
-          <label className="field">
+          <label className="field" htmlFor="attendee-group-workflow">
             <span>Group coordination</span>
             <select
+              id="attendee-group-workflow"
               aria-describedby="group-workflow-help"
               name="groupWorkflow"
               value={groupWorkflow}
@@ -206,9 +219,10 @@ const AttendeeFlowPanels = memo(function AttendeeFlowPanels({
             </small>
           </label>
 
-          <label className="field">
+          <label className="field" htmlFor="attendee-mobility-mode">
             <span>Mobility</span>
             <select
+              id="attendee-mobility-mode"
               aria-describedby="mobility-help"
               name="mobilityMode"
               value={mobilityMode}
@@ -272,21 +286,48 @@ const AttendeeFlowPanels = memo(function AttendeeFlowPanels({
         </div>
       </section>
 
-      <ConversationPanel
-        draftQuestion={draftQuestion}
-        errorMessage={errorMessage}
-        isLoading={isLoading}
-        messages={messages}
-        onDraftQuestionChange={onDraftQuestionChange}
-        onSubmitQuestion={onSubmitQuestion}
-      />
-      <div ref={recommendationSectionRef}>
-        <RecommendationPanel
-          response={response}
-          headingRef={recommendationHeadingRef}
+      <PanelErrorBoundary panelName="Live Assistant">
+        <ConversationPanel
+          draftQuestion={draftQuestion}
+          errorMessage={errorMessage}
+          isLoading={isLoading}
+          messages={messages}
+          onDraftQuestionChange={onDraftQuestionChange}
+          onSubmitQuestion={onSubmitQuestion}
         />
-      </div>
-      <VenueMapPanel response={response} />
+      </PanelErrorBoundary>
+      <PanelErrorBoundary panelName="Recommendation">
+        <div ref={recommendationSectionRef}>
+          <RecommendationPanel
+            response={response}
+            headingRef={recommendationHeadingRef}
+          />
+        </div>
+      </PanelErrorBoundary>
+      <PanelErrorBoundary panelName="Venue Map">
+        <Suspense
+          fallback={
+            <section
+              className="panel-card venue-map-panel"
+              aria-label="Venue layout map"
+            >
+              <div className="panel-heading-row">
+                <div>
+                  <span className="section-title">Venue Layout</span>
+                  <p className="section-supporting-text">
+                    Loading the interactive venue map…
+                  </p>
+                </div>
+                <span className="status-pill status-pill-muted">
+                  Loading…
+                </span>
+              </div>
+            </section>
+          }
+        >
+          <LazyVenueMapPanel response={response} />
+        </Suspense>
+      </PanelErrorBoundary>
     </div>
   );
 });

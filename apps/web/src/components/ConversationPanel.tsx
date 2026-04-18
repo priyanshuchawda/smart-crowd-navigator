@@ -62,6 +62,7 @@ const ConversationPanel = memo(function ConversationPanel({
               key={`${message.role}-${index}`}
               aria-label={`${messageRoleLabels[message.role]} message`}
               className={`message-bubble ${message.role}`}
+              lang="en"
             >
               <p className="message-role">{messageRoleLabels[message.role]}</p>
               <p>{message.text}</p>
