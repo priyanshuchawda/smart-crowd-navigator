@@ -5,6 +5,9 @@ Smart Crowd Navigator is a production-style web application for large sporting v
 ![Verification](https://img.shields.io/badge/verify-local%20gate-brightgreen)
 ![Stack](https://img.shields.io/badge/stack-React%20%2B%20TypeScript%20%2B%20Node-blue)
 ![Deployment](https://img.shields.io/badge/deploy-Cloud%20Run-4285F4)
+![Coverage](https://img.shields.io/badge/coverage-80%25%20threshold-success)
+
+![Smart Crowd Navigator — attendee experience with venue map, recommendation panel, and live assistant](docs/app-screenshot.png)
 
 ## Live deployment
 

@@ -78,7 +78,22 @@ const ASSISTANT_PROMPT = [
   "",
   "Example style (wait): Wait 5 minutes, then head to Stall B via the East Concourse. This saves about 3 minutes overall and avoids the current rush near your section.",
   "Example style (go now): Go now to Exit South. It is currently the quickest route out with less crowd pressure than Exit North.",
+  "",
+  "When returning structured JSON, respond with a single JSON object containing a 'message' field with your natural-language guidance.",
 ].join("\n");
+
+/** JSON schema for the structured narration output from the final turn. */
+const NARRATION_RESPONSE_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    message: {
+      type: Type.STRING,
+      description:
+        "A 2–4 sentence plain-language guidance message for the attendee.",
+    },
+  },
+  required: ["message"],
+} as const;
 
 const recommendationTool = {
   name: "get_recommendation_data",
@@ -455,6 +470,8 @@ async function runGeminiRecommendationAssistant({
         model,
         contents: history,
         config: {
+          responseMimeType: "application/json",
+          responseSchema: NARRATION_RESPONSE_SCHEMA,
           tools: [toolConfig],
         },
       }),
@@ -465,9 +482,17 @@ async function runGeminiRecommendationAssistant({
   );
 
   const fallback = buildFallbackNarration(recommendation);
+  let narrationText: string;
+
+  try {
+    const parsed = JSON.parse(response2.text ?? "") as { message?: string };
+    narrationText = parsed.message ?? fallback;
+  } catch {
+    narrationText = normalizeAssistantMessage(response2.text, fallback);
+  }
 
   return {
-    message: normalizeAssistantMessage(response2.text, fallback),
+    message: normalizeAssistantMessage(narrationText, fallback),
     recommendation,
     source: "gemini" as const,
   } satisfies AssistantResponsePayload;

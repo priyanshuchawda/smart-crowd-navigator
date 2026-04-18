@@ -7,6 +7,7 @@ import type {
   MobilityMode,
 } from "@smart-crowd-navigator/shared";
 
+import { trackEvent } from "../analytics";
 import { requestAssistantResponse } from "../api";
 import type { ChatMessage } from "../types";
 
@@ -112,6 +113,7 @@ export function useAssistantSession({
       setIsLoading(true);
       setErrorMessage(null);
       setActiveIntent(intent);
+      void trackEvent("intent_selected", { intent });
 
       if (options?.announceUser !== false) {
         setMessages(nextMessages);
@@ -144,16 +146,26 @@ export function useAssistantSession({
         setMessages([...nextMessages, assistantMessage].slice(-12));
         setDraftQuestion("");
         onRecommendationReady?.();
+        void trackEvent("recommendation_received", {
+          intent,
+          source: nextResponse.source ?? "unknown",
+          timing_decision: nextResponse.recommendation.timingDecision,
+          confidence: nextResponse.recommendation.confidence,
+        });
       } catch (error) {
         if (requestVersion !== requestVersionRef.current) {
           return;
         }
 
-        setErrorMessage(
+        const message =
           error instanceof Error
             ? error.message
-            : "Unable to get a recommendation.",
-        );
+            : "Unable to get a recommendation.";
+        setErrorMessage(message);
+        void trackEvent("recommendation_error", {
+          intent,
+          error_message: message,
+        });
       } finally {
         if (requestVersion === requestVersionRef.current) {
           setIsLoading(false);
@@ -187,6 +199,10 @@ export function useAssistantSession({
     }
 
     const nextIntent = inferIntentFromQuestion(question, activeIntent);
+    void trackEvent("follow_up_submitted", {
+      intent: nextIntent,
+      question_length: question.length,
+    });
     void runRecommendationRequest(nextIntent, {
       question,
       userText: question,
