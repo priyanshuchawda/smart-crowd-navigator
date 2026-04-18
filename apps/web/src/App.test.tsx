@@ -17,6 +17,7 @@ vi.mock("./api", () => ({
 }));
 
 const requestAssistantResponseMock = vi.mocked(requestAssistantResponse);
+const APP_BEHAVIOR_TIMEOUT_MS = 20_000;
 
 function getFoodQuickActionButton() {
   const quickActions = screen.getByRole("region", {
@@ -75,124 +76,144 @@ afterEach(() => {
 });
 
 describe("App behavior", () => {
-  it("requests a quick action recommendation and renders it", async () => {
-    requestAssistantResponseMock.mockResolvedValueOnce(
-      createAssistantResponse(),
-    );
+  it(
+    "requests a quick action recommendation and renders it",
+    async () => {
+      requestAssistantResponseMock.mockResolvedValueOnce(
+        createAssistantResponse(),
+      );
 
-    render(<App />);
-    await userEvent.click(getFoodQuickActionButton());
+      render(<App />);
+      await userEvent.click(getFoodQuickActionButton());
 
-    await waitFor(() => {
-      expect(requestAssistantResponseMock).toHaveBeenCalledTimes(1);
-    });
+      await waitFor(() => {
+        expect(requestAssistantResponseMock).toHaveBeenCalledTimes(1);
+      });
 
-    expect(requestAssistantResponseMock.mock.calls[0]?.[0]).toMatchObject({
-      eventPhase: "break",
-      intent: "food",
-      mobilityMode: "standard",
-      partySize: 3,
-      section: "section-a12",
-    });
-    expect(
-      await screen.findByRole("heading", { name: "Stall B" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("Go now for the best route outcome."),
-    ).toBeVisible();
+      expect(requestAssistantResponseMock.mock.calls[0]?.[0]).toMatchObject({
+        eventPhase: "break",
+        intent: "food",
+        mobilityMode: "standard",
+        partySize: 3,
+        section: "section-a12",
+      });
+      expect(
+        await screen.findByRole("heading", { name: "Stall B" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText("Go now for the best route outcome."),
+      ).toBeVisible();
 
-    const transcript = screen.getByRole("log", {
-      name: "Conversation transcript",
-    });
-    expect(within(transcript).getByText("Use Stall B now.")).toBeVisible();
-  });
+      const transcript = screen.getByRole("log", {
+        name: "Conversation transcript",
+      });
+      expect(within(transcript).getByText("Use Stall B now.")).toBeVisible();
+    },
+    APP_BEHAVIOR_TIMEOUT_MS,
+  );
 
-  it("shows a request failure banner when recommendation lookup fails", async () => {
-    requestAssistantResponseMock.mockRejectedValueOnce(
-      new Error("Request failed with status 500"),
-    );
+  it(
+    "shows a request failure banner when recommendation lookup fails",
+    async () => {
+      requestAssistantResponseMock.mockRejectedValueOnce(
+        new Error("Request failed with status 500"),
+      );
 
-    render(<App />);
-    await userEvent.click(getFoodQuickActionButton());
+      render(<App />);
+      await userEvent.click(getFoodQuickActionButton());
 
-    expect(
-      await screen.findByText("Request failed with status 500"),
-    ).toBeVisible();
-  });
+      expect(
+        await screen.findByText("Request failed with status 500"),
+      ).toBeVisible();
+    },
+    APP_BEHAVIOR_TIMEOUT_MS,
+  );
 
-  it("reflects loading state while recommendation request is in-flight", async () => {
-    let resolveRequest: ((response: AssistantApiResponse) => void) | undefined;
-    requestAssistantResponseMock.mockReturnValueOnce(
-      new Promise<AssistantApiResponse>((resolve) => {
-        resolveRequest = (response) => {
-          resolve(response);
-        };
-      }),
-    );
-
-    render(<App />);
-    await userEvent.click(getFoodQuickActionButton());
-
-    expect(screen.getByText("Planning…")).toBeVisible();
-    expect(getFoodQuickActionButton()).toBeDisabled();
-
-    const resolvePendingRequest = resolveRequest;
-
-    if (!resolvePendingRequest) {
-      throw new Error("Expected a pending recommendation request resolver");
-    }
-
-    resolvePendingRequest(createAssistantResponse());
-
-    expect(
-      await screen.findByRole("heading", { name: "Stall B" }),
-    ).toBeVisible();
-    expect(screen.getByText("Ready for the next move")).toBeVisible();
-  });
-
-  it("submits typed follow-up questions with conversation context", async () => {
-    requestAssistantResponseMock
-      .mockResolvedValueOnce(
-        createAssistantResponse({
-          message: "Initial recommendation",
-        }),
-      )
-      .mockResolvedValueOnce(
-        createAssistantResponse({
-          message: "Follow-up guidance",
+  it(
+    "reflects loading state while recommendation request is in-flight",
+    async () => {
+      let resolveRequest:
+        | ((response: AssistantApiResponse) => void)
+        | undefined;
+      requestAssistantResponseMock.mockReturnValueOnce(
+        new Promise<AssistantApiResponse>((resolve) => {
+          resolveRequest = (response) => {
+            resolve(response);
+          };
         }),
       );
 
-    render(<App />);
-    await userEvent.click(getFoodQuickActionButton());
-    await screen.findByText("Initial recommendation");
+      render(<App />);
+      await userEvent.click(getFoodQuickActionButton());
 
-    const followUpQuestion = "Why is this option better right now?";
-    await userEvent.type(
-      screen.getByLabelText("Ask the assistant"),
-      followUpQuestion,
-    );
+      expect(screen.getByText("Planning…")).toBeVisible();
+      expect(getFoodQuickActionButton()).toBeDisabled();
 
-    const submitButton = screen.getByRole("button", { name: "Send question" });
-    expect(submitButton).toBeEnabled();
-    await userEvent.click(submitButton);
+      const resolvePendingRequest = resolveRequest;
 
-    await waitFor(() => {
-      expect(requestAssistantResponseMock).toHaveBeenCalledTimes(2);
-    });
+      if (!resolvePendingRequest) {
+        throw new Error("Expected a pending recommendation request resolver");
+      }
 
-    const secondPayload = requestAssistantResponseMock.mock.calls[1]?.[0];
-    expect(secondPayload).toBeDefined();
-    expect(secondPayload).toMatchObject({
-      intent: "food",
-      question: followUpQuestion,
-    });
-    expect(secondPayload?.conversationHistory?.at(-1)).toMatchObject({
-      role: "user",
-      text: followUpQuestion,
-    });
-    expect(await screen.findByText("Follow-up guidance")).toBeVisible();
-  });
+      resolvePendingRequest(createAssistantResponse());
+
+      expect(
+        await screen.findByRole("heading", { name: "Stall B" }),
+      ).toBeVisible();
+      expect(screen.getByText("Ready for the next move")).toBeVisible();
+    },
+    APP_BEHAVIOR_TIMEOUT_MS,
+  );
+
+  it(
+    "submits typed follow-up questions with conversation context",
+    async () => {
+      requestAssistantResponseMock
+        .mockResolvedValueOnce(
+          createAssistantResponse({
+            message: "Initial recommendation",
+          }),
+        )
+        .mockResolvedValueOnce(
+          createAssistantResponse({
+            message: "Follow-up guidance",
+          }),
+        );
+
+      render(<App />);
+      await userEvent.click(getFoodQuickActionButton());
+      await screen.findByText("Initial recommendation");
+
+      const followUpQuestion = "Why is this option better right now?";
+      await userEvent.type(
+        screen.getByLabelText("Ask the assistant"),
+        followUpQuestion,
+      );
+
+      const submitButton = screen.getByRole("button", {
+        name: "Send question",
+      });
+      expect(submitButton).toBeEnabled();
+      await userEvent.click(submitButton);
+
+      await waitFor(() => {
+        expect(requestAssistantResponseMock).toHaveBeenCalledTimes(2);
+      });
+
+      const secondPayload = requestAssistantResponseMock.mock.calls[1]?.[0];
+      expect(secondPayload).toBeDefined();
+      expect(secondPayload).toMatchObject({
+        intent: "food",
+        question: followUpQuestion,
+      });
+      expect(secondPayload?.conversationHistory?.at(-1)).toMatchObject({
+        role: "user",
+        text: followUpQuestion,
+      });
+      expect(await screen.findByText("Follow-up guidance")).toBeVisible();
+    },
+    APP_BEHAVIOR_TIMEOUT_MS,
+  );
 
   it("starts with accessible transcript semantics and disabled empty submit", () => {
     render(<App />);

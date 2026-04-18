@@ -14,7 +14,7 @@
     "verify": "pnpm lint && pnpm typecheck && pnpm --filter @smart-crowd-navigator/shared build && pnpm --filter @smart-crowd-navigator/venue-engine build && pnpm test && pnpm build",
     "dev:web": "pnpm --filter @smart-crowd-navigator/web dev",
     "dev:api": "pnpm --filter @smart-crowd-navigator/assistant-api dev",
-    "test:e2e": "pnpm build && playwright test",
+    "test:e2e": "node ./scripts/run-e2e-tests.mjs",
     "dev": "./scripts/dev-local.sh",
     "setup:local": "./scripts/setup-local-env.sh",
     "test:gemini-real": "pnpm --filter @smart-crowd-navigator/assistant-api test:gemini-real",

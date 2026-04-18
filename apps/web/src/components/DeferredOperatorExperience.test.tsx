@@ -41,7 +41,9 @@ describe("DeferredOperatorExperience", () => {
     );
 
     expect(screen.getByText("Demo Controls")).toBeVisible();
-    expect(screen.queryByText("Mock Operator Experience")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Mock Operator Experience"),
+    ).not.toBeInTheDocument();
   });
 
   it("loads deferred operator module on open and forwards callback", async () => {

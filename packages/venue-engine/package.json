@@ -13,10 +13,10 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run",
+    "test": "vitest run src/index.test.ts src/data-source.test.ts src/ranking.test.ts",
     "test:perf": "node ./scripts/run-perf-tests.mjs",
     "test:perf:update-baselines": "node ./scripts/run-perf-tests.mjs --update-baselines",
-    "coverage": "vitest run --coverage",
+    "coverage": "vitest run --coverage src/index.test.ts src/data-source.test.ts src/ranking.test.ts",
     "lint": "biome check src"
   }
 }

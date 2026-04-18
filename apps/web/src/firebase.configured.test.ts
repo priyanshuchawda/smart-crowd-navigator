@@ -10,6 +10,10 @@ type SnapshotLike = {
   exists: () => boolean;
 };
 
+type DocRefLike = {
+  path: string;
+};
+
 const {
   analyticsGetAnalyticsMock,
   analyticsIsSupportedMock,
@@ -70,7 +74,9 @@ const {
       path: `${collection}/${id}`,
     }),
   );
-  const firestoreGetDocMock = vi.fn(async () => ({
+  const firestoreGetDocMock = vi.fn<
+    (docRef: DocRefLike) => Promise<SnapshotLike>
+  >(async () => ({
     data: () => undefined,
     exists: () => false,
   }));
@@ -87,7 +93,9 @@ const {
   const firestoreSetDocMock = vi.fn(async () => undefined);
 
   const appCheckInitializeMock = vi.fn(() => ({ id: "mock-app-check" }));
-  const appCheckGetTokenMock = vi.fn(async () => ({ token: "app-check-token" }));
+  const appCheckGetTokenMock = vi.fn(async () => ({
+    token: "app-check-token",
+  }));
   const recaptchaProviderCtorMock = vi.fn();
 
   return {

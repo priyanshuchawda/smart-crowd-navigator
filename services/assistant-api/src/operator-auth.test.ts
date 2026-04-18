@@ -65,6 +65,20 @@ describe("operator auth", () => {
     expect(getFirebaseProjectId()).toBe("stadium-demo");
   });
 
+  it("allows OPERATOR_AUTH_REQUIRED to explicitly disable auth", () => {
+    process.env.OPERATOR_AUTH_REQUIRED = "false";
+    process.env.NODE_ENV = "production";
+
+    expect(isOperatorAuthRequired()).toBe(false);
+  });
+
+  it("falls back to VITE_FIREBASE_PROJECT_ID when FIREBASE_PROJECT_ID is missing", () => {
+    Reflect.deleteProperty(process.env, "FIREBASE_PROJECT_ID");
+    process.env.VITE_FIREBASE_PROJECT_ID = "stadium-web";
+
+    expect(getFirebaseProjectId()).toBe("stadium-web");
+  });
+
   it("verifies a Firebase token and operator role document", async () => {
     process.env.OPERATOR_AUTH_REQUIRED = "true";
     const { privateKey, publicKey } = generateKeyPairSync("rsa", {
@@ -210,5 +224,311 @@ describe("operator auth", () => {
       code: "operator_forbidden",
       statusCode: 403,
     });
+  });
+
+  it("rejects missing bearer tokens when auth is required", async () => {
+    process.env.OPERATOR_AUTH_REQUIRED = "true";
+    const authService = createOperatorAuthService();
+
+    await expect(
+      authService.requireOperator({ headers: {} } as never),
+    ).rejects.toMatchObject({
+      code: "operator_auth_required",
+      statusCode: 401,
+    });
+  });
+
+  it("rejects unexpected token headers before fetching keys", async () => {
+    process.env.OPERATOR_AUTH_REQUIRED = "true";
+    const header = toBase64Url(
+      JSON.stringify({
+        alg: "HS256",
+        kid: "test-key-hs256",
+        typ: "JWT",
+      }),
+    );
+    const payload = toBase64Url(
+      JSON.stringify({
+        aud: "stadium-demo",
+        exp: Math.floor(Date.UTC(2026, 3, 11, 5, 0, 0) / 1000),
+        iat: Math.floor(Date.UTC(2026, 3, 11, 4, 0, 0) / 1000),
+        iss: "https://securetoken.google.com/stadium-demo",
+        sub: "operator-1",
+      }),
+    );
+    const malformedHeaderToken = `${header}.${payload}.signature`;
+    const fetchImpl = vi.fn();
+    const authService = createOperatorAuthService({
+      fetchImpl: fetchImpl as typeof fetch,
+    });
+
+    await expect(
+      authService.requireOperator({
+        headers: {
+          authorization: `Bearer ${malformedHeaderToken}`,
+        },
+      } as never),
+    ).rejects.toMatchObject({
+      code: "invalid_token",
+      statusCode: 401,
+    });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("rejects tokens signed with unknown key ids", async () => {
+    process.env.OPERATOR_AUTH_REQUIRED = "true";
+    const { privateKey, publicKey } = generateKeyPairSync("rsa", {
+      modulusLength: 2048,
+    });
+    const now = Date.UTC(2026, 3, 11, 4, 45, 0);
+    const token = createJwt({
+      kid: "kid-not-in-jwks",
+      payload: {
+        aud: "stadium-demo",
+        auth_time: Math.floor(now / 1000) - 60,
+        exp: Math.floor(now / 1000) + 3600,
+        iat: Math.floor(now / 1000) - 60,
+        iss: "https://securetoken.google.com/stadium-demo",
+        sub: "operator-1",
+      },
+      privateKey,
+    });
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      if (input.toString().includes("service_accounts")) {
+        return new Response(
+          JSON.stringify({
+            keys: [
+              {
+                ...(publicKey.export({ format: "jwk" }) as JsonWebKey),
+                kid: "different-kid",
+              },
+            ],
+          }),
+          {
+            headers: {
+              "cache-control": "public, max-age=3600",
+              "content-type": "application/json",
+            },
+            status: 200,
+          },
+        );
+      }
+
+      return new Response("not-found", { status: 404 });
+    });
+    const authService = createOperatorAuthService({
+      fetchImpl: fetchImpl as typeof fetch,
+      now: () => now,
+    });
+
+    await expect(
+      authService.requireOperator({
+        headers: {
+          authorization: `Bearer ${token}`,
+        },
+      } as never),
+    ).rejects.toMatchObject({
+      code: "invalid_token",
+      statusCode: 401,
+    });
+  });
+
+  it("rejects tokens with invalid signatures", async () => {
+    process.env.OPERATOR_AUTH_REQUIRED = "true";
+    const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const { publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const kid = "signature-mismatch-kid";
+    const now = Date.UTC(2026, 3, 11, 4, 45, 0);
+    const token = createJwt({
+      kid,
+      payload: {
+        aud: "stadium-demo",
+        auth_time: Math.floor(now / 1000) - 60,
+        exp: Math.floor(now / 1000) + 3600,
+        iat: Math.floor(now / 1000) - 60,
+        iss: "https://securetoken.google.com/stadium-demo",
+        sub: "operator-1",
+      },
+      privateKey,
+    });
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      if (input.toString().includes("service_accounts")) {
+        return new Response(
+          JSON.stringify({
+            keys: [
+              {
+                ...(publicKey.export({ format: "jwk" }) as JsonWebKey),
+                kid,
+              },
+            ],
+          }),
+          {
+            headers: {
+              "cache-control": "public, max-age=3600",
+              "content-type": "application/json",
+            },
+            status: 200,
+          },
+        );
+      }
+
+      return new Response("not-found", { status: 404 });
+    });
+    const authService = createOperatorAuthService({
+      fetchImpl: fetchImpl as typeof fetch,
+      now: () => now,
+    });
+
+    await expect(
+      authService.requireOperator({
+        headers: {
+          authorization: `Bearer ${token}`,
+        },
+      } as never),
+    ).rejects.toMatchObject({
+      code: "invalid_token",
+      statusCode: 401,
+    });
+  });
+
+  it("rejects role document lookup failures with auth_unavailable", async () => {
+    process.env.OPERATOR_AUTH_REQUIRED = "true";
+    const { privateKey, publicKey } = generateKeyPairSync("rsa", {
+      modulusLength: 2048,
+    });
+    const kid = "role-lookup-fail-kid";
+    const now = Date.UTC(2026, 3, 11, 4, 45, 0);
+    const token = createJwt({
+      kid,
+      payload: {
+        aud: "stadium-demo",
+        auth_time: Math.floor(now / 1000) - 60,
+        exp: Math.floor(now / 1000) + 3600,
+        iat: Math.floor(now / 1000) - 60,
+        iss: "https://securetoken.google.com/stadium-demo",
+        sub: "operator-1",
+      },
+      privateKey,
+    });
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = input.toString();
+
+      if (url.includes("service_accounts")) {
+        return new Response(
+          JSON.stringify({
+            keys: [
+              {
+                ...(publicKey.export({ format: "jwk" }) as JsonWebKey),
+                kid,
+              },
+            ],
+          }),
+          {
+            headers: {
+              "cache-control": "public, max-age=3600",
+              "content-type": "application/json",
+            },
+            status: 200,
+          },
+        );
+      }
+
+      if (url.includes("/documents/operator-roles/operator-1")) {
+        return new Response("backend error", { status: 500 });
+      }
+
+      return new Response("not-found", { status: 404 });
+    });
+    const authService = createOperatorAuthService({
+      fetchImpl: fetchImpl as typeof fetch,
+      now: () => now,
+    });
+
+    await expect(
+      authService.requireOperator({
+        headers: {
+          authorization: `Bearer ${token}`,
+        },
+      } as never),
+    ).rejects.toMatchObject({
+      code: "auth_unavailable",
+      statusCode: 502,
+    });
+  });
+
+  it("accepts admin operator role documents", async () => {
+    process.env.OPERATOR_AUTH_REQUIRED = "true";
+    const { privateKey, publicKey } = generateKeyPairSync("rsa", {
+      modulusLength: 2048,
+    });
+    const kid = "admin-role-kid";
+    const now = Date.UTC(2026, 3, 11, 4, 45, 0);
+    const token = createJwt({
+      kid,
+      payload: {
+        aud: "stadium-demo",
+        auth_time: Math.floor(now / 1000) - 60,
+        exp: Math.floor(now / 1000) + 3600,
+        iat: Math.floor(now / 1000) - 60,
+        iss: "https://securetoken.google.com/stadium-demo",
+        sub: "operator-1",
+      },
+      privateKey,
+    });
+
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = input.toString();
+
+      if (url.includes("service_accounts")) {
+        return new Response(
+          JSON.stringify({
+            keys: [
+              {
+                ...(publicKey.export({ format: "jwk" }) as JsonWebKey),
+                kid,
+              },
+            ],
+          }),
+          {
+            headers: {
+              "cache-control": "public, max-age=3600",
+              "content-type": "application/json",
+            },
+            status: 200,
+          },
+        );
+      }
+
+      if (url.includes("/documents/operator-roles/operator-1")) {
+        return new Response(
+          JSON.stringify({
+            fields: {
+              active: { booleanValue: true },
+              role: { stringValue: "admin" },
+            },
+          }),
+          {
+            headers: {
+              "content-type": "application/json",
+            },
+            status: 200,
+          },
+        );
+      }
+
+      return new Response("not-found", { status: 404 });
+    });
+
+    const authService = createOperatorAuthService({
+      fetchImpl: fetchImpl as typeof fetch,
+      now: () => now,
+    });
+    const operator = await authService.requireOperator({
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+    } as never);
+
+    expect(operator?.role).toBe("admin");
   });
 });

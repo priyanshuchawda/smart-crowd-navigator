@@ -23,7 +23,9 @@ describe("OperatorAccessPanel", () => {
       />,
     );
 
-    expect(screen.getByRole("region", { name: /Operator access/i })).toBeVisible();
+    expect(
+      screen.getByRole("region", { name: /Operator access/i }),
+    ).toBeVisible();
     expect(screen.getByText("Operator Access")).toBeVisible();
     expect(screen.getByText("Restricted")).toBeVisible();
     expect(screen.getByText("Sign-in failed")).toBeVisible();
@@ -59,8 +61,12 @@ describe("OperatorAccessPanel", () => {
     fireEvent.change(screen.getByLabelText("Password"), {
       target: { value: "correct-horse" },
     });
-    await userEvent.click(screen.getByRole("button", { name: "Sign In as Operator" }));
-    await userEvent.click(screen.getByRole("button", { name: "Sign in with Google" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Sign In as Operator" }),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Sign in with Google" }),
+    );
 
     expect(onEmailChange).toHaveBeenCalled();
     expect(onEmailChange).toHaveBeenLastCalledWith("operator@example.com");

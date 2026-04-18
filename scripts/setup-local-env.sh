@@ -10,17 +10,12 @@ cp .env.example .env
 
 echo 'setup-local-env: local development helper only (not for production secrets)'
 
-if [ -f key.md ]; then
-  key=$(grep -o 'AIza[[:alnum:]_-]*' key.md | head -n1 || true)
-  if [ -n "$key" ]; then
-    awk -v key="$key" 'BEGIN{done=0} /^GEMINI_API_KEY=/{print "GEMINI_API_KEY=" key; done=1; next} {print} END{if(!done) print "GEMINI_API_KEY=" key}' .env > .env.tmp
-    mv .env.tmp .env
-    echo 'GEMINI_API_KEY populated from key.md'
-  else
-    echo 'No Gemini key found in key.md; leaving placeholder in .env'
-  fi
+if [ -n "${GEMINI_API_KEY:-}" ]; then
+  awk -v key="$GEMINI_API_KEY" 'BEGIN{done=0} /^GEMINI_API_KEY=/{print "GEMINI_API_KEY=" key; done=1; next} {print} END{if(!done) print "GEMINI_API_KEY=" key}' .env > .env.tmp
+  mv .env.tmp .env
+  echo 'GEMINI_API_KEY populated from current shell environment'
 else
-  echo 'key.md not found; leaving placeholder in .env'
+  echo 'GEMINI_API_KEY not provided; leaving placeholder in .env'
 fi
 
 echo '.env created successfully'

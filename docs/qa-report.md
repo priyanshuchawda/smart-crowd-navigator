@@ -1,6 +1,6 @@
 # QA Evidence Report
 
-_Last updated: 2026-04-14 (post rubric hardening pass)_
+_Last updated: 2026-04-19 (reliability + coverage gate hardening pass)_
 
 ## Current status
 
@@ -29,7 +29,11 @@ The repository is in a review-ready state with the roadmap implementation lanes 
 
 ### Local command evidence
 - `pnpm verify` → pass
-- `pnpm coverage` → available for package-level Vitest coverage reporting
+- `pnpm coverage` → pass (workspace package coverage lanes green)
+- `pnpm --filter @smart-crowd-navigator/web coverage` → pass with tightened thresholds (`75/75/75/75`) and current all-files coverage `89.94/80.00/86.04/89.94` (statements/branches/functions/lines)
+- `pnpm --filter @smart-crowd-navigator/assistant-api coverage` → pass with current all-files coverage `80.00/72.98/93.75/80.00`
+- `pnpm --filter @smart-crowd-navigator/venue-engine coverage` → pass with current all-files coverage `93.02/80.34/97.22/93.02`
+- `pnpm audit:prod` → pass (`No known vulnerabilities found`)
 - targeted Playwright regression suite → pass
   - `tests/e2e/accessibility-axe.spec.ts`
   - `tests/e2e/accessibility-smoke.spec.ts`
@@ -39,6 +43,9 @@ The repository is in a review-ready state with the roadmap implementation lanes 
   - `tests/e2e/attendee-regression-lanes.spec.ts`
 - focused operator refresh smoke:
   - `pnpm build && pnpm exec playwright test tests/e2e/operator-refresh.spec.ts` → pass
+- perf reliability lane:
+  - default `packages/venue-engine` test script now excludes perf baseline checks to avoid cross-workspace contention noise
+  - performance gates remain enforced via `pnpm --filter @smart-crowd-navigator/venue-engine test:perf` and CI `venue_engine_perf` job
 - TypeScript project diagnostics:
   - `npx tsc --noEmit --pretty false --project ./tsconfig.json` → 0 errors / 0 warnings
 

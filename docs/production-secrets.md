@@ -3,7 +3,7 @@
 ## Runtime secret policy
 
 - Production must inject secrets through environment variables or Secret Manager-backed references.
-- `key.md` and `pnpm setup:local` are local-development helpers only.
+- `pnpm setup:local` is local-development only and reads `GEMINI_API_KEY` from your shell env when provided.
 - The API now validates that production has a real `GEMINI_API_KEY` unless Gemini is explicitly disabled.
 - When operator auth is enabled in production, `FIREBASE_PROJECT_ID` (or `VITE_FIREBASE_PROJECT_ID`) must also be injected.
 
@@ -67,7 +67,7 @@ Use this for future Google Maps / Places browser keys:
 ## Verification checklist
 
 - Production deploy command uses env vars / Secret Manager references only.
-- No production runbook step references `key.md`.
+- No production runbook step references local plaintext key files.
 - `pnpm setup:local` remains documented as local-only.
 - Protected backend routes reject requests without a valid `X-Firebase-AppCheck` token when `APP_CHECK_REQUIRED=true`.
 - Browser API keys have origin and API allowlists.

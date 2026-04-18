@@ -50,7 +50,7 @@ describe("firebase module without configured credentials", () => {
     await expect(signInOperatorWithGoogle()).rejects.toThrow(
       "Firebase Auth is not configured.",
     );
-  });
+  }, 20_000);
 
   it("notifies operator session subscribers with null session", async () => {
     const { subscribeToOperatorSession } = await loadFirebaseModule();

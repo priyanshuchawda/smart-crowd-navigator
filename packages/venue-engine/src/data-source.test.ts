@@ -27,6 +27,12 @@ describe("venue data source contract", () => {
     ).toThrow(/supported venue data source kind/i);
   });
 
+  it("rejects non-object venue data source payloads", () => {
+    expect(() => parseVenueDataSource("not-an-object")).toThrow(
+      /venue data source must be an object/i,
+    );
+  });
+
   it("rejects invalid event phases", () => {
     expect(() =>
       parseVenueDataSource({
@@ -37,6 +43,72 @@ describe("venue data source contract", () => {
         },
       }),
     ).toThrow(/supported event phase/i);
+  });
+
+  it("applies destination defaults when optional state fields are omitted", () => {
+    const [firstState] =
+      localDevelopmentVenueDataSource.state.destinationStates;
+
+    if (!firstState) {
+      throw new Error("Expected destination state fixtures to exist");
+    }
+
+    const parsed = parseVenueDataSource({
+      ...localDevelopmentVenueDataSource,
+      state: {
+        ...localDevelopmentVenueDataSource.state,
+        destinationStates: [
+          {
+            nodeId: firstState.nodeId,
+            queueMinutes: firstState.queueMinutes,
+            crowdPenalty: firstState.crowdPenalty,
+            queueTrendAfterFiveMinutes: firstState.queueTrendAfterFiveMinutes,
+            serviceMinutesPerAdditionalPerson:
+              firstState.serviceMinutesPerAdditionalPerson,
+          },
+        ],
+      },
+    });
+
+    expect(parsed.state.destinationStates[0]).toMatchObject({
+      status: "open",
+      telemetryConfidence: "observed",
+      waitTimeVariability: 0,
+    });
+  });
+
+  it("rejects negative queue-derived destination state fields", () => {
+    expect(() =>
+      parseVenueDataSource({
+        ...localDevelopmentVenueDataSource,
+        state: {
+          ...localDevelopmentVenueDataSource.state,
+          destinationStates: [
+            {
+              ...localDevelopmentVenueDataSource.state.destinationStates[0],
+              waitTimeVariability: -1,
+            },
+          ],
+        },
+      }),
+    ).toThrow(/waitTimeVariability must be non-negative/i);
+  });
+
+  it("rejects invalid path type values", () => {
+    expect(() =>
+      parseVenueDataSource({
+        ...localDevelopmentVenueDataSource,
+        topology: {
+          ...localDevelopmentVenueDataSource.topology,
+          edges: [
+            {
+              ...localDevelopmentVenueDataSource.topology.edges[0],
+              pathType: "teleport",
+            },
+          ],
+        },
+      }),
+    ).toThrow(/supported venue path type/i);
   });
 
   it("creates a venue fixture from the contract without leaking references", () => {

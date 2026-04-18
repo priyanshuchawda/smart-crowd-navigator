@@ -211,6 +211,7 @@ Then open:
 
 - repository visibility: public
 - branch policy: keep only `main` on the remote for challenge submission
+- branch verification command: `git ls-remote --heads origin` should list only `refs/heads/main`
 - repository size guard: verify source archive size before submission (`git archive --format=zip -o crowd-head.zip HEAD`)
 - package manager consistency: use pnpm-only lockfiles and scripts
 - pre-submit checks:
