@@ -111,38 +111,75 @@ function getRequestOrigin(request: IncomingMessage) {
   return typeof originHeader === "string" ? originHeader : null;
 }
 
-function isOriginAllowed(origin: string | null) {
+function getRequestHost(request: IncomingMessage) {
+  const forwardedHost = request.headers["x-forwarded-host"];
+  const forwardedHostValue = Array.isArray(forwardedHost)
+    ? forwardedHost[0]
+    : forwardedHost;
+  const hostValue =
+    typeof forwardedHostValue === "string" && forwardedHostValue.length > 0
+      ? forwardedHostValue
+      : request.headers.host;
+
+  if (typeof hostValue !== "string" || hostValue.length === 0) {
+    return null;
+  }
+
+  return hostValue.split(",")[0]?.trim() ?? null;
+}
+
+function getRequestProtocol(request: IncomingMessage) {
+  const forwardedProto = request.headers["x-forwarded-proto"];
+  const forwardedProtoValue = Array.isArray(forwardedProto)
+    ? forwardedProto[0]
+    : forwardedProto;
+
+  if (typeof forwardedProtoValue === "string" && forwardedProtoValue.length) {
+    return (
+      forwardedProtoValue
+        .split(",")[0]
+        ?.trim()
+        .toLowerCase() ?? "http"
+    );
+  }
+
+  return request.socket?.encrypted ? "https" : "http";
+}
+
+function getCurrentRequestOrigin(request: IncomingMessage) {
+  const host = getRequestHost(request);
+
+  if (!host) {
+    return null;
+  }
+
+  return `${getRequestProtocol(request)}://${host}`;
+}
+
+function isOriginAllowed(request: IncomingMessage, origin: string | null) {
   if (!origin) {
     return true;
   }
 
-  // Always allow same-origin requests (Cloud Run serves both static + API).
   if (getAllowedOrigins().includes(origin)) {
     return true;
   }
 
-  // Allow any Cloud Run origin so deployments work without explicit config.
-  try {
-    const parsedOrigin = new URL(origin);
-    if (parsedOrigin.hostname.endsWith(".run.app")) {
-      return true;
-    }
-  } catch {
-    // Malformed origin — fall through to reject.
-  }
-
-  return false;
+  return getCurrentRequestOrigin(request) === origin;
 }
 
 /** Returns standard CORS headers merged with security-hardening headers. */
 function getCorsHeaders(request: IncomingMessage) {
   const allowedOrigins = getAllowedOrigins();
   const origin = getRequestOrigin(request);
+  const currentRequestOrigin = getCurrentRequestOrigin(request);
 
   return {
     "content-type": "application/json",
     "access-control-allow-origin":
-      origin && isOriginAllowed(origin) ? origin : (allowedOrigins[0] ?? "*"),
+      origin && isOriginAllowed(request, origin)
+        ? origin
+        : (currentRequestOrigin ?? allowedOrigins[0] ?? "null"),
     "access-control-allow-methods": "GET,POST,OPTIONS",
     "access-control-allow-headers":
       "authorization,content-type,x-firebase-appcheck",
@@ -465,7 +502,7 @@ function createRequestHandler({
 
     const origin = getRequestOrigin(request);
 
-    if (!isOriginAllowed(origin)) {
+    if (!isOriginAllowed(request, origin)) {
       respondJson(request, response, 403, {
         error: "forbidden_origin",
       });
@@ -673,6 +710,22 @@ function createRequestHandler({
 
     if (method === "POST" && url.pathname === "/recommendation") {
       const startedAt = Date.now();
+      const appCheck = await requireAppCheck(
+        request,
+        response,
+        appCheckService,
+      );
+
+      if (appCheckService.isRequired() && !appCheck) {
+        return;
+      }
+
+      if (!checkRateLimit(request, "assistant")) {
+        respondJson(request, response, 429, {
+          error: "rate_limited",
+        });
+        return;
+      }
 
       try {
         const requestBody = await readJsonBody(request);

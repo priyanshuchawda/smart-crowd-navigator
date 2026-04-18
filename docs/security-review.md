@@ -13,8 +13,8 @@ Resolved in repo:
 
 ### 2. Public API abuse controls are now in place
 Resolved in repo:
-- CORS allowlist in `services/assistant-api/src/index.ts`
-- rate limits on assistant/operator write surfaces
+- CORS is now explicit-allowlist plus exact same-origin host matching in `services/assistant-api/src/index.ts` (no broad `.run.app` wildcard allowance)
+- rate limits on assistant/recommendation/operator write surfaces
 - structured operator audit logs for mutation events
 - prompt/response hardening and deterministic fallback path
 - request-size guards and explicit `413` handling for oversized payloads
@@ -36,7 +36,7 @@ Posture note:
 ### 3. App Check support exists for the web client and Node API
 Resolved in repo:
 - web App Check bootstrap in `apps/web/src/firebase.ts`
-- protected backend routes verify `X-Firebase-AppCheck` in `services/assistant-api/src/app-check.ts`
+- protected backend routes verify `X-Firebase-AppCheck` in `services/assistant-api/src/app-check.ts`, including recommendation and assistant-response paths
 
 ## Remaining production gaps
 

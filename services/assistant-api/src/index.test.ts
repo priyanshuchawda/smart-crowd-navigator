@@ -360,6 +360,40 @@ describe("assistant API", () => {
     expect(payload.error).toBe("app_check_required");
   });
 
+  it("requires App Check for recommendation endpoint when enabled", async () => {
+    const appCheckService: AppCheckService = {
+      isRequired: () => true,
+      requireToken: vi
+        .fn()
+        .mockRejectedValue(
+          new AppCheckError(
+            401,
+            "app_check_required",
+            "App Check token is required",
+          ),
+        ),
+    };
+    const { baseUrl } = await startServer({ appCheckService });
+
+    const response = await fetch(`${baseUrl}/recommendation`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        section: "section-a12",
+        intent: "food",
+        partySize: 3,
+        eventPhase: "break",
+        mobilityMode: "standard",
+      }),
+    });
+    const payload = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(payload.error).toBe("app_check_required");
+  });
+
   it("accepts protected requests with a verified App Check token", async () => {
     process.env.DISABLE_GEMINI_ASSISTANT = "true";
     const appCheckService: AppCheckService = {
@@ -529,6 +563,29 @@ describe("assistant API", () => {
     expect(response.status).toBe(403);
   });
 
+  it("rejects untrusted run.app origins when not allowlisted", async () => {
+    const { baseUrl } = await startServer();
+    const response = await fetch(`${baseUrl}/health`, {
+      headers: {
+        origin: "https://attacker-example.run.app",
+      },
+    });
+
+    expect(response.status).toBe(403);
+  });
+
+  it("allows same-origin requests for the current host", async () => {
+    const { baseUrl } = await startServer();
+    const response = await fetch(`${baseUrl}/health`, {
+      headers: {
+        origin: baseUrl,
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("access-control-allow-origin")).toBe(baseUrl);
+  });
+
   it("rejects oversized request bodies", async () => {
     const { baseUrl } = await startServer();
     process.env.MAX_BODY_BYTES = "10";
@@ -571,6 +628,38 @@ describe("assistant API", () => {
       body: JSON.stringify(requestBody),
     });
     const second = await fetch(`${baseUrl}/assistant-response`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(429);
+  });
+
+  it("rate limits recommendation requests when configured aggressively", async () => {
+    const { baseUrl } = await startServer();
+    process.env.RATE_LIMIT_WINDOW_MS = "60000";
+    process.env.RATE_LIMIT_MAX_ASSISTANT = "1";
+
+    const requestBody = {
+      section: "section-a12",
+      intent: "food",
+      partySize: 3,
+      eventPhase: "break",
+      mobilityMode: "standard",
+    };
+
+    const first = await fetch(`${baseUrl}/recommendation`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
+    const second = await fetch(`${baseUrl}/recommendation`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
