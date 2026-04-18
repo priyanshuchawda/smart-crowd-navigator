@@ -1,4 +1,4 @@
-import { getAnalytics, logEvent, isSupported } from "firebase/analytics";
+import { getAnalytics, isSupported, logEvent } from "firebase/analytics";
 import { getApps } from "firebase/app";
 
 import type { CoreIntent } from "@smart-crowd-navigator/shared";
