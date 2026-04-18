@@ -50,8 +50,20 @@ describe("app check", () => {
     process.env.VITE_FIREBASE_APP_ID = "1:1234567890:web:demoapp";
   });
 
-  it("stays disabled by default", () => {
+  it("stays disabled by default outside production", () => {
     expect(isAppCheckRequired()).toBe(false);
+  });
+
+  it("defaults to enabled in production", () => {
+    const previousNodeEnv = process.env.NODE_ENV;
+
+    process.env.NODE_ENV = "production";
+
+    try {
+      expect(isAppCheckRequired()).toBe(true);
+    } finally {
+      process.env.NODE_ENV = previousNodeEnv;
+    }
   });
 
   it("allows APP_CHECK_REQUIRED to force protection", () => {

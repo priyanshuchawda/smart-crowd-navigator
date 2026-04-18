@@ -85,7 +85,7 @@ function isAppCheckRequired() {
     return false;
   }
 
-  return false;
+  return process.env.NODE_ENV === "production";
 }
 
 function readAppCheckToken(request: IncomingMessage) {

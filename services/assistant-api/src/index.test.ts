@@ -472,6 +472,28 @@ describe("assistant API", () => {
     expect(payload.error).toBe("app_check_required");
   });
 
+  it("requires App Check for operator state reads when enabled", async () => {
+    const appCheckService: AppCheckService = {
+      isRequired: () => true,
+      requireToken: vi
+        .fn()
+        .mockRejectedValue(
+          new AppCheckError(
+            401,
+            "app_check_required",
+            "App Check token is required",
+          ),
+        ),
+    };
+    const { baseUrl } = await startServer({ appCheckService });
+
+    const response = await fetch(`${baseUrl}/operator/state`);
+    const payload = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(payload.error).toBe("app_check_required");
+  });
+
   it("accepts protected requests with a verified App Check token", async () => {
     process.env.DISABLE_GEMINI_ASSISTANT = "true";
     const appCheckService: AppCheckService = {
@@ -744,6 +766,18 @@ describe("assistant API", () => {
       },
       body: JSON.stringify(requestBody),
     });
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(429);
+  });
+
+  it("rate limits operator state reads when configured aggressively", async () => {
+    const { baseUrl } = await startServer();
+    process.env.RATE_LIMIT_WINDOW_MS = "60000";
+    process.env.RATE_LIMIT_MAX_OPERATOR = "1";
+
+    const first = await fetch(`${baseUrl}/operator/state`);
+    const second = await fetch(`${baseUrl}/operator/state`);
 
     expect(first.status).toBe(200);
     expect(second.status).toBe(429);
