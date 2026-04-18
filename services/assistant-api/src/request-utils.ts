@@ -64,7 +64,11 @@ function getRequestProtocol(request: IncomingMessage) {
     );
   }
 
-  return request.socket?.encrypted ? "https" : "http";
+  if (request.socket && "encrypted" in request.socket) {
+    return Boolean(request.socket.encrypted) ? "https" : "http";
+  }
+
+  return "http";
 }
 
 function getCurrentRequestOrigin(request: IncomingMessage) {
