@@ -89,7 +89,8 @@ maybeDescribe("real Gemini boundary smoke", () => {
     expect(secondTurn.source).toBe("gemini");
     expect(secondTurn.message.length).toBeGreaterThan(20);
     expect(
-      assistantRecommendationSchema.safeParse(secondTurn.recommendation).success,
+      assistantRecommendationSchema.safeParse(secondTurn.recommendation)
+        .success,
     ).toBe(true);
     expect(secondTurn.recommendation.intent).toBe("food");
   }, 300_000);

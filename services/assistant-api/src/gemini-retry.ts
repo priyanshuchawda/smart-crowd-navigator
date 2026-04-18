@@ -71,10 +71,7 @@ function readRetryAfterFromHeaders(headers: unknown): number | null {
     return null;
   }
 
-  if (
-    "retry-after" in headers &&
-    typeof headers["retry-after"] === "string"
-  ) {
+  if ("retry-after" in headers && typeof headers["retry-after"] === "string") {
     return readRetryAfterSeconds(headers["retry-after"]);
   }
 
@@ -183,7 +180,7 @@ function calculateDelayMs({
 }) {
   const exponentialBackoffMs = Math.min(
     maxDelayMs,
-    initialDelayMs * Math.pow(2, attempt - 1),
+    initialDelayMs * 2 ** (attempt - 1),
   );
   const retryAfterMs = getGeminiRetryAfterMs(error);
   const floorMs = retryAfterMs
