@@ -14,6 +14,7 @@ Smart Crowd Navigator is a production-style web application for large sporting v
 ## What the product does
 
 The application is designed for the **Physical Event Experience** problem space and focuses on three practical outcomes:
+
 - improving crowd movement
 - reducing waiting times
 - supporting real-time coordination
@@ -21,6 +22,7 @@ The application is designed for the **Physical Event Experience** problem space 
 The primary user is a **group coordinator** at a venue — the person making movement decisions for a family or friend group.
 
 Typical questions the product answers:
+
 - Which food stall should our group use right now?
 - Should we go now or wait a few minutes?
 - Which exit is currently smoother?
@@ -30,11 +32,13 @@ Typical questions the product answers:
 ## Core product capabilities
 
 ### Attendee experience
+
 - mobile-first React web app
 - free-text assistant chat plus quick-action entry points
 - attendee context controls for section, party size, event phase, group coordination mode, and mobility mode
 - installable web manifest plus cached offline shell for weak-connectivity venue areas
 - live recommendation card with:
+
   - primary option
   - go-now / wait guidance
   - ETA
@@ -49,9 +53,11 @@ Typical questions the product answers:
 - Places API enrichment for grounded nearby locations when Gemini returns a `placeId`
 
 ### Decision engine
+
 - deterministic venue engine in TypeScript
 - venue graph with sections, concourses, ramps, stairs, elevator paths, gates, exits, food, and washrooms
 - scoring based on:
+
   - walking time
   - queue delay
   - crowd pressure
@@ -61,20 +67,24 @@ Typical questions the product answers:
   - accessibility and mixed-mobility routing constraints
 - explicit wait-vs-go timing advice
 - group workflow support such as:
+
   - runner pickup
   - meet-up routing
   - return-before-play guidance
 
 ### Live state and operations
+
 - operator console for live venue-state changes
 - explicit live-state store boundary in the API
 - Firebase-backed live venue-state sync path
 - local fixture-backed fallback path for deterministic development and test runs
 
 ### Assistant layer
+
 - Gemini-backed assistant responses via `@google/genai`
 - stateful multi-turn chat architecture
 - bounded model fallback chain:
+
   - `gemini-3.1-flash-lite-preview`
   - `gemini-3-flash-preview`
   - `gemini-2.5-flash`
@@ -94,18 +104,21 @@ Typical questions the product answers:
 ## System architecture
 
 ### Frontend
+
 - React
 - TypeScript
 - Vite
 - mobile-first UI
 
 ### Backend
+
 - Node.js
 - TypeScript
 - Cloud Run-friendly API boundary
 - Gemini orchestration and deterministic routing integration
 
 ### Shared/domain packages
+
 - `packages/shared` — request/response contracts and constants
 - `packages/venue-engine` — venue topology, routing, ranking, timing advice, and group plan logic
 
@@ -120,6 +133,7 @@ Typical questions the product answers:
 ## Security and reliability
 
 The current implementation includes:
+
 - server-side Gemini key handling
 - input validation on request payloads
 - App Check support
@@ -129,6 +143,7 @@ The current implementation includes:
 - deterministic fallback behavior when AI/model calls are unavailable
 
 Relevant docs:
+
 - [docs/security-review.md](./docs/security-review.md)
 - [docs/operations-runbook.md](./docs/operations-runbook.md)
 - [docs/production-secrets.md](./docs/production-secrets.md)
@@ -136,6 +151,7 @@ Relevant docs:
 ## Accessibility
 
 The shipped UI is designed around:
+
 - keyboard-accessible interaction
 - visible focus treatment
 - skip-link support
@@ -149,12 +165,14 @@ The shipped UI is designed around:
 ## Testing and verification
 
 The repository includes:
+
 - engine unit tests
 - API integration tests
 - web rendering tests
 - Playwright accessibility smoke coverage for the attendee shell
 - Playwright `axe-core` accessibility audit coverage
 - Playwright end-to-end coverage for:
+
   - attendee chat follow-ups
   - accessibility smoke checks
   - maps-grounded citation rendering
@@ -185,8 +203,17 @@ pnpm dev
 ```
 
 Then open:
+
 - web: `http://127.0.0.1:5173`
 - API: `http://127.0.0.1:8080`
+
+## Assumptions
+
+- the demo venue model and local fixture represent one stadium-like environment, not all venue topologies
+- attendee recommendations are operational guidance, not safety-critical routing instructions
+- App Check and operator-auth toggles are environment-controlled and expected to be enforced in production
+- Maps-grounded answers are used for venue-perimeter or nearby-place questions, while indoor routing remains deterministic
+- operator-state reads are intentionally public in the current demo posture
 
 ## Repository structure
 
@@ -196,7 +223,17 @@ Then open:
 - `packages/venue-engine` — deterministic route ranking, timing advice, and group workflow logic
 - `tests/e2e` — end-to-end regression coverage
 - `docs/` — deployment, QA, security, operations, privacy, and support docs
-- `problem.md` — original challenge/problem reference
+
+## Challenge Reviewer Checklist
+
+- vertical/persona: physical event experience with group coordinator as the primary persona
+- instructions coverage: README includes approach, logic, architecture, assumptions, and local verification commands
+- code quality: strict TypeScript, modular packages, and lint/typecheck/test/build gates
+- security: App Check support, operator auth path, rate limits, CORS policy, and Firestore rules
+- efficiency: deferred operator bundle, cached attendee shell, and deterministic engine for core routing decisions
+- testing: package unit tests plus Playwright e2e and accessibility checks
+- accessibility: skip link, focus-visible styling, semantic live regions, and axe coverage
+- Google services: Gemini, Maps grounding, Cloud Run, Firebase Auth, Firestore, and App Check
 
 ## Documentation
 
@@ -214,11 +251,11 @@ Then open:
 
 ## References
 
-- Gemini text generation: https://ai.google.dev/gemini-api/docs/text-generation
-- Gemini function calling: https://ai.google.dev/gemini-api/docs/function-calling
-- Gemini structured output: https://ai.google.dev/gemini-api/docs/structured-output
-- Gemini Maps grounding: https://ai.google.dev/gemini-api/docs/maps-grounding
-- Firestore realtime listeners: https://firebase.google.com/docs/firestore/query-data/listen
-- Firestore security rules: https://firebase.google.com/docs/firestore/security/get-started
-- Firebase App Check: https://firebase.google.com/docs/app-check/web/recaptcha-provider
-- Cloud Run auth: https://cloud.google.com/run/docs/authenticating/service-to-service
+- [Gemini text generation](https://ai.google.dev/gemini-api/docs/text-generation)
+- [Gemini function calling](https://ai.google.dev/gemini-api/docs/function-calling)
+- [Gemini structured output](https://ai.google.dev/gemini-api/docs/structured-output)
+- [Gemini Maps grounding](https://ai.google.dev/gemini-api/docs/maps-grounding)
+- [Firestore realtime listeners](https://firebase.google.com/docs/firestore/query-data/listen)
+- [Firestore security rules](https://firebase.google.com/docs/firestore/security/get-started)
+- [Firebase App Check](https://firebase.google.com/docs/app-check/web/recaptcha-provider)
+- [Cloud Run auth](https://cloud.google.com/run/docs/authenticating/service-to-service)

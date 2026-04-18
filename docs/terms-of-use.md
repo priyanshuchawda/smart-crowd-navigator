@@ -17,6 +17,7 @@ Recommendations are provided on an informational basis only. Venue conditions ca
 ## 4. Acceptable use
 
 Users must not:
+
 - abuse or overload the service
 - attempt to bypass authentication, authorization, App Check, or rate limits
 - interfere with operator tooling or live venue state
@@ -42,6 +43,7 @@ This service is provided on an “as is” and “as available” basis for info
 ## 9. Contact
 
 Current public contact path:
+
 - repository issue tracker: `https://github.com/priyanshuchawda/smart-crowd-navigator/issues`
 
 For sensitive security concerns, do not post secrets publicly; request a private handoff first.
