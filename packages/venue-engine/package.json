@@ -14,6 +14,8 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
+    "test:perf": "node ./scripts/run-perf-tests.mjs",
+    "test:perf:update-baselines": "node ./scripts/run-perf-tests.mjs --update-baselines",
     "coverage": "vitest run --coverage",
     "lint": "biome check src"
   }

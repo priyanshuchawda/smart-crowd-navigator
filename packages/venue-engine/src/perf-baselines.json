@@ -1,0 +1,14 @@
+{
+  "rankDestinations": {
+    "iterations": 1200,
+    "maxDurationMs": 2000
+  },
+  "timingAdvice": {
+    "iterations": 800,
+    "maxDurationMs": 2300
+  },
+  "parseVenueDataSource": {
+    "iterations": 600,
+    "maxDurationMs": 2000
+  }
+}

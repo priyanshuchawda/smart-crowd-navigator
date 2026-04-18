@@ -249,6 +249,7 @@ Then open:
 - [docs/assistant-behavior-regression.md](./docs/assistant-behavior-regression.md)
 - [docs/release-confidence.md](./docs/release-confidence.md)
 - [docs/security-review.md](./docs/security-review.md)
+- [docs/venue-engine-performance.md](./docs/venue-engine-performance.md)
 - [docs/privacy-policy.md](./docs/privacy-policy.md)
 - [docs/terms-of-use.md](./docs/terms-of-use.md)
 - [docs/support-and-security.md](./docs/support-and-security.md)
