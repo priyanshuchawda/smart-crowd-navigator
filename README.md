@@ -246,6 +246,7 @@ Then open:
 - [docs/cloud-run-deploy.md](./docs/cloud-run-deploy.md)
 - [docs/firebase-handoff.md](./docs/firebase-handoff.md)
 - [docs/qa-report.md](./docs/qa-report.md)
+- [docs/release-confidence.md](./docs/release-confidence.md)
 - [docs/security-review.md](./docs/security-review.md)
 - [docs/privacy-policy.md](./docs/privacy-policy.md)
 - [docs/terms-of-use.md](./docs/terms-of-use.md)
