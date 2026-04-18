@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 import type { AssistantApiResponse } from "../types";
 
 interface VenueMapPanelProps {
@@ -9,7 +11,9 @@ interface VenueMapPanelProps {
  * washrooms, gates, and exits. Highlights the recommended destination
  * when a recommendation is active.
  */
-export function VenueMapPanel({ response }: VenueMapPanelProps) {
+const VenueMapPanel = memo(function VenueMapPanel({
+  response,
+}: VenueMapPanelProps) {
   const activeId = response?.recommendation?.primaryOption?.id ?? null;
 
   function nodeColor(id: string, defaultColor: string) {
@@ -319,4 +323,6 @@ export function VenueMapPanel({ response }: VenueMapPanelProps) {
       ) : null}
     </section>
   );
-}
+});
+
+export { VenueMapPanel };

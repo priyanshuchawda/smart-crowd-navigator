@@ -1,4 +1,4 @@
-import { type RefObject, useEffect, useState } from "react";
+import { memo, type RefObject, useEffect, useState } from "react";
 
 import type { AssistantApiResponse } from "../types";
 
@@ -147,7 +147,7 @@ function GroundedPlaceDetails({
 }
 
 /** Displays the current venue recommendation with timing advice, route, group plan, and Maps grounding. */
-export function RecommendationPanel({
+const RecommendationPanel = memo(function RecommendationPanel({
   headingRef,
   response,
   isLoading,
@@ -460,4 +460,6 @@ export function RecommendationPanel({
       </div>
     </section>
   );
-}
+});
+
+export { RecommendationPanel };

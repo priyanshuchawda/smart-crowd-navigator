@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 import type { ChatMessage } from "../types";
 
 interface ConversationPanelProps {
@@ -14,7 +16,7 @@ const messageRoleLabels: Record<ChatMessage["role"], string> = {
   user: "You",
 };
 
-export function ConversationPanel({
+const ConversationPanel = memo(function ConversationPanel({
   draftQuestion,
   errorMessage,
   isLoading,
@@ -106,4 +108,6 @@ export function ConversationPanel({
       {errorMessage ? <p className="error-banner">{errorMessage}</p> : null}
     </section>
   );
-}
+});
+
+export { ConversationPanel };
