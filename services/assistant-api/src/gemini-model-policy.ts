@@ -45,12 +45,13 @@ const TERMINAL_MODEL_MESSAGE_PATTERNS = [
   /permission denied.+model/i,
 ];
 
-const DEFAULT_POLICY_ACTIONS: Record<GeminiFailureKind, GeminiFallbackAction> = {
-  terminal: "silent",
-  transient: "silent",
-  not_found: "silent",
-  unknown: "stop",
-};
+const DEFAULT_POLICY_ACTIONS: Record<GeminiFailureKind, GeminiFallbackAction> =
+  {
+    terminal: "silent",
+    transient: "silent",
+    not_found: "silent",
+    unknown: "stop",
+  };
 const DEFAULT_POLICY_TRANSITIONS: Record<
   GeminiFailureKind,
   GeminiModelHealthTransition

@@ -142,9 +142,9 @@ describe("gemini model availability service", () => {
         }),
       ),
     ).toBe(true);
-    expect(isTerminalGeminiModelError(new Error("temporarily unavailable"))).toBe(
-      false,
-    );
+    expect(
+      isTerminalGeminiModelError(new Error("temporarily unavailable")),
+    ).toBe(false);
   });
 
   it("allows one sticky retry attempt per turn and resets on next turn", () => {

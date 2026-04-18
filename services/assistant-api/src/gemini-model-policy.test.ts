@@ -41,9 +41,9 @@ describe("gemini model policy", () => {
   });
 
   it("falls back to unknown classification for opaque errors", () => {
-    expect(classifyGeminiFailureKind(new Error("socket exploded unexpectedly"))).toBe(
-      "unknown",
-    );
+    expect(
+      classifyGeminiFailureKind(new Error("socket exploded unexpectedly")),
+    ).toBe("unknown");
   });
 
   it("builds a policy chain with the last model marked as last-resort", () => {
@@ -85,9 +85,7 @@ describe("gemini model policy", () => {
     });
 
     expect(resolveGeminiFailureAction(policy, "unknown")).toBe("silent");
-    expect(resolveGeminiFailureTransition(policy, "unknown")).toBe(
-      "terminal",
-    );
+    expect(resolveGeminiFailureTransition(policy, "unknown")).toBe("terminal");
   });
 
   it("returns default policy when model is missing from chain", () => {

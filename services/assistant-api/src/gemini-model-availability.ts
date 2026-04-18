@@ -1,9 +1,9 @@
+import type { GeminiModelHealthTransition } from "./gemini-model-policy.js";
 import {
   getGeminiErrorStatus,
   getGeminiRetryAfterMs,
   isRetryableGeminiTransportError,
 } from "./gemini-retry.js";
-import type { GeminiModelHealthTransition } from "./gemini-model-policy.js";
 
 const DEFAULT_MODEL_COOLDOWN_MS = 45_000;
 
@@ -262,9 +262,7 @@ function createGeminiModelAvailabilityService({
       }
 
       const consumed =
-        currentState?.status === "sticky_retry"
-          ? currentState.consumed
-          : false;
+        currentState?.status === "sticky_retry" ? currentState.consumed : false;
 
       modelStates.set(model, {
         consumed,

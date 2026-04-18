@@ -11,21 +11,21 @@ import type {
 } from "@smart-crowd-navigator/shared";
 
 import {
-  isRetryableGeminiTransportError,
-  retryGeminiCall,
-} from "./gemini-retry.js";
+  type GeminiModelAvailabilityService,
+  createGeminiModelAvailabilityService,
+} from "./gemini-model-availability.js";
 import {
+  type GeminiModelPolicyChain,
   buildGeminiModelPolicyChain,
   classifyGeminiFailureKind,
   resolveGeminiFailureAction,
   resolveGeminiFailureTransition,
   resolveGeminiModelPolicy,
-  type GeminiModelPolicyChain,
 } from "./gemini-model-policy.js";
 import {
-  createGeminiModelAvailabilityService,
-  type GeminiModelAvailabilityService,
-} from "./gemini-model-availability.js";
+  isRetryableGeminiTransportError,
+  retryGeminiCall,
+} from "./gemini-retry.js";
 import { buildRecommendationPayload } from "./recommendation.js";
 
 type GenerateContent = (

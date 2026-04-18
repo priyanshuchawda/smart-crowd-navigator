@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { createGeminiModelAvailabilityService } from "./gemini-model-availability.js";
+import { createGeminiModelPolicy } from "./gemini-model-policy.js";
 import {
   ASSISTANT_PROMPT,
   DEFAULT_GEMINI_MODEL,
@@ -16,8 +18,6 @@ import {
   runGeminiRecommendationAssistant,
   shouldUseMapsGrounding,
 } from "./gemini.js";
-import { createGeminiModelAvailabilityService } from "./gemini-model-availability.js";
-import { createGeminiModelPolicy } from "./gemini-model-policy.js";
 
 function buildFallbackResponse(message: string) {
   return {
@@ -385,7 +385,9 @@ describe("runGeminiRecommendationAssistant", () => {
           },
         ),
       )
-      .mockResolvedValueOnce(buildFallbackResponse("Recovered on fallback model."));
+      .mockResolvedValueOnce(
+        buildFallbackResponse("Recovered on fallback model."),
+      );
 
     const result = await runGeminiAssistantWithFallbacks({
       executeModel,
@@ -503,9 +505,9 @@ describe("runGeminiRecommendationAssistant", () => {
       availabilityService.getModelHealth("gemini-3.1-flash-lite-preview")
         .status,
     ).toBe("sticky_retry");
-    expect(availabilityService.getModelHealth("gemini-3-flash-preview").status).toBe(
-      "terminal",
-    );
+    expect(
+      availabilityService.getModelHealth("gemini-3-flash-preview").status,
+    ).toBe("terminal");
 
     const secondExecution = vi
       .fn()
