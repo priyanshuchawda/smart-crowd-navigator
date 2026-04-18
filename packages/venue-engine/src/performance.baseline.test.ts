@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { performance } from "node:perf_hooks";
 import { dirname, resolve } from "node:path";
+import { performance } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
 
 import { afterAll, describe, expect, it } from "vitest";
@@ -62,7 +62,11 @@ function loadPerfBaselines() {
 
 function writePerfBaselines(baselines: PerfBaselines) {
   mkdirSync(dirname(baselinePath), { recursive: true });
-  writeFileSync(baselinePath, `${JSON.stringify(baselines, null, 2)}\n`, "utf8");
+  writeFileSync(
+    baselinePath,
+    `${JSON.stringify(baselines, null, 2)}\n`,
+    "utf8",
+  );
 }
 
 function measureDurationMs(iterations: number, execute: () => void) {
@@ -137,7 +141,9 @@ describe("venue-engine performance baselines", () => {
 
   it("keeps parseVenueDataSource within baseline threshold", () => {
     const scenario = baselines.parseVenueDataSource;
-    const serializedDataSource = JSON.stringify(localDevelopmentVenueDataSource);
+    const serializedDataSource = JSON.stringify(
+      localDevelopmentVenueDataSource,
+    );
     let checksum = 0;
 
     const run = () => {
