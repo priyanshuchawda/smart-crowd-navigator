@@ -1,0 +1,80 @@
+/* ============================================================
+   REDUCED MOTION
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto;
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .panel-card,
+  .conversation,
+  .recommendation-card,
+  .hero-visual-card,
+  .summary-card,
+  .detail-card,
+  .fallback-card,
+  .empty-state-card,
+  .operator-disclosure-summary,
+  .intent-card,
+  .field input,
+  .field textarea,
+  .field select,
+  .hero-action-button,
+  .top-nav-link {
+    background: Canvas;
+    border-color: CanvasText;
+    box-shadow: none;
+    color: CanvasText;
+  }
+
+  .intent-card.active,
+  .hero-action-primary,
+  .status-pill-accent {
+    background: Highlight;
+    color: HighlightText;
+  }
+
+  .warning-banner,
+  .error-banner,
+  .hint-banner {
+    border: 1px solid CanvasText;
+  }
+}
+
+/* ============================================================
+   FOCUS VISIBLE - global
+   ============================================================ */
+:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* ============================================================
+   SELECTION
+   ============================================================ */
+::selection {
+  background: var(--accent-primary-dim);
+  color: var(--text-primary);
+}
+
+/* ============================================================
+   VISUALLY HIDDEN - screen-reader-only content
+   ============================================================ */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+

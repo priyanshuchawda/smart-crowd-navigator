@@ -1,0 +1,74 @@
+/* ============================================================
+   RESPONSIVENESS
+   ============================================================ */
+@media (min-width: 980px) {
+  .hero-header {
+    gap: 28px;
+  }
+
+  .hero-layout {
+    grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
+    align-items: stretch;
+  }
+
+  .app-grid {
+    grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.7fr);
+    gap: 24px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .app-grid {
+    grid-template-columns: minmax(0, 1.4fr) minmax(340px, 0.6fr);
+  }
+}
+
+@media (max-width: 979px) {
+  .secondary-column {
+    order: 1;
+  }
+}
+
+@media (max-width: 720px) {
+  .app-shell {
+    padding: var(--space-md);
+  }
+
+  .app-alert-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .hero-card {
+    padding: 18px;
+    border-radius: var(--radius-xl);
+  }
+
+  .panel-heading-row,
+  .status-row,
+  .recommendation-hero,
+  .operator-card-header,
+  .top-nav,
+  .hero-action-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .control-stack,
+  .intent-grid,
+  .stat-grid,
+  .step-grid,
+  .benefit-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-strip {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  /* Make sure hero layout stacks better on mobile */
+  .hero-layout {
+    grid-template-columns: 1fr !important;
+  }
+}

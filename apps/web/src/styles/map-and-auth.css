@@ -1,0 +1,75 @@
+/* ============================================================
+   VENUE MAP PANEL
+   ============================================================ */
+.venue-map-panel {
+  overflow: hidden;
+}
+
+.venue-map-svg {
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-lg);
+  background: var(--surface-base);
+  border: 1px solid var(--border-subtle);
+}
+
+.venue-map-route-label {
+  padding: 12px var(--space-md);
+  border-radius: var(--radius-md);
+  background: var(--accent-primary-dim);
+  color: var(--accent-primary);
+  font-size: 0.9rem;
+  line-height: 1.55;
+  border: 1px solid rgba(34, 211, 238, 0.1);
+}
+
+.venue-map-route-label strong {
+  color: var(--text-primary);
+}
+
+/* ============================================================
+   GOOGLE SIGN-IN BUTTON
+   ============================================================ */
+.google-signin-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 20px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: #ffffff;
+  color: #1f1f1f;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: transform var(--transition-fast), box-shadow
+    var(--transition-fast);
+}
+
+.google-signin-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.google-signin-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.operator-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.operator-divider::before,
+.operator-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border-default);
+}
