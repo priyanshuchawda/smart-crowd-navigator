@@ -19,6 +19,16 @@ export default defineConfig({
   },
   test: {
     clearMocks: true,
+    coverage: {
+      include: ["src/**/*.{ts,tsx}"],
+      reporter: ["text", "json-summary", "html", "lcov"],
+      thresholds: {
+        branches: 70,
+        functions: 55,
+        lines: 50,
+        statements: 50,
+      },
+    },
     environment: "jsdom",
     restoreMocks: true,
     setupFiles: "./src/test/setup.ts",
