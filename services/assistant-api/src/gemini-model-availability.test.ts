@@ -146,4 +146,49 @@ describe("gemini model availability service", () => {
       false,
     );
   });
+
+  it("allows one sticky retry attempt per turn and resets on next turn", () => {
+    const service = createGeminiModelAvailabilityService();
+
+    service.markModelFailure(
+      "gemini-3.1-flash-lite-preview",
+      new Error("high demand"),
+      {
+        transition: "sticky_retry",
+      },
+    );
+
+    expect(
+      service.selectFirstAvailableModel([
+        "gemini-3.1-flash-lite-preview",
+        "gemini-3-flash-preview",
+      ]),
+    ).toBe("gemini-3.1-flash-lite-preview");
+
+    service.consumeStickyAttempt("gemini-3.1-flash-lite-preview");
+
+    expect(
+      service.getModelHealth("gemini-3.1-flash-lite-preview")
+        .stickyAttemptConsumed,
+    ).toBe(true);
+    expect(
+      service.selectFirstAvailableModel([
+        "gemini-3.1-flash-lite-preview",
+        "gemini-3-flash-preview",
+      ]),
+    ).toBe("gemini-3-flash-preview");
+
+    service.resetTurn();
+
+    expect(
+      service.getModelHealth("gemini-3.1-flash-lite-preview")
+        .stickyAttemptConsumed,
+    ).toBe(false);
+    expect(
+      service.selectFirstAvailableModel([
+        "gemini-3.1-flash-lite-preview",
+        "gemini-3-flash-preview",
+      ]),
+    ).toBe("gemini-3.1-flash-lite-preview");
+  });
 });

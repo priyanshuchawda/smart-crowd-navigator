@@ -223,6 +223,8 @@ async function runGeminiAssistantWithFallbacks({
   const resolvedPolicyChain =
     modelPolicyChain ?? buildGeminiModelPolicyChain(modelChain);
 
+  availabilityService.resetTurn();
+
   while (attemptedModels.size < modelChain.length) {
     const model = availabilityService.selectFirstAvailableModel(modelChain, {
       attemptedModels,
@@ -233,6 +235,11 @@ async function runGeminiAssistantWithFallbacks({
     }
 
     attemptedModels.add(model);
+    const modelHealth = availabilityService.getModelHealth(model);
+
+    if (modelHealth.status === "sticky_retry") {
+      availabilityService.consumeStickyAttempt(model);
+    }
 
     try {
       const result = await executeModel(model);
@@ -249,9 +256,9 @@ async function runGeminiAssistantWithFallbacks({
       availabilityService.markModelFailure(model, error, {
         transition,
       });
-      const modelHealth = availabilityService.getModelHealth(model);
+      const failedModelHealth = availabilityService.getModelHealth(model);
       const shouldTryNextModel =
-        fallbackAction === "silent" || modelHealth.status !== "healthy";
+        fallbackAction === "silent" || failedModelHealth.status !== "healthy";
 
       if (!shouldTryNextModel) {
         throw error;

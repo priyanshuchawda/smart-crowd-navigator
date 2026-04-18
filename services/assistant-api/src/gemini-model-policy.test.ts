@@ -66,7 +66,7 @@ describe("gemini model policy", () => {
     expect(resolveGeminiFailureAction(policy, "transient")).toBe("silent");
     expect(resolveGeminiFailureAction(policy, "unknown")).toBe("stop");
     expect(resolveGeminiFailureTransition(policy, "transient")).toBe(
-      "cooldown",
+      "sticky_retry",
     );
     expect(resolveGeminiFailureTransition(policy, "not_found")).toBe(
       "terminal",

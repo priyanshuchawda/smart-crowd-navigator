@@ -17,12 +17,17 @@ const TERMINAL_MODEL_MESSAGE_PATTERNS = [
   /model.+does not exist/i,
 ];
 
-type GeminiModelHealthStatus = "healthy" | "cooldown" | "terminal";
+type GeminiModelHealthStatus =
+  | "healthy"
+  | "cooldown"
+  | "sticky_retry"
+  | "terminal";
 
 type GeminiModelHealth = {
   cooldownRemainingMs?: number;
   reason?: string;
   status: GeminiModelHealthStatus;
+  stickyAttemptConsumed?: boolean;
   updatedAtMs: number;
 };
 
@@ -35,6 +40,7 @@ type MarkModelFailureOptions = {
 };
 
 type GeminiModelAvailabilityService = {
+  consumeStickyAttempt: (model: string) => void;
   getModelHealth: (model: string) => GeminiModelHealth;
   markModelFailure: (
     model: string,
@@ -42,6 +48,7 @@ type GeminiModelAvailabilityService = {
     options?: MarkModelFailureOptions,
   ) => void;
   markModelSuccess: (model: string) => void;
+  resetTurn: () => void;
   reset: () => void;
   selectFirstAvailableModel: (
     modelChain: readonly string[],
@@ -61,6 +68,12 @@ type ModelState =
       availableAfterMs: number;
       reason?: string;
       status: "cooldown";
+      updatedAtMs: number;
+    }
+  | {
+      consumed: boolean;
+      reason?: string;
+      status: "sticky_retry";
       updatedAtMs: number;
     }
   | {
@@ -176,6 +189,10 @@ function createGeminiModelAvailabilityService({
         continue;
       }
 
+      if (state?.status === "sticky_retry" && state.consumed) {
+        continue;
+      }
+
       return model;
     }
 
@@ -184,6 +201,20 @@ function createGeminiModelAvailabilityService({
 
   function markModelSuccess(model: string) {
     modelStates.delete(model);
+  }
+
+  function consumeStickyAttempt(model: string) {
+    const state = resolveModelState(model);
+
+    if (!state || state.status !== "sticky_retry") {
+      return;
+    }
+
+    modelStates.set(model, {
+      ...state,
+      consumed: true,
+      updatedAtMs: now(),
+    });
   }
 
   function markModelFailure(
@@ -223,6 +254,27 @@ function createGeminiModelAvailabilityService({
       return;
     }
 
+    if (transition === "sticky_retry") {
+      const currentState = resolveModelState(model);
+
+      if (currentState?.status === "terminal") {
+        return;
+      }
+
+      const consumed =
+        currentState?.status === "sticky_retry"
+          ? currentState.consumed
+          : false;
+
+      modelStates.set(model, {
+        consumed,
+        reason: readErrorMessage(error),
+        status: "sticky_retry",
+        updatedAtMs: nowMs,
+      });
+      return;
+    }
+
     modelStates.delete(model);
   }
 
@@ -245,6 +297,15 @@ function createGeminiModelAvailabilityService({
       };
     }
 
+    if (state.status === "sticky_retry") {
+      return {
+        reason: state.reason,
+        status: state.status,
+        stickyAttemptConsumed: state.consumed,
+        updatedAtMs: state.updatedAtMs,
+      };
+    }
+
     return {
       cooldownRemainingMs: Math.max(0, state.availableAfterMs - nowMs),
       reason: state.reason,
@@ -253,14 +314,30 @@ function createGeminiModelAvailabilityService({
     };
   }
 
+  function resetTurn() {
+    for (const [model, state] of modelStates.entries()) {
+      if (state.status !== "sticky_retry" || !state.consumed) {
+        continue;
+      }
+
+      modelStates.set(model, {
+        ...state,
+        consumed: false,
+        updatedAtMs: now(),
+      });
+    }
+  }
+
   function reset() {
     modelStates.clear();
   }
 
   return {
+    consumeStickyAttempt,
     getModelHealth,
     markModelFailure,
     markModelSuccess,
+    resetTurn,
     reset,
     selectFirstAvailableModel,
   };

@@ -468,12 +468,8 @@ describe("runGeminiRecommendationAssistant", () => {
     expect(result.message).toBe("Recovered after terminal model failure.");
   });
 
-  it("persists cooldown and terminal health across fallback attempts", async () => {
-    let nowMs = 1_000;
-    const availabilityService = createGeminiModelAvailabilityService({
-      cooldownMs: 60_000,
-      now: () => nowMs,
-    });
+  it("allows one sticky retry per turn and retries again on the next turn", async () => {
+    const availabilityService = createGeminiModelAvailabilityService();
 
     const firstExecution = vi
       .fn()
@@ -506,14 +502,21 @@ describe("runGeminiRecommendationAssistant", () => {
     expect(
       availabilityService.getModelHealth("gemini-3.1-flash-lite-preview")
         .status,
-    ).toBe("cooldown");
+    ).toBe("sticky_retry");
     expect(availabilityService.getModelHealth("gemini-3-flash-preview").status).toBe(
       "terminal",
     );
 
     const secondExecution = vi
       .fn()
-      .mockResolvedValue(buildFallbackResponse("Subsequent call uses healthy model."));
+      .mockRejectedValueOnce(
+        Object.assign(new Error("temporarily unavailable"), {
+          status: 503,
+        }),
+      )
+      .mockResolvedValueOnce(
+        buildFallbackResponse("Second turn fell back after sticky attempt."),
+      );
 
     const secondResult = await runGeminiAssistantWithFallbacks({
       availabilityService,
@@ -522,11 +525,16 @@ describe("runGeminiRecommendationAssistant", () => {
     });
 
     expect(secondExecution.mock.calls.map(([model]) => model)).toEqual([
+      "gemini-3.1-flash-lite-preview",
       "gemini-2.5-flash",
     ]);
-    expect(secondResult.message).toBe("Subsequent call uses healthy model.");
-
-    nowMs += 61_000;
+    expect(secondResult.message).toBe(
+      "Second turn fell back after sticky attempt.",
+    );
+    expect(
+      availabilityService.getModelHealth("gemini-3.1-flash-lite-preview")
+        .stickyAttemptConsumed,
+    ).toBe(true);
 
     const thirdExecution = vi
       .fn()
