@@ -32,3 +32,48 @@ test("attendee shell exposes core accessibility affordances", async ({
   ).toBeVisible();
   await expect(page.getByRole("status")).toContainText("Recommendation ready.");
 });
+
+test("attendee shell surfaces offline mode status", async ({ page }) => {
+  await page.goto("/");
+
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event("offline"));
+  });
+
+  await expect(page.getByLabel("Offline mode")).toContainText(
+    "You're offline.",
+  );
+});
+
+test("attendee shell preserves accessibility when recommendation requests fail", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await page.route("**/assistant-response", async (route) => {
+    await route.fulfill({
+      body: JSON.stringify({ error: "upstream_failed" }),
+      contentType: "application/json",
+      status: 500,
+    });
+  });
+
+  await page.route("**/recommendation", async (route) => {
+    await route.fulfill({
+      body: JSON.stringify({ error: "deterministic_failed" }),
+      contentType: "application/json",
+      status: 500,
+    });
+  });
+
+  await page
+    .getByRole("region", { name: "Quick actions" })
+    .getByRole("button", { name: /^Food/i })
+    .click();
+
+  await expect(page.getByText("Request failed with status 500")).toBeVisible();
+  await expect(
+    page.getByRole("log", { name: "Conversation transcript" }),
+  ).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Ask the assistant" })).toBeVisible();
+});

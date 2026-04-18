@@ -5,19 +5,15 @@ test("maps-grounded answers render citations and widget guidance", async ({
 }) => {
   await page.goto("/");
 
-  await page.route("https://places.googleapis.com/**", async (route) => {
+  await page.route("**/maps/place-enrichment/**", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       status: 200,
       body: JSON.stringify({
-        displayName: {
-          text: "Demo Pickup Zone",
-        },
+        displayName: "Demo Pickup Zone",
         rating: 4.6,
-        regularOpeningHours: {
-          openNow: true,
-        },
-        userRatingCount: 128,
+        openNow: true,
+        reviewCount: 128,
       }),
     });
   });
@@ -89,4 +85,82 @@ test("maps-grounded answers render citations and widget guidance", async ({
   await expect(page.getByText("4.6 / 5 rating")).toBeVisible();
   await expect(page.getByText("128 reviews")).toBeVisible();
   await expect(page.getByText("Open now")).toBeVisible();
+});
+
+test("maps-grounded answers keep map preview when place enrichment fails", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await page.route("**/maps/place-enrichment/**", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      status: 502,
+      body: JSON.stringify({
+        error: "places_unavailable",
+      }),
+    });
+  });
+
+  await page.route("**/assistant-response", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      status: 200,
+      body: JSON.stringify({
+        grounding: {
+          places: [
+            {
+              placeId: "demo-place-id",
+              title: "Demo Pickup Zone",
+              uri: "https://maps.google.com/?cid=demo",
+            },
+          ],
+          source: "google-maps",
+        },
+        message:
+          "Use Exit South, then head to the nearby Demo Pickup Zone for the clearest rideshare pickup.",
+        recommendation: {
+          intent: "exit",
+          timingDecision: "go_now",
+          waitOrGoReason:
+            "Leaving now is still the fastest option once wait time is included.",
+          primaryOption: {
+            id: "exit-south",
+            label: "Exit South",
+            kind: "exit",
+          },
+          primaryReason: "Best total score: 6 minutes.",
+          etaMinutes: 3,
+          waitMinutes: 3,
+          timeSavedMinutes: 0,
+          routeSummary: "Section A-12 → South Hall → Exit South",
+          crowdWarning: null,
+          fallbackOption: null,
+          decisionReasons: {
+            strengths: [
+              "Lower congestion pressure than the main fallback route.",
+              "Destination is open and fully available right now.",
+            ],
+            tradeoffs: ["Queue is still meaningful even on the best route."],
+          },
+          operationalAdvisory: null,
+          confidence: "high",
+        },
+        source: "gemini",
+      }),
+    });
+  });
+
+  await page
+    .getByLabel("Ask the assistant")
+    .fill("Where is the best rideshare pickup near the south exit?");
+  await page.getByRole("button", { name: "Send question" }).click();
+
+  const groundingRegion = page.getByRole("region", {
+    name: "Google Maps grounding",
+  });
+
+  await expect(groundingRegion).toBeVisible();
+  await expect(page.getByText("Places details unavailable. Showing map preview only.")).toBeVisible();
+  await expect(page.getByTitle(/Map preview for Demo Pickup Zone/)).toBeVisible();
 });

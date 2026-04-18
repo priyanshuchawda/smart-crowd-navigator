@@ -6,10 +6,12 @@ const runtimeEnvironmentSchema = z.object({
   FIREBASE_PROJECT_ID: z.string().optional(),
   FIREBASE_PROJECT_NUMBER: z.string().optional(),
   GEMINI_API_KEY: z.string().optional(),
+  GOOGLE_MAPS_API_KEY: z.string().optional(),
   NODE_ENV: z.enum(["development", "test", "production"]).optional(),
   OPERATOR_AUTH_REQUIRED: z.string().optional(),
   VITE_FIREBASE_APPCHECK_SITE_KEY: z.string().optional(),
   VITE_FIREBASE_PROJECT_ID: z.string().optional(),
+  VITE_GOOGLE_MAPS_API_KEY: z.string().optional(),
 });
 
 const placeholderGeminiKeys = new Set(["your_gemini_api_key_here"]);

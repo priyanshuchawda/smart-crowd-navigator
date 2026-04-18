@@ -24,9 +24,9 @@ export default defineConfig({
       reporter: ["text", "json-summary", "html", "lcov"],
       thresholds: {
         branches: 70,
-        functions: 55,
-        lines: 50,
-        statements: 50,
+        functions: 70,
+        lines: 70,
+        statements: 70,
       },
     },
     environment: "jsdom",

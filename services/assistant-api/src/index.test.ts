@@ -25,10 +25,12 @@ beforeEach(() => {
   process.env.DISABLE_GEMINI_ASSISTANT = undefined;
   process.env.APP_CHECK_REQUIRED = undefined;
   process.env.MAX_BODY_BYTES = undefined;
+  process.env.GOOGLE_MAPS_API_KEY = undefined;
   process.env.RATE_LIMIT_WINDOW_MS = undefined;
   process.env.RATE_LIMIT_MAX_ASSISTANT = undefined;
   process.env.RATE_LIMIT_MAX_OPERATOR = undefined;
   process.env.OPERATOR_AUTH_REQUIRED = undefined;
+  process.env.VITE_GOOGLE_MAPS_API_KEY = undefined;
   resetRateLimitStore();
   resetOperatorState();
 });
@@ -181,6 +183,82 @@ describe("assistant API", () => {
     expect(response.status).toBe(200);
     expect(payload.source).toBe("local-fixture");
     expect(payload.venueId).toBe("smart-crowd-demo-venue");
+  });
+
+  it("returns maps place enrichment through the backend proxy", async () => {
+    process.env.GOOGLE_MAPS_API_KEY = "maps-key";
+    const originalFetch = globalThis.fetch;
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(
+        async (input: RequestInfo | URL, init?: RequestInit) => {
+          const url =
+            typeof input === "string"
+              ? input
+              : input instanceof URL
+                ? input.toString()
+                : input.url;
+
+          if (url.startsWith("https://places.googleapis.com/")) {
+            return new Response(
+              JSON.stringify({
+                displayName: { text: "Demo Pickup Zone" },
+                rating: 4.6,
+                regularOpeningHours: { openNow: true },
+                userRatingCount: 128,
+              }),
+              {
+                status: 200,
+              },
+            );
+          }
+
+          return originalFetch(input as Parameters<typeof fetch>[0], init);
+        },
+      );
+
+    const { baseUrl } = await startServer();
+    const response = await fetch(
+      `${baseUrl}/maps/place-enrichment/demo-place-id`,
+    );
+    const payload = await response.json();
+
+    const placesCall = fetchSpy.mock.calls.find(([input]) => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.toString()
+            : input.url;
+
+      return url.startsWith("https://places.googleapis.com/");
+    });
+
+    expect(response.status).toBe(200);
+    expect(payload).toEqual({
+      displayName: "Demo Pickup Zone",
+      openNow: true,
+      rating: 4.6,
+      reviewCount: 128,
+    });
+    expect(placesCall).toBeDefined();
+
+    const placesCallInit = placesCall?.[1] as RequestInit | undefined;
+    const placesHeaders = placesCallInit?.headers as Record<string, string>;
+    expect(placesHeaders["X-Goog-Api-Key"]).toBe("maps-key");
+
+    fetchSpy.mockRestore();
+  });
+
+  it("returns a clear error when maps enrichment is not configured", async () => {
+    const { baseUrl } = await startServer();
+    const response = await fetch(
+      `${baseUrl}/maps/place-enrichment/demo-place-id`,
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(payload.error).toBe("maps_not_configured");
   });
 
   it("rejects invalid recommendation requests", async () => {

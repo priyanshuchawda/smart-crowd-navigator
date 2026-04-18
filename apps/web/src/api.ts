@@ -7,6 +7,13 @@ import type {
   RecommendationRequestInput,
 } from "./types";
 
+type PlaceEnrichmentResponse = {
+  displayName?: string;
+  openNow?: boolean | null;
+  rating?: number;
+  reviewCount?: number;
+};
+
 function resolveApiBaseUrl() {
   const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
 
@@ -152,3 +159,25 @@ export async function resetOperatorState(authToken?: string) {
 
   return (await response.json()) as OperatorStateResponse;
 }
+
+export async function getGroundedPlaceEnrichment(
+  placeId: string,
+  signal?: AbortSignal,
+) {
+  const response = await fetch(
+    `${apiBaseUrl}/maps/place-enrichment/${encodeURIComponent(placeId)}`,
+    {
+      headers: await buildHeaders({ hasBody: false }),
+      method: "GET",
+      signal,
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`Place enrichment failed with status ${response.status}`);
+  }
+
+  return (await response.json()) as PlaceEnrichmentResponse;
+}
+
+export type { PlaceEnrichmentResponse };

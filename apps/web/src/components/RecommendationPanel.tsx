@@ -1,18 +1,15 @@
 import { type RefObject, memo, useEffect, useState } from "react";
 
+import {
+  type PlaceEnrichmentResponse,
+  getGroundedPlaceEnrichment,
+} from "../api";
 import type { AssistantApiResponse } from "../types";
 
 interface RecommendationPanelProps {
   headingRef?: RefObject<HTMLHeadingElement | null>;
   response: AssistantApiResponse | null;
   isLoading?: boolean;
-}
-
-interface PlaceEnrichment {
-  displayName?: string;
-  openNow?: boolean | null;
-  rating?: number;
-  reviewCount?: number;
 }
 
 const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY?.trim() ?? "";
@@ -41,52 +38,49 @@ function GroundedPlaceDetails({
   widgetContextToken?: string;
 }) {
   const [placeEnrichment, setPlaceEnrichment] =
-    useState<PlaceEnrichment | null>(null);
+    useState<PlaceEnrichmentResponse | null>(null);
+  const [placeEnrichmentError, setPlaceEnrichmentError] = useState<
+    string | null
+  >(null);
+  const [isPlaceEnrichmentLoading, setIsPlaceEnrichmentLoading] =
+    useState(false);
 
   useEffect(() => {
-    if (!googleMapsApiKey || !place.placeId) {
+    const placeId = place.placeId;
+
+    if (!placeId) {
       setPlaceEnrichment(null);
+      setPlaceEnrichmentError(null);
+      setIsPlaceEnrichmentLoading(false);
       return;
     }
 
+    const safePlaceId: string = placeId;
+
     const controller = new AbortController();
+    setIsPlaceEnrichmentLoading(true);
+    setPlaceEnrichmentError(null);
 
     async function loadPlaceEnrichment() {
       try {
-        const detailsResponse = await fetch(
-          `https://places.googleapis.com/v1/places/${place.placeId}`,
-          {
-            headers: {
-              "X-Goog-Api-Key": googleMapsApiKey,
-              "X-Goog-FieldMask":
-                "displayName,rating,userRatingCount,regularOpeningHours.openNow",
-            },
-            signal: controller.signal,
-          },
+        const details = await getGroundedPlaceEnrichment(
+          safePlaceId,
+          controller.signal,
         );
 
-        if (!detailsResponse.ok) {
-          throw new Error(
-            `Places enrichment failed with ${detailsResponse.status}`,
-          );
+        if (!controller.signal.aborted) {
+          setPlaceEnrichment(details);
         }
-
-        const details = (await detailsResponse.json()) as {
-          displayName?: { text?: string };
-          rating?: number;
-          regularOpeningHours?: { openNow?: boolean };
-          userRatingCount?: number;
-        };
-
-        setPlaceEnrichment({
-          displayName: details.displayName?.text,
-          openNow: details.regularOpeningHours?.openNow ?? null,
-          rating: details.rating,
-          reviewCount: details.userRatingCount,
-        });
       } catch {
         if (!controller.signal.aborted) {
           setPlaceEnrichment(null);
+          setPlaceEnrichmentError(
+            "Places details unavailable. Showing map preview only.",
+          );
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsPlaceEnrichmentLoading(false);
         }
       }
     }
@@ -105,6 +99,18 @@ function GroundedPlaceDetails({
         src={buildGroundingPreviewUrl(place)}
         title={`Map preview for ${place.title}`}
       />
+
+      {isPlaceEnrichmentLoading ? (
+        <output className="field-help-text" aria-live="polite">
+          Loading place details…
+        </output>
+      ) : null}
+
+      {placeEnrichmentError ? (
+        <output className="error-banner" aria-live="polite">
+          {placeEnrichmentError}
+        </output>
+      ) : null}
 
       {placeEnrichment ? (
         <div className="places-enrichment-card">
@@ -136,7 +142,7 @@ function GroundedPlaceDetails({
 
       <p className="field-help-text">
         {googleMapsApiKey
-          ? "Official Google Maps Embed API preview is active from VITE_GOOGLE_MAPS_API_KEY for this grounded place."
+          ? "Official Google Maps Embed API preview is active from VITE_GOOGLE_MAPS_API_KEY for this grounded place. Place details are fetched through a secured backend proxy."
           : "Set VITE_GOOGLE_MAPS_API_KEY to upgrade this preview to the official Google Maps Embed API."}{" "}
         {widgetContextToken
           ? "A Gemini widget context token is also available for richer handoff."

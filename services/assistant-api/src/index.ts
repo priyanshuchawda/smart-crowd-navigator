@@ -19,6 +19,10 @@ import {
 import { validateRuntimeEnvironment } from "./env.js";
 import { createGeminiAssistantService } from "./gemini.js";
 import {
+  MapsPlacesError,
+  fetchGroundedPlaceEnrichment,
+} from "./maps-places.js";
+import {
   OperatorAuthError,
   type OperatorAuthService,
   createOperatorAuthService,
@@ -339,6 +343,66 @@ function createRequestHandler({
     if (method === "GET" && url.pathname === "/live-state/source") {
       respondJson(request, response, 200, getLiveVenueStateMetadata());
       return;
+    }
+
+    if (
+      method === "GET" &&
+      url.pathname.startsWith("/maps/place-enrichment/")
+    ) {
+      const appCheck = await requireAppCheck(
+        request,
+        response,
+        appCheckService,
+      );
+
+      if (appCheckService.isRequired() && !appCheck) {
+        return;
+      }
+
+      if (!checkRateLimit(request, "assistant")) {
+        respondJson(request, response, 429, {
+          error: "rate_limited",
+        });
+        return;
+      }
+
+      const encodedPlaceId = url.pathname.slice(
+        "/maps/place-enrichment/".length,
+      );
+      let placeId: string;
+
+      try {
+        placeId = decodeURIComponent(encodedPlaceId);
+      } catch {
+        respondJson(request, response, 400, {
+          error: "bad_place_id",
+          message: "Place identifier is invalid",
+        });
+        return;
+      }
+
+      try {
+        const payload = await fetchGroundedPlaceEnrichment(placeId);
+
+        respondJson(request, response, 200, payload, {
+          "cache-control": "public, max-age=60",
+        });
+        return;
+      } catch (error) {
+        if (error instanceof MapsPlacesError) {
+          respondJson(request, response, error.statusCode, {
+            error: error.code,
+            message: error.message,
+          });
+          return;
+        }
+
+        respondJson(request, response, 502, {
+          error: "places_unavailable",
+          message: "Unable to fetch place enrichment",
+        });
+        return;
+      }
     }
 
     if (method === "GET" && url.pathname === "/operator/state") {

@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { copyFile, rm } from "node:fs/promises";
+import { copyFile, readdir, rm } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -7,15 +7,6 @@ const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const compiledSourceRoot = resolve(projectRoot, "dist/services/assistant-api/src");
 const outputRoot = resolve(projectRoot, "dist");
 const tscCliPath = resolve(projectRoot, "../../node_modules/typescript/bin/tsc");
-const compiledModules = [
-  "app-check",
-  "env",
-  "gemini",
-  "index",
-  "operator-auth",
-  "recommendation",
-  "request-utils",
-];
 
 function runTypeScriptBuild() {
   return new Promise((resolveBuild, rejectBuild) => {
@@ -37,12 +28,22 @@ function runTypeScriptBuild() {
 }
 
 async function flattenAssistantApiDist() {
-  for (const moduleName of compiledModules) {
-    for (const extension of ["js", "d.ts"]) {
-      const sourceFile = resolve(compiledSourceRoot, `${moduleName}.${extension}`);
-      const targetFile = resolve(outputRoot, `${moduleName}.${extension}`);
-      await copyFile(sourceFile, targetFile);
+  const compiledEntries = await readdir(compiledSourceRoot, {
+    withFileTypes: true,
+  });
+
+  for (const entry of compiledEntries) {
+    if (!entry.isFile()) {
+      continue;
     }
+
+    if (!entry.name.endsWith(".js") && !entry.name.endsWith(".d.ts")) {
+      continue;
+    }
+
+    const sourceFile = resolve(compiledSourceRoot, entry.name);
+    const targetFile = resolve(outputRoot, entry.name);
+    await copyFile(sourceFile, targetFile);
   }
 }
 

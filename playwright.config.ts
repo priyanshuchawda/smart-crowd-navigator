@@ -9,8 +9,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command:
-        "DISABLE_GEMINI_ASSISTANT=true PORT=8080 node services/assistant-api/dist/index.js",
+      command: "node services/assistant-api/scripts/start-test-server.mjs",
       url: "http://127.0.0.1:8080/health",
       reuseExistingServer: true,
     },
