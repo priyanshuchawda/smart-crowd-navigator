@@ -16,6 +16,41 @@ import {
   runGeminiRecommendationAssistant,
   shouldUseMapsGrounding,
 } from "./gemini.js";
+import { createGeminiModelAvailabilityService } from "./gemini-model-availability.js";
+
+function buildFallbackResponse(message: string) {
+  return {
+    message,
+    recommendation: {
+      intent: "food",
+      timingDecision: "go_now",
+      waitOrGoReason:
+        "Leaving now is still the fastest option once wait time is included.",
+      primaryOption: {
+        id: "stall-b",
+        label: "Stall B",
+        kind: "food",
+      },
+      primaryReason: "Best total score: 7 minutes.",
+      etaMinutes: 4,
+      waitMinutes: 3,
+      timeSavedMinutes: 0,
+      routeSummary: "Section A-12 -> Concourse East -> Stall B",
+      crowdWarning: null,
+      fallbackOption: null,
+      decisionReasons: {
+        strengths: [
+          "Best overall score across the currently available options.",
+          "Balances walking time, queue pressure, and reliability.",
+        ],
+        tradeoffs: [],
+      },
+      operationalAdvisory: null,
+      confidence: "high",
+    },
+    source: "gemini" as const,
+  };
+}
 
 describe("runGeminiRecommendationAssistant", () => {
   it("supports a two-turn function-calling flow", async () => {
@@ -300,37 +335,7 @@ describe("runGeminiRecommendationAssistant", () => {
           },
         ),
       )
-      .mockResolvedValueOnce({
-        message: "Recovered on fallback model.",
-        recommendation: {
-          intent: "food",
-          timingDecision: "go_now",
-          waitOrGoReason:
-            "Leaving now is still the fastest option once wait time is included.",
-          primaryOption: {
-            id: "stall-b",
-            label: "Stall B",
-            kind: "food",
-          },
-          primaryReason: "Best total score: 7 minutes.",
-          etaMinutes: 4,
-          waitMinutes: 3,
-          timeSavedMinutes: 0,
-          routeSummary: "Section A-12 → Concourse East → Stall B",
-          crowdWarning: null,
-          fallbackOption: null,
-          decisionReasons: {
-            strengths: [
-              "Best overall score across the currently available options.",
-              "Balances walking time, queue pressure, and reliability.",
-            ],
-            tradeoffs: [],
-          },
-          operationalAdvisory: null,
-          confidence: "high",
-        },
-        source: "gemini" as const,
-      });
+      .mockResolvedValueOnce(buildFallbackResponse("Recovered on fallback model."));
 
     const result = await runGeminiAssistantWithFallbacks({
       executeModel,
@@ -342,6 +347,75 @@ describe("runGeminiRecommendationAssistant", () => {
       "gemini-3-flash-preview",
     ]);
     expect(result.message).toBe("Recovered on fallback model.");
+  });
+
+  it("skips models currently in cooldown before making fallback attempts", async () => {
+    let nowMs = 1_000;
+    const availabilityService = createGeminiModelAvailabilityService({
+      cooldownMs: 60_000,
+      now: () => nowMs,
+    });
+
+    availabilityService.markModelFailure(
+      "gemini-3.1-flash-lite-preview",
+      Object.assign(new Error("temporarily unavailable"), {
+        status: 503,
+      }),
+    );
+
+    const executeModel = vi
+      .fn()
+      .mockResolvedValue(buildFallbackResponse("Recovered on second model."));
+
+    const result = await runGeminiAssistantWithFallbacks({
+      availabilityService,
+      executeModel,
+      primaryModel: "gemini-3.1-flash-lite-preview",
+    });
+
+    expect(executeModel.mock.calls.map(([model]) => model)).toEqual([
+      "gemini-3-flash-preview",
+    ]);
+    expect(result.message).toBe("Recovered on second model.");
+
+    nowMs += 61_000;
+
+    expect(
+      availabilityService.selectFirstAvailableModel([
+        "gemini-3.1-flash-lite-preview",
+        "gemini-3-flash-preview",
+      ]),
+    ).toBe("gemini-3.1-flash-lite-preview");
+  });
+
+  it("continues to fallback when the current model becomes terminally unavailable", async () => {
+    const availabilityService = createGeminiModelAvailabilityService();
+    const executeModel = vi
+      .fn()
+      .mockRejectedValueOnce(
+        Object.assign(new Error("Model not found for API version"), {
+          status: 404,
+        }),
+      )
+      .mockResolvedValueOnce(
+        buildFallbackResponse("Recovered after terminal model failure."),
+      );
+
+    const result = await runGeminiAssistantWithFallbacks({
+      availabilityService,
+      executeModel,
+      primaryModel: "gemini-3.1-flash-lite-preview",
+    });
+
+    expect(executeModel.mock.calls.map(([model]) => model)).toEqual([
+      "gemini-3.1-flash-lite-preview",
+      "gemini-3-flash-preview",
+    ]);
+    expect(
+      availabilityService.getModelHealth("gemini-3.1-flash-lite-preview")
+        .status,
+    ).toBe("terminal");
+    expect(result.message).toBe("Recovered after terminal model failure.");
   });
 
   it("does not retry non-retryable Gemini errors", async () => {

@@ -14,6 +14,10 @@ import {
   isRetryableGeminiTransportError,
   retryGeminiCall,
 } from "./gemini-retry.js";
+import {
+  createGeminiModelAvailabilityService,
+  type GeminiModelAvailabilityService,
+} from "./gemini-model-availability.js";
 import { buildRecommendationPayload } from "./recommendation.js";
 
 type GenerateContent = (
@@ -96,6 +100,10 @@ const GEMINI_REQUEST_RETRY_OPTIONS = {
   maxAttempts: 3,
   maxDelayMs: 4_000,
 };
+const sharedGeminiModelAvailabilityService =
+  createGeminiModelAvailabilityService({
+    isTransientModelError: (error) => isRetryableGeminiError(error),
+  });
 
 function buildAssistantPrompt(requestPayload: unknown) {
   const typedPayload = requestPayload as RecommendationRequest;
@@ -206,25 +214,51 @@ function isRetryableGeminiError(error: unknown) {
 }
 
 async function runGeminiAssistantWithFallbacks({
+  availabilityService = createGeminiModelAvailabilityService({
+    isTransientModelError: (error) => isRetryableGeminiError(error),
+  }),
   executeModel,
   primaryModel,
 }: {
+  availabilityService?: GeminiModelAvailabilityService;
   executeModel: (model: string) => Promise<AssistantResponsePayload>;
   primaryModel: string;
 }) {
   let lastError: unknown = null;
+  const attemptedModels = new Set<string>();
   const modelChain = getGeminiModelFallbackChain(primaryModel);
 
-  for (const model of modelChain) {
+  while (attemptedModels.size < modelChain.length) {
+    const model = availabilityService.selectFirstAvailableModel(modelChain, {
+      attemptedModels,
+    });
+
+    if (!model) {
+      break;
+    }
+
+    attemptedModels.add(model);
+
     try {
-      return await executeModel(model);
+      const result = await executeModel(model);
+      availabilityService.markModelSuccess(model);
+      return result;
     } catch (error) {
       lastError = error;
 
-      if (!isRetryableGeminiError(error) || model === modelChain.at(-1)) {
+      availabilityService.markModelFailure(model, error);
+      const modelHealth = availabilityService.getModelHealth(model);
+      const shouldTryNextModel =
+        isRetryableGeminiError(error) || modelHealth.status !== "healthy";
+
+      if (!shouldTryNextModel) {
         throw error;
       }
     }
+  }
+
+  if (lastError === null) {
+    throw new Error("No Gemini models are currently available");
   }
 
   throw lastError instanceof Error
@@ -464,10 +498,12 @@ function createGeminiAssistantService({
       }
     : undefined,
   model = process.env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL,
+  modelAvailabilityService = sharedGeminiModelAvailabilityService,
 }: {
   apiKey?: string;
   mapsLocationContext?: MapsLocationContext;
   model?: string;
+  modelAvailabilityService?: GeminiModelAvailabilityService;
 } = {}) {
   if (!apiKey) {
     throw new Error("GEMINI_API_KEY is not configured");
@@ -502,10 +538,15 @@ function createGeminiAssistantService({
             requestPayload,
           });
         },
+        availabilityService: modelAvailabilityService,
         primaryModel: model,
       });
     },
   };
+}
+
+function resetGeminiModelAvailabilityState() {
+  sharedGeminiModelAvailabilityService.reset();
 }
 
 export {
@@ -524,5 +565,6 @@ export {
   runGeminiAssistantWithFallbacks,
   runGeminiMapsGroundedAssistant,
   runGeminiRecommendationAssistant,
+  resetGeminiModelAvailabilityState,
   shouldUseMapsGrounding,
 };
