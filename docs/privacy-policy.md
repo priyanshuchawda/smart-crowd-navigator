@@ -5,10 +5,12 @@ _Effective for the current repository/demo deployment as of 2026-04-14._
 ## 1. Operator
 
 Smart Crowd Navigator is currently operated by the deployment operator of:
+
 - the public repository at `https://github.com/priyanshuchawda/smart-crowd-navigator`
 - the verified Cloud Run deployment at `https://smart-crowd-navigator-6onqsv3h4a-uc.a.run.app`
 
 For product/privacy questions, use the repository issue tracker:
+
 - `https://github.com/priyanshuchawda/smart-crowd-navigator/issues`
 
 ## 2. What the product does
@@ -18,6 +20,7 @@ Smart Crowd Navigator helps attendees at large sporting venues choose lower-fric
 ## 3. Data the current product may process
 
 Depending on deployment configuration, the product may process:
+
 - attendee request inputs submitted in the web UI
 - conversation history included in follow-up assistant requests
 - live venue-state telemetry used for routing decisions
@@ -29,6 +32,7 @@ Depending on deployment configuration, the product may process:
 ## 4. Why data is processed
 
 Data is processed to:
+
 - produce recommendation responses
 - keep live venue guidance current
 - protect the service from abuse
@@ -39,6 +43,7 @@ Data is processed to:
 ## 5. Third-party services
 
 The current product may rely on:
+
 - Google Gemini API
 - Google Maps grounding through Gemini
 - Firebase Auth
@@ -50,6 +55,7 @@ The current product may rely on:
 ## 6. Data retention
 
 Current recommended retention posture:
+
 - keep logs only as long as needed for debugging, abuse review, and operational safety
 - avoid storing unnecessary personal data in Firestore documents
 - keep live venue-state documents limited to operational routing inputs
