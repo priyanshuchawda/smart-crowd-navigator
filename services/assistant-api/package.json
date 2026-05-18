@@ -8,7 +8,7 @@
     "@smart-crowd-navigator/shared": "workspace:*",
     "@smart-crowd-navigator/venue-engine": "workspace:*",
     "dotenv": "16.6.1",
-    "zod": "4.0.1"
+    "zod": "4.4.3"
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",
